@@ -3047,17 +3047,15 @@ fn wire__crate__api__start_connection_impl(
             let api_remote_port = <u16>::sse_decode(&mut deserializer);
             deserializer.end();
             move |context| {
-                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
-                    (move || {
-                        let output_ok = crate::api::start_connection(
-                            api_project_id,
-                            api_zone,
-                            api_instance_name,
-                            api_remote_port,
-                        )?;
-                        Ok(output_ok)
-                    })(),
-                )
+                transform_result_sse::<_, crate::api::TunnelFailure>((move || {
+                    let output_ok = crate::api::start_connection(
+                        api_project_id,
+                        api_zone,
+                        api_instance_name,
+                        api_remote_port,
+                    )?;
+                    Ok(output_ok)
+                })())
             }
         },
     )
@@ -4508,6 +4506,18 @@ impl SseDecode for crate::sshfs_mount::SshfsStatus {
     }
 }
 
+impl SseDecode for crate::api::TunnelFailure {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut var_code = <String>::sse_decode(deserializer);
+        let mut var_detail = <Option<String>>::sse_decode(deserializer);
+        return crate::api::TunnelFailure {
+            code: var_code,
+            detail: var_detail,
+        };
+    }
+}
+
 impl SseDecode for crate::tunnel::TunnelInfo {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -5507,6 +5517,22 @@ impl flutter_rust_bridge::IntoIntoDart<crate::sshfs_mount::SshfsStatus>
     }
 }
 // Codec=Dco (DartCObject based), see doc to use other codecs
+impl flutter_rust_bridge::IntoDart for crate::api::TunnelFailure {
+    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
+        [
+            self.code.into_into_dart().into_dart(),
+            self.detail.into_into_dart().into_dart(),
+        ]
+        .into_dart()
+    }
+}
+impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::api::TunnelFailure {}
+impl flutter_rust_bridge::IntoIntoDart<crate::api::TunnelFailure> for crate::api::TunnelFailure {
+    fn into_into_dart(self) -> crate::api::TunnelFailure {
+        self
+    }
+}
+// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::tunnel::TunnelInfo {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
@@ -6423,6 +6449,14 @@ impl SseEncode for crate::sshfs_mount::SshfsStatus {
         <Option<String>>::sse_encode(self.version, serializer);
         <Option<String>>::sse_encode(self.binary_path, serializer);
         <Vec<String>>::sse_encode(self.issues, serializer);
+    }
+}
+
+impl SseEncode for crate::api::TunnelFailure {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(self.code, serializer);
+        <Option<String>>::sse_encode(self.detail, serializer);
     }
 }
 

@@ -150,7 +150,7 @@ pub fn start_tunnel(project: &str, zone: &str, instance: &str, remote_port: u16)
 fn start_native(project: &str, zone: &str, instance: &str, remote_port: u16) -> Result<IapTunnel> {
     let target = crate::iap_tunnel::TunnelTarget::new(project, zone, instance, remote_port);
     let native = crate::logging::block_on(crate::iap_tunnel::start(target))
-        .map_err(|e| anyhow!("{}", e))?;
+        .map_err(anyhow::Error::new)?;
     Ok(IapTunnel { local_port: native.local_port, backend: Backend::Native(native) })
 }
 

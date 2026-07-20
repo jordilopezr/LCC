@@ -905,3 +905,22 @@ Future<void> createDiskFromSnapshot({
   snapshotName: snapshotName,
   newDiskName: newDiskName,
 );
+
+/// Error crossing the bridge: a stable code plus untranslated diagnostic detail.
+class TunnelFailure implements FrbException {
+  final String code;
+  final String? detail;
+
+  const TunnelFailure({required this.code, this.detail});
+
+  @override
+  int get hashCode => code.hashCode ^ detail.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TunnelFailure &&
+          runtimeType == other.runtimeType &&
+          code == other.code &&
+          detail == other.detail;
+}

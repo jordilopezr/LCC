@@ -266,6 +266,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SshfsStatus dco_decode_sshfs_status(dynamic raw);
 
   @protected
+  TunnelFailure dco_decode_tunnel_failure(dynamic raw);
+
+  @protected
   TunnelInfo dco_decode_tunnel_info(dynamic raw);
 
   @protected
@@ -596,6 +599,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   SshfsStatus sse_decode_sshfs_status(SseDeserializer deserializer);
+
+  @protected
+  TunnelFailure sse_decode_tunnel_failure(SseDeserializer deserializer);
 
   @protected
   TunnelInfo sse_decode_tunnel_info(SseDeserializer deserializer);
@@ -1019,6 +1025,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_sshfs_status(SshfsStatus self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_tunnel_failure(TunnelFailure self, SseSerializer serializer);
 
   @protected
   void sse_encode_tunnel_info(TunnelInfo self, SseSerializer serializer);

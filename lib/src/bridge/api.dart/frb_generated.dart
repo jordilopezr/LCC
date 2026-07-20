@@ -3096,7 +3096,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_u_16,
-          decodeErrorData: sse_decode_AnyhowException,
+          decodeErrorData: sse_decode_tunnel_failure,
         ),
         constMeta: kCrateApiStartConnectionConstMeta,
         argValues: [projectId, zone, instanceName, remotePort],
@@ -4228,6 +4228,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       version: dco_decode_opt_String(arr[2]),
       binaryPath: dco_decode_opt_String(arr[3]),
       issues: dco_decode_list_String(arr[4]),
+    );
+  }
+
+  @protected
+  TunnelFailure dco_decode_tunnel_failure(dynamic raw) {
+    // Codec=Dco (DartCObject based), see doc to use other codecs
+    final arr = raw as List<dynamic>;
+    if (arr.length != 2)
+      throw Exception('unexpected arr length: expect 2 but see ${arr.length}');
+    return TunnelFailure(
+      code: dco_decode_String(arr[0]),
+      detail: dco_decode_opt_String(arr[1]),
     );
   }
 
@@ -5391,6 +5403,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
+  TunnelFailure sse_decode_tunnel_failure(SseDeserializer deserializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    var var_code = sse_decode_String(deserializer);
+    var var_detail = sse_decode_opt_String(deserializer);
+    return TunnelFailure(code: var_code, detail: var_detail);
+  }
+
+  @protected
   TunnelInfo sse_decode_tunnel_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     var var_key = sse_decode_String(deserializer);
@@ -6388,6 +6408,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     sse_encode_opt_String(self.version, serializer);
     sse_encode_opt_String(self.binaryPath, serializer);
     sse_encode_list_String(self.issues, serializer);
+  }
+
+  @protected
+  void sse_encode_tunnel_failure(TunnelFailure self, SseSerializer serializer) {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    sse_encode_String(self.code, serializer);
+    sse_encode_opt_String(self.detail, serializer);
   }
 
   @protected

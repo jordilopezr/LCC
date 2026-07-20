@@ -186,8 +186,31 @@ pub fn greet() -> String {
 }
 
 // Wrapper functions for tunnel module
-pub fn start_connection(project_id: String, zone: String, instance_name: String, remote_port: u16) -> anyhow::Result<u16> {
-    crate::tunnel::start_tunnel(&project_id, &zone, &instance_name, remote_port)
+
+/// Error crossing the bridge: a stable code plus untranslated diagnostic detail.
+pub struct TunnelFailure {
+    pub code: String,
+    pub detail: Option<String>,
+}
+
+pub fn start_connection(
+    project_id: String,
+    zone: String,
+    instance_name: String,
+    remote_port: u16,
+) -> Result<u16, TunnelFailure> {
+    crate::tunnel::start_tunnel(&project_id, &zone, &instance_name, remote_port).map_err(|err| {
+        match err.downcast_ref::<crate::iap_tunnel::TunnelError>() {
+            Some(tunnel_error) => TunnelFailure {
+                code: tunnel_error.code().to_string(),
+                detail: tunnel_error.detail(),
+            },
+            None => TunnelFailure {
+                code: "protocol_error".to_string(),
+                detail: Some(err.to_string()),
+            },
+        }
+    })
 }
 
 pub fn stop_connection(instance_name: String, remote_port: u16) -> anyhow::Result<()> {

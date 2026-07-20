@@ -424,6 +424,7 @@ class TunnelState {
   final int? port; // Local port where tunnel listens (e.g., 40759)
   final int? remotePort; // Remote port being forwarded (e.g., 3389 for RDP, 22 for SSH)
   final String? error;
+  final String? errorCode; // Stable machine-readable code from TunnelFailure (Task 8 localizes it)
   final DateTime? createdAt; // When the tunnel was established
   final DateTime? lastHealthCheck; // Last health verification timestamp
 
@@ -441,6 +442,7 @@ class TunnelState {
     this.port,
     this.remotePort,
     this.error,
+    this.errorCode,
     this.createdAt,
     this.lastHealthCheck,
     this.reconnectAttempts = 0,
@@ -895,6 +897,21 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
         )
       };
       return port;
+    } on TunnelFailure catch (e) {
+      // Error solo en este túnel específico
+      state = {
+        ...state,
+        tunnelKey: TunnelState(
+          status: 'error',
+          remotePort: remotePort,
+          error: e.detail ?? e.code,
+          errorCode: e.code,
+          projectId: projectId,
+          zone: zone,
+        )
+      };
+      // No hacemos rethrow para no romper la UI general, el estado refleja el error
+      return null;
     } catch (e) {
       // Error solo en este túnel específico
       state = {
