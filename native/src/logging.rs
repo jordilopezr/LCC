@@ -231,6 +231,21 @@ pub fn export_logs() -> Result<PathBuf> {
     Ok(export_path)
 }
 
+/// Shared multi-threaded runtime for async work called from sync FFI entry points.
+static RUNTIME: std::sync::OnceLock<tokio::runtime::Runtime> = std::sync::OnceLock::new();
+
+/// Run a future to completion on the shared runtime.
+pub fn block_on<F: std::future::Future>(future: F) -> F::Output {
+    RUNTIME
+        .get_or_init(|| {
+            tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .build()
+                .expect("failed to build shared tokio runtime")
+        })
+        .block_on(future)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

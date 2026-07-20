@@ -15,25 +15,51 @@ pub struct TunnelInfo {
     pub is_healthy: bool,
 }
 
+/// Which implementation is serving a tunnel.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TunnelEngine {
+    Native,
+    Gcloud,
+}
+
+/// Read `LCC_TUNNEL_ENGINE`. `None` = try native, fall back to gcloud.
+/// Debug aid only; deliberately not exposed in Settings.
+pub fn selected_engine() -> Option<TunnelEngine> {
+    match std::env::var("LCC_TUNNEL_ENGINE").ok()?.as_str() {
+        "native" => Some(TunnelEngine::Native),
+        "gcloud" => Some(TunnelEngine::Gcloud),
+        _ => None,
+    }
+}
+
+enum Backend {
+    Native(crate::iap_tunnel::NativeTunnel),
+    Gcloud(Child),
+}
+
 pub struct IapTunnel {
-    process: Child,
+    backend: Backend,
     pub local_port: u16,
 }
 
 impl IapTunnel {
     pub fn stop(&mut self) -> Result<()> {
-        // Enviar SIGTERM o SIGKILL. kill() es SIGKILL.
-        let _ = self.process.kill();
-        let _ = self.process.wait();
+        match &mut self.backend {
+            Backend::Native(tunnel) => tunnel.stop(),
+            Backend::Gcloud(process) => {
+                // Enviar SIGTERM o SIGKILL. kill() es SIGKILL.
+                let _ = process.kill();
+                let _ = process.wait();
+            }
+        }
         Ok(())
     }
 
-    /// Check if the tunnel process is still running
+    /// Whether the tunnel's engine is still alive.
     pub fn is_process_alive(&mut self) -> bool {
-        match self.process.try_wait() {
-            Ok(Some(_)) => false, // Process has exited
-            Ok(None) => true,     // Process is still running
-            Err(_) => false,      // Error checking status, assume dead
+        match &mut self.backend {
+            Backend::Native(tunnel) => tunnel.is_running(),
+            Backend::Gcloud(process) => matches!(process.try_wait(), Ok(None)),
         }
     }
 
@@ -91,85 +117,74 @@ pub fn start_tunnel(project: &str, zone: &str, instance: &str, remote_port: u16)
         }
     }
 
+    let forced = selected_engine();
+
+    // Native first unless gcloud was forced.
+    if forced != Some(TunnelEngine::Gcloud) {
+        match start_native(project, zone, instance, remote_port) {
+            Ok(tunnel) => {
+                let local_port = tunnel.local_port;
+                let mut tunnels = TUNNELS.lock().map_err(|_| anyhow!("Tunnel lock poisoned"))?;
+                tunnels.insert(make_tunnel_key(instance, remote_port), tunnel);
+                tracing::info!(instance, remote_port, local_port, engine = "native", "Tunnel established");
+                return Ok(local_port);
+            }
+            Err(err) => {
+                if forced == Some(TunnelEngine::Native) {
+                    return Err(err);
+                }
+                tracing::warn!(instance, error = %err, "Native tunnel failed, falling back to gcloud");
+            }
+        }
+    }
+
+    let tunnel = start_gcloud(project, zone, instance, remote_port)?;
+    let local_port = tunnel.local_port;
+    let mut tunnels = TUNNELS.lock().map_err(|_| anyhow!("Tunnel lock poisoned"))?;
+    tunnels.insert(make_tunnel_key(instance, remote_port), tunnel);
+    tracing::info!(instance, remote_port, local_port, engine = "gcloud", "Tunnel established");
+    Ok(local_port)
+}
+
+/// Start the native engine on the shared tokio runtime.
+fn start_native(project: &str, zone: &str, instance: &str, remote_port: u16) -> Result<IapTunnel> {
+    let target = crate::iap_tunnel::TunnelTarget::new(project, zone, instance, remote_port);
+    let native = crate::logging::block_on(crate::iap_tunnel::start(target))
+        .map_err(|e| anyhow!("{}", e))?;
+    Ok(IapTunnel { local_port: native.local_port, backend: Backend::Native(native) })
+}
+
+/// Legacy engine: spawn `gcloud compute start-iap-tunnel` and wait for the port.
+fn start_gcloud(project: &str, zone: &str, instance: &str, remote_port: u16) -> Result<IapTunnel> {
     let port = get_free_port()?;
-    
     let child = Command::new("gcloud")
         .args([
-            "compute", 
-            "start-iap-tunnel", 
-            instance, 
+            "compute",
+            "start-iap-tunnel",
+            instance,
             &remote_port.to_string(),
             &format!("--local-host-port=localhost:{}", port),
             "--zone", zone,
-            "--project", project
+            "--project", project,
         ])
-        .stdout(Stdio::null()) // Ignorar stdout por ahora
-        .stderr(Stdio::piped()) // Capturar stderr para logs si fuera necesario (no implementado lectura async aun)
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| anyhow!("Failed to spawn gcloud tunnel: {}", e))?;
 
-    // Store the tunnel immediately so we can check its health
-    let mut tunnel = IapTunnel { process: child, local_port: port };
-
-    // Wait briefly for tunnel to initialize
-    std::thread::sleep(std::time::Duration::from_millis(1000));
-
-    // IMPROVEMENT: Verify tunnel health before declaring success
+    let mut tunnel = IapTunnel { local_port: port, backend: Backend::Gcloud(child) };
+    std::thread::sleep(Duration::from_millis(1000));
     if !tunnel.is_process_alive() {
         return Err(anyhow!("Tunnel process died immediately after startup"));
     }
-
-    // Wait up to 10 seconds for port to start listening (increased from 5s)
-    let mut port_ready = false;
-    tracing::info!(
-        instance = instance,
-        port = port,
-        "Waiting for tunnel port to start listening (max 10 seconds)..."
-    );
-
-    for attempt in 0..20 {
+    for _ in 0..20 {
         if tunnel.is_port_listening() {
-            port_ready = true;
-            tracing::info!(
-                instance = instance,
-                port = port,
-                attempt = attempt + 1,
-                elapsed_ms = (attempt + 1) * 500,
-                "Port is now listening"
-            );
-            break;
+            return Ok(tunnel);
         }
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::thread::sleep(Duration::from_millis(500));
     }
-
-    if !port_ready {
-        // Kill the process since it's not working
-        let _ = tunnel.stop();
-        tracing::error!(
-            instance = instance,
-            port = port,
-            "Tunnel port failed to listen after 10 seconds"
-        );
-        return Err(anyhow!(
-            "Tunnel process started but port {} is not listening after 10 seconds. \
-             Possible causes: IAP not enabled, firewall blocking, or slow network. \
-             Check logs and try SSH first to verify IAP works.",
-            port
-        ));
-    }
-
-    tracing::info!(
-        instance = instance,
-        remote_port = remote_port,
-        local_port = port,
-        "Tunnel health check passed - process alive and port listening"
-    );
-
-    let tunnel_key = make_tunnel_key(instance, remote_port);
-    let mut tunnels = TUNNELS.lock().map_err(|_| anyhow!("Tunnel lock poisoned"))?;
-    tunnels.insert(tunnel_key, tunnel);
-
-    Ok(port)
+    let _ = tunnel.stop();
+    Err(anyhow!("gcloud tunnel port {} never started listening", port))
 }
 
 pub fn stop_tunnel(instance: &str, remote_port: u16) -> Result<()> {
@@ -297,4 +312,35 @@ fn get_free_port() -> Result<u16> {
     let listener = TcpListener::bind("127.0.0.1:0")?;
     let port = listener.local_addr()?.port();
     Ok(port)
+}
+
+#[cfg(test)]
+mod engine_tests {
+    use super::*;
+
+    // DEVIATION from brief: both tests mutate the process-wide `LCC_TUNNEL_ENGINE`
+    // env var, and `cargo test` runs tests in parallel threads by default. Observed
+    // ~15% failure rate under repeated `cargo test engine_tests` runs before adding
+    // this lock. Serializing them here keeps the brief's test bodies verbatim while
+    // making the suite deterministic.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn engine_defaults_to_none_when_unset() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::remove_var("LCC_TUNNEL_ENGINE");
+        assert!(selected_engine().is_none());
+    }
+
+    #[test]
+    fn engine_can_be_forced() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("LCC_TUNNEL_ENGINE", "native");
+        assert!(matches!(selected_engine(), Some(TunnelEngine::Native)));
+        std::env::set_var("LCC_TUNNEL_ENGINE", "gcloud");
+        assert!(matches!(selected_engine(), Some(TunnelEngine::Gcloud)));
+        std::env::set_var("LCC_TUNNEL_ENGINE", "nonsense");
+        assert!(selected_engine().is_none());
+        std::env::remove_var("LCC_TUNNEL_ENGINE");
+    }
 }
