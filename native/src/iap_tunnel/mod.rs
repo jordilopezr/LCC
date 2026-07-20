@@ -5,4 +5,9 @@
 
 pub mod error;
 pub mod frame;
+pub mod listener;
 pub mod session;
+
+pub use error::TunnelError;
+pub use listener::{start, NativeTunnel};
+pub use session::TunnelTarget;
