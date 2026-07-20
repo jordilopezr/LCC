@@ -275,11 +275,14 @@ pub async fn run_session(
     let mut outbound = OutboundBuffer::new();
 
     loop {
-        if sid.is_some() {
-            // `sid.is_some()` is exactly "this is a reconnect": the relay
-            // will resend the DATA frame containing our last acked byte in
-            // full, so any partial frame bytes left over from the dropped
-            // connection would corrupt decoding if kept.
+        // `sid.is_some()` is exactly "this is a reconnect" — captured before
+        // `pending` is cleared below, and passed into `pump` so it knows
+        // whether to run the pre-loop resume phase (see `pump` doc comment).
+        let is_reconnect = sid.is_some();
+        if is_reconnect {
+            // The relay will resend the DATA frame containing our last
+            // acked byte in full, so any partial frame bytes left over from
+            // the dropped connection would corrupt decoding if kept.
             pending.clear();
         }
 
@@ -314,6 +317,7 @@ pub async fn run_session(
             &mut sid,
             &mut pending,
             &mut outbound,
+            is_reconnect,
         )
         .await?;
 
@@ -337,7 +341,113 @@ pub async fn run_session(
     }
 }
 
+/// Outcome of the pre-loop resume phase (see [`resume_after_reconnect`]).
+enum ResumeOutcome {
+    /// `ReconnectSuccessAck` received, applied, and the unconfirmed tail
+    /// resent — safe to enter the normal pump loop now.
+    Resumed,
+    /// The connection ended before resuming; `pump` should return this
+    /// value directly (`true` = peer closed cleanly, `false` = dropped,
+    /// caller should attempt another reconnect).
+    Terminate(bool),
+}
+
+/// Read ONLY from the relay (no racing local reads) until
+/// `Frame::ReconnectSuccessAck` is decoded, then apply it and resend the
+/// outbound tail the relay never confirmed.
+///
+/// This exists to preserve outbound byte order across a reconnect. If the
+/// normal `select!` loop (which also reads local data) were used here, a
+/// client with buffered data ready to send would race the incoming
+/// `ReconnectSuccessAck` and could send NEW data (stream position
+/// >= total_sent) before the OLDER unconfirmed tail
+/// (position in [relay_confirmed, total_sent)) gets resent. The relay
+/// appends client->VM bytes in arrival order with no position field, so the
+/// VM would see [new][old] instead of [old][new] — a corrupted stream. By
+/// reading only from `ws` until the resend is complete, the unconfirmed
+/// tail is always written to the socket before any new local bytes are.
+///
+/// Other frame types arriving during this phase are handled exactly as in
+/// the normal loop, so nothing is dropped if e.g. a DATA frame precedes the
+/// ReconnectSuccessAck.
+async fn resume_after_reconnect(
+    ws: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<TcpStream>,
+    >,
+    local_write: &mut tokio::net::tcp::OwnedWriteHalf,
+    policy: &mut AckPolicy,
+    sid: &mut Option<String>,
+    pending: &mut Vec<u8>,
+    outbound: &mut OutboundBuffer,
+) -> Result<ResumeOutcome, TunnelError> {
+    loop {
+        let message = match ws.next().await {
+            None => return Ok(ResumeOutcome::Terminate(false)),
+            Some(Ok(m)) => m,
+            Some(Err(e)) => {
+                tracing::warn!(error = %e, "relay stream error while resuming after reconnect");
+                return Ok(ResumeOutcome::Terminate(false));
+            }
+        };
+        let bytes = match message {
+            Message::Binary(b) => b,
+            Message::Close(_) => return Ok(ResumeOutcome::Terminate(true)),
+            _ => continue,
+        };
+        pending.extend_from_slice(&bytes);
+
+        while let Some((parsed, consumed)) = frame::decode(pending)
+            .map_err(|e| TunnelError::ProtocolError { detail: format!("{:?}", e) })?
+        {
+            pending.drain(..consumed);
+            match parsed {
+                Frame::ConnectSuccessSid(raw) => {
+                    *sid = Some(String::from_utf8_lossy(&raw).to_string());
+                }
+                Frame::Data(payload) => {
+                    policy.on_received(payload.len());
+                    if let Err(e) = local_write.write_all(&payload).await {
+                        tracing::warn!(error = %e, "local write failed, ending session");
+                        return Ok(ResumeOutcome::Terminate(true));
+                    }
+                    if let Some(ack) = policy.take_pending_ack() {
+                        if let Err(e) = ws.send(Message::Binary(frame::encode_ack(ack))).await {
+                            tracing::warn!(error = %e, "ack send failed, will attempt reconnect");
+                            return Ok(ResumeOutcome::Terminate(false));
+                        }
+                    }
+                }
+                Frame::Ack(n) => {
+                    outbound.on_relay_ack(n);
+                }
+                Frame::ReconnectSuccessAck(n) => {
+                    outbound.on_relay_ack(n);
+                    let resend = outbound.bytes_to_resend(n);
+                    for chunk in frame::chunks(&resend) {
+                        if let Err(e) = ws.send(Message::Binary(frame::encode_data(chunk))).await {
+                            tracing::warn!(error = %e, "outbound resend failed, will attempt reconnect");
+                            return Ok(ResumeOutcome::Terminate(false));
+                        }
+                    }
+                    return Ok(ResumeOutcome::Resumed);
+                }
+                Frame::Unknown { tag } => {
+                    tracing::debug!(tag, "ignoring unknown relay frame");
+                }
+            }
+        }
+    }
+}
+
 /// One connected lifetime. Returns Ok(true) when the peer closed cleanly.
+///
+/// `is_reconnect` is true whenever this connection is resuming a session
+/// (i.e. we already have a `sid`) rather than establishing the first one. On
+/// a reconnect, before reading any local data, we must wait for the relay's
+/// `ReconnectSuccessAck` and resend the unconfirmed outbound tail — see
+/// [`resume_after_reconnect`] for why. On the initial connect there is no
+/// `ReconnectSuccessAck` and nothing to resend, so this phase is skipped
+/// entirely and behavior is unchanged from before Fix C.
 async fn pump(
     ws: &mut tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<TcpStream>,
@@ -348,8 +458,16 @@ async fn pump(
     sid: &mut Option<String>,
     pending: &mut Vec<u8>,
     outbound: &mut OutboundBuffer,
+    is_reconnect: bool,
 ) -> Result<bool, TunnelError> {
     let mut buf = vec![0u8; frame::MAX_DATA_FRAME_SIZE];
+
+    if is_reconnect {
+        match resume_after_reconnect(ws, local_write, policy, sid, pending, outbound).await? {
+            ResumeOutcome::Resumed => {}
+            ResumeOutcome::Terminate(result) => return Ok(result),
+        }
+    }
 
     loop {
         tokio::select! {
@@ -410,9 +528,13 @@ async fn pump(
                             outbound.on_relay_ack(n);
                         }
                         Frame::ReconnectSuccessAck(n) => {
-                            // The relay has confirmed `n` bytes of our
-                            // outbound stream as of the resumed session;
-                            // resend whatever it never got before it dropped.
+                            // Normally this is only ever seen and handled in
+                            // `resume_after_reconnect`, before this loop is
+                            // entered (see `pump`'s `is_reconnect` gate).
+                            // Handled defensively here too, in the same
+                            // order (advance `confirmed` before resending),
+                            // in case the relay ever sends a second one.
+                            outbound.on_relay_ack(n);
                             let resend = outbound.bytes_to_resend(n);
                             for chunk in frame::chunks(&resend) {
                                 if let Err(e) = ws.send(Message::Binary(frame::encode_data(chunk))).await {
