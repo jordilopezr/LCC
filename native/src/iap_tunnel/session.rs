@@ -166,8 +166,16 @@ pub async fn run_session(
         )
         .await?;
 
-        if closed_cleanly || sid.is_none() || reconnects >= MAX_RECONNECTS {
+        if closed_cleanly {
             return Ok(());
+        }
+        if sid.is_none() {
+            // Never got a session id from the relay, so there is nothing to
+            // resume — a reconnect attempt would just repeat the connect.
+            return Err(TunnelError::RelayUnreachable);
+        }
+        if reconnects >= MAX_RECONNECTS {
+            return Err(TunnelError::RelayUnreachable);
         }
         reconnects += 1;
         tracing::warn!(
@@ -202,11 +210,10 @@ async fn pump(
                     return Ok(true);
                 }
                 for chunk in frame::chunks(&buf[..n]) {
-                    ws.send(Message::Binary(frame::encode_data(chunk)))
-                        .await
-                        .map_err(|e| TunnelError::ProtocolError {
-                            detail: format!("relay send failed: {}", e),
-                        })?;
+                    if let Err(e) = ws.send(Message::Binary(frame::encode_data(chunk))).await {
+                        tracing::warn!(error = %e, "relay send failed, will attempt reconnect");
+                        return Ok(false);
+                    }
                 }
             }
             incoming = ws.next() => {
@@ -235,17 +242,15 @@ async fn pump(
                         }
                         Frame::Data(payload) => {
                             policy.on_received(payload.len());
-                            local_write.write_all(&payload).await.map_err(|e| {
-                                TunnelError::ProtocolError {
-                                    detail: format!("local write failed: {}", e),
-                                }
-                            })?;
+                            if let Err(e) = local_write.write_all(&payload).await {
+                                tracing::warn!(error = %e, "local write failed, ending session");
+                                return Ok(true);
+                            }
                             if let Some(ack) = policy.take_pending_ack() {
-                                ws.send(Message::Binary(frame::encode_ack(ack)))
-                                    .await
-                                    .map_err(|e| TunnelError::ProtocolError {
-                                        detail: format!("ack send failed: {}", e),
-                                    })?;
+                                if let Err(e) = ws.send(Message::Binary(frame::encode_ack(ack))).await {
+                                    tracing::warn!(error = %e, "ack send failed, will attempt reconnect");
+                                    return Ok(false);
+                                }
                             }
                         }
                         Frame::Ack(_) | Frame::ReconnectSuccessAck(_) => {}
