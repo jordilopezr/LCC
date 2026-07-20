@@ -65,6 +65,16 @@ pub fn classify_http_status(status: u16, body: &str) -> TunnelError {
     }
 }
 
+impl TunnelError {
+    /// Classify a WebSocket transport failure. Anything that is not an HTTP
+    /// status is treated as the relay being unreachable (DNS, TLS, proxy).
+    #[allow(non_snake_case)]
+    pub fn RelayUnreachable_from(err: tokio_tungstenite::tungstenite::Error) -> Self {
+        tracing::warn!(error = %err, "IAP relay unreachable");
+        TunnelError::RelayUnreachable
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

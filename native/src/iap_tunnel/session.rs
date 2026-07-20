@@ -97,6 +97,168 @@ impl AckPolicy {
     }
 }
 
+use crate::iap_tunnel::error::{classify_http_status, TunnelError};
+use crate::iap_tunnel::frame::{self, Frame};
+use futures_util::{SinkExt, StreamExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpStream;
+use tokio_tungstenite::tungstenite::client::IntoClientRequest;
+use tokio_tungstenite::tungstenite::Message;
+
+/// Maximum times we try to resume a dropped relay connection before giving up.
+const MAX_RECONNECTS: u32 = 3;
+
+/// Bridge one local TCP connection to the relay until either side closes.
+pub async fn run_session(
+    target: TunnelTarget,
+    local: TcpStream,
+    token: String,
+) -> Result<(), TunnelError> {
+    let (mut local_read, mut local_write) = local.into_split();
+    let mut policy = AckPolicy::new();
+    let mut sid: Option<String> = None;
+    let mut reconnects = 0u32;
+    let mut pending = Vec::<u8>::new();
+
+    loop {
+        let url = match &sid {
+            None => connect_url(&target),
+            Some(sid) => reconnect_url(&target, sid, policy.total_received()),
+        };
+
+        let mut request = url
+            .into_client_request()
+            .map_err(|e| TunnelError::ProtocolError { detail: e.to_string() })?;
+        request.headers_mut().insert(
+            "Authorization",
+            format!("Bearer {}", token)
+                .parse()
+                .map_err(|_| TunnelError::NotAuthenticated)?,
+        );
+        request.headers_mut().insert(
+            "Sec-WebSocket-Protocol",
+            "relay.tunnel.cloudproxy.app".parse().unwrap(),
+        );
+
+        let (mut ws, _) = match tokio_tungstenite::connect_async(request).await {
+            Ok(pair) => pair,
+            Err(tokio_tungstenite::tungstenite::Error::Http(resp)) => {
+                let status = resp.status().as_u16();
+                let body = resp
+                    .body()
+                    .as_ref()
+                    .map(|b| String::from_utf8_lossy(b).to_string())
+                    .unwrap_or_default();
+                return Err(classify_http_status(status, &body));
+            }
+            Err(e) => {
+                return Err(TunnelError::RelayUnreachable_from(e));
+            }
+        };
+
+        let closed_cleanly = pump(
+            &mut ws,
+            &mut local_read,
+            &mut local_write,
+            &mut policy,
+            &mut sid,
+            &mut pending,
+        )
+        .await?;
+
+        if closed_cleanly || sid.is_none() || reconnects >= MAX_RECONNECTS {
+            return Ok(());
+        }
+        reconnects += 1;
+        tracing::warn!(
+            instance = %target.instance,
+            attempt = reconnects,
+            "IAP relay dropped, reconnecting"
+        );
+    }
+}
+
+/// One connected lifetime. Returns Ok(true) when the peer closed cleanly.
+async fn pump(
+    ws: &mut tokio_tungstenite::WebSocketStream<
+        tokio_tungstenite::MaybeTlsStream<TcpStream>,
+    >,
+    local_read: &mut tokio::net::tcp::OwnedReadHalf,
+    local_write: &mut tokio::net::tcp::OwnedWriteHalf,
+    policy: &mut AckPolicy,
+    sid: &mut Option<String>,
+    pending: &mut Vec<u8>,
+) -> Result<bool, TunnelError> {
+    let mut buf = vec![0u8; frame::MAX_DATA_FRAME_SIZE];
+
+    loop {
+        tokio::select! {
+            read = local_read.read(&mut buf) => {
+                let n = read.map_err(|e| TunnelError::ProtocolError {
+                    detail: format!("local read failed: {}", e),
+                })?;
+                if n == 0 {
+                    let _ = ws.close(None).await;
+                    return Ok(true);
+                }
+                for chunk in frame::chunks(&buf[..n]) {
+                    ws.send(Message::Binary(frame::encode_data(chunk)))
+                        .await
+                        .map_err(|e| TunnelError::ProtocolError {
+                            detail: format!("relay send failed: {}", e),
+                        })?;
+                }
+            }
+            incoming = ws.next() => {
+                let message = match incoming {
+                    None => return Ok(false),
+                    Some(Ok(m)) => m,
+                    Some(Err(e)) => {
+                        tracing::warn!(error = %e, "relay stream error");
+                        return Ok(false);
+                    }
+                };
+                let bytes = match message {
+                    Message::Binary(b) => b,
+                    Message::Close(_) => return Ok(true),
+                    _ => continue,
+                };
+                pending.extend_from_slice(&bytes);
+
+                while let Some((parsed, consumed)) = frame::decode(pending)
+                    .map_err(|e| TunnelError::ProtocolError { detail: format!("{:?}", e) })?
+                {
+                    pending.drain(..consumed);
+                    match parsed {
+                        Frame::ConnectSuccessSid(raw) => {
+                            *sid = Some(String::from_utf8_lossy(&raw).to_string());
+                        }
+                        Frame::Data(payload) => {
+                            policy.on_received(payload.len());
+                            local_write.write_all(&payload).await.map_err(|e| {
+                                TunnelError::ProtocolError {
+                                    detail: format!("local write failed: {}", e),
+                                }
+                            })?;
+                            if let Some(ack) = policy.take_pending_ack() {
+                                ws.send(Message::Binary(frame::encode_ack(ack)))
+                                    .await
+                                    .map_err(|e| TunnelError::ProtocolError {
+                                        detail: format!("ack send failed: {}", e),
+                                    })?;
+                            }
+                        }
+                        Frame::Ack(_) | Frame::ReconnectSuccessAck(_) => {}
+                        Frame::Unknown { tag } => {
+                            tracing::debug!(tag, "ignoring unknown relay frame");
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
