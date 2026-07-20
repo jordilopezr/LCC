@@ -58,7 +58,7 @@ pub fn classify_http_status(status: u16, body: &str) -> TunnelError {
         401 => TunnelError::NotAuthenticated,
         403 => TunnelError::PermissionDenied,
         404 => TunnelError::InstanceNotFound { instance: String::new() },
-        500 | 502 | 503 | 504 => TunnelError::RelayUnreachable,
+        s if (500..=599).contains(&s) => TunnelError::RelayUnreachable,
         other => TunnelError::ProtocolError {
             detail: format!("relay returned HTTP {}: {}", other, body),
         },
@@ -67,7 +67,6 @@ pub fn classify_http_status(status: u16, body: &str) -> TunnelError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::*;
 
     #[test]
