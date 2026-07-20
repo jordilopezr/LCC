@@ -4129,6 +4129,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{days}d ago'**
   String appDaysAgo(int days);
+
+  /// No description provided for @tunnelErrorNotAuthenticated.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in to Google Cloud. Run \'gcloud auth login\'.'**
+  String get tunnelErrorNotAuthenticated;
+
+  /// No description provided for @tunnelErrorPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied. The account needs the IAP-secured Tunnel User role.'**
+  String get tunnelErrorPermissionDenied;
+
+  /// No description provided for @tunnelErrorInstanceNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The instance no longer exists in this project and zone.'**
+  String get tunnelErrorInstanceNotFound;
+
+  /// No description provided for @tunnelErrorInstanceNotRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'The instance is not running.'**
+  String get tunnelErrorInstanceNotRunning;
+
+  /// No description provided for @tunnelErrorFirewallBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'A firewall rule is blocking IAP. Allow ingress from 35.235.240.0/20.'**
+  String get tunnelErrorFirewallBlocked;
+
+  /// No description provided for @tunnelErrorRelayUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the IAP relay. Check the network or proxy settings.'**
+  String get tunnelErrorRelayUnreachable;
+
+  /// No description provided for @tunnelErrorProtocolError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected response from the IAP relay.'**
+  String get tunnelErrorProtocolError;
+
+  /// No description provided for @tunnelErrorLocalPortUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No local port available for the tunnel.'**
+  String get tunnelErrorLocalPortUnavailable;
+
+  /// No description provided for @tunnelErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The tunnel could not be established.'**
+  String get tunnelErrorUnknown;
 }
 
 class _AppLocalizationsDelegate

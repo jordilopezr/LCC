@@ -4,6 +4,33 @@ import 'gcloud_provider.dart';
 import '../bridge/api.dart/api.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 
+/// Map a Rust `TunnelError::code()` to a localized message.
+///
+/// Unknown codes fall back to the generic message so a new Rust error can never
+/// surface a raw identifier to the user.
+String tunnelErrorMessage(AppLocalizations l10n, String code) {
+  switch (code) {
+    case 'not_authenticated':
+      return l10n.tunnelErrorNotAuthenticated;
+    case 'permission_denied':
+      return l10n.tunnelErrorPermissionDenied;
+    case 'instance_not_found':
+      return l10n.tunnelErrorInstanceNotFound;
+    case 'instance_not_running':
+      return l10n.tunnelErrorInstanceNotRunning;
+    case 'firewall_blocked':
+      return l10n.tunnelErrorFirewallBlocked;
+    case 'relay_unreachable':
+      return l10n.tunnelErrorRelayUnreachable;
+    case 'protocol_error':
+      return l10n.tunnelErrorProtocolError;
+    case 'local_port_unavailable':
+      return l10n.tunnelErrorLocalPortUnavailable;
+    default:
+      return l10n.tunnelErrorUnknown;
+  }
+}
+
 /// Show the Tunnel Manager Dialog
 void showTunnelManagerDialog(BuildContext context) {
   showDialog(
@@ -347,6 +374,21 @@ class _TunnelCard extends ConsumerWidget {
                   ),
               ],
             ),
+
+            if (isError) ...[
+              const SizedBox(height: 6),
+              Text(
+                tunnelErrorMessage(l10n, tunnel.errorCode ?? ''),
+                style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w500),
+              ),
+              if (tunnel.error != null && tunnel.error!.isNotEmpty)
+                Text(
+                  tunnel.error!,
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
 
             const SizedBox(height: 8),
 

@@ -673,5 +673,14 @@
   "appJustNow": "Ahora mismo",
   "appMinutesAgo": "hace {minutes} min",
   "appHoursAgo": "hace {hours} h",
-  "appDaysAgo": "hace {days} d"
+  "appDaysAgo": "hace {days} d",
+  "tunnelErrorNotAuthenticated": "No hay sesión iniciada en Google Cloud. Ejecute 'gcloud auth login'.",
+  "tunnelErrorPermissionDenied": "Permiso denegado. La cuenta necesita el rol de usuario de túnel protegido por IAP.",
+  "tunnelErrorInstanceNotFound": "La instancia ya no existe en este proyecto y zona.",
+  "tunnelErrorInstanceNotRunning": "La instancia no está en ejecución.",
+  "tunnelErrorFirewallBlocked": "Una regla de firewall está bloqueando IAP. Permita el tráfico de entrada desde 35.235.240.0/20.",
+  "tunnelErrorRelayUnreachable": "No se pudo contactar con el relay de IAP. Compruebe la red o la configuración del proxy.",
+  "tunnelErrorProtocolError": "Respuesta inesperada del relay de IAP.",
+  "tunnelErrorLocalPortUnavailable": "No hay ningún puerto local disponible para el túnel.",
+  "tunnelErrorUnknown": "No se pudo establecer el túnel."
 }

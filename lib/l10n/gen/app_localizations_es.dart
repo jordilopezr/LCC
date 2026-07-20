@@ -2407,4 +2407,39 @@ class AppLocalizationsEs extends AppLocalizations {
   String appDaysAgo(int days) {
     return 'hace $days d';
   }
+
+  @override
+  String get tunnelErrorNotAuthenticated =>
+      'No hay sesión iniciada en Google Cloud. Ejecute \'gcloud auth login\'.';
+
+  @override
+  String get tunnelErrorPermissionDenied =>
+      'Permiso denegado. La cuenta necesita el rol de usuario de túnel protegido por IAP.';
+
+  @override
+  String get tunnelErrorInstanceNotFound =>
+      'La instancia ya no existe en este proyecto y zona.';
+
+  @override
+  String get tunnelErrorInstanceNotRunning =>
+      'La instancia no está en ejecución.';
+
+  @override
+  String get tunnelErrorFirewallBlocked =>
+      'Una regla de firewall está bloqueando IAP. Permita el tráfico de entrada desde 35.235.240.0/20.';
+
+  @override
+  String get tunnelErrorRelayUnreachable =>
+      'No se pudo contactar con el relay de IAP. Compruebe la red o la configuración del proxy.';
+
+  @override
+  String get tunnelErrorProtocolError =>
+      'Respuesta inesperada del relay de IAP.';
+
+  @override
+  String get tunnelErrorLocalPortUnavailable =>
+      'No hay ningún puerto local disponible para el túnel.';
+
+  @override
+  String get tunnelErrorUnknown => 'No se pudo establecer el túnel.';
 }

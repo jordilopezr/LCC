@@ -1347,5 +1347,14 @@
     "placeholders": {
       "days": {"type": "int"}
     }
-  }
+  },
+  "tunnelErrorNotAuthenticated": "Not signed in to Google Cloud. Run 'gcloud auth login'.",
+  "tunnelErrorPermissionDenied": "Permission denied. The account needs the IAP-secured Tunnel User role.",
+  "tunnelErrorInstanceNotFound": "The instance no longer exists in this project and zone.",
+  "tunnelErrorInstanceNotRunning": "The instance is not running.",
+  "tunnelErrorFirewallBlocked": "A firewall rule is blocking IAP. Allow ingress from 35.235.240.0/20.",
+  "tunnelErrorRelayUnreachable": "Could not reach the IAP relay. Check the network or proxy settings.",
+  "tunnelErrorProtocolError": "Unexpected response from the IAP relay.",
+  "tunnelErrorLocalPortUnavailable": "No local port available for the tunnel.",
+  "tunnelErrorUnknown": "The tunnel could not be established."
 }

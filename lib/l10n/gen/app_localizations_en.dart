@@ -2372,4 +2372,38 @@ class AppLocalizationsEn extends AppLocalizations {
   String appDaysAgo(int days) {
     return '${days}d ago';
   }
+
+  @override
+  String get tunnelErrorNotAuthenticated =>
+      'Not signed in to Google Cloud. Run \'gcloud auth login\'.';
+
+  @override
+  String get tunnelErrorPermissionDenied =>
+      'Permission denied. The account needs the IAP-secured Tunnel User role.';
+
+  @override
+  String get tunnelErrorInstanceNotFound =>
+      'The instance no longer exists in this project and zone.';
+
+  @override
+  String get tunnelErrorInstanceNotRunning => 'The instance is not running.';
+
+  @override
+  String get tunnelErrorFirewallBlocked =>
+      'A firewall rule is blocking IAP. Allow ingress from 35.235.240.0/20.';
+
+  @override
+  String get tunnelErrorRelayUnreachable =>
+      'Could not reach the IAP relay. Check the network or proxy settings.';
+
+  @override
+  String get tunnelErrorProtocolError =>
+      'Unexpected response from the IAP relay.';
+
+  @override
+  String get tunnelErrorLocalPortUnavailable =>
+      'No local port available for the tunnel.';
+
+  @override
+  String get tunnelErrorUnknown => 'The tunnel could not be established.';
 }
