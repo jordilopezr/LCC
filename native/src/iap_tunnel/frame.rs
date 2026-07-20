@@ -91,6 +91,9 @@ pub fn decode(buf: &[u8]) -> Result<Option<(Frame, usize)>, FrameError> {
                 return Ok(None);
             }
             let len = u32::from_be_bytes([rest[0], rest[1], rest[2], rest[3]]) as usize;
+            if len > MAX_DATA_FRAME_SIZE {
+                return Err(FrameError::PayloadTooLarge { len });
+            }
             let body = &rest[LEN_LEN..];
             if body.len() < len {
                 return Ok(None);
@@ -170,6 +173,18 @@ mod tests {
         let (frame, consumed) = decode(&buf).unwrap().unwrap();
         assert_eq!(frame, Frame::Unknown { tag: 0x0063 });
         assert_eq!(consumed, 7);
+    }
+
+    #[test]
+    fn decode_rejects_oversized_declared_length() {
+        let mut buf = vec![0x00, 0x04];
+        buf.extend_from_slice(&((MAX_DATA_FRAME_SIZE + 1) as u32).to_be_bytes());
+        // No payload bytes needed: the length check must reject before
+        // waiting for the (huge) body to arrive.
+        assert_eq!(
+            decode(&buf),
+            Err(FrameError::PayloadTooLarge { len: MAX_DATA_FRAME_SIZE + 1 })
+        );
     }
 
     #[test]

@@ -121,6 +121,14 @@ pub async fn run_session(
     let mut pending = Vec::<u8>::new();
 
     loop {
+        if sid.is_some() {
+            // `sid.is_some()` is exactly "this is a reconnect": the relay
+            // will resend the DATA frame containing our last acked byte in
+            // full, so any partial frame bytes left over from the dropped
+            // connection would corrupt decoding if kept.
+            pending.clear();
+        }
+
         let url = match &sid {
             None => connect_url(&target),
             Some(sid) => reconnect_url(&target, sid, policy.total_received()),
