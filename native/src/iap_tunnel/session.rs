@@ -108,6 +108,102 @@ use tokio_tungstenite::tungstenite::Message;
 /// Maximum times we try to resume a dropped relay connection before giving up.
 const MAX_RECONNECTS: u32 = 3;
 
+/// How long the throwaway [`probe`] connection is allowed to take before it
+/// is treated as an unreachable relay.
+const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Build the WebSocket client request for `url`, with the relay's auth
+/// header and subprotocol. Shared by `run_session` and `probe` so both go
+/// through the exact same handshake.
+fn build_connect_request(
+    url: &str,
+    token: &str,
+) -> Result<tokio_tungstenite::tungstenite::http::Request<()>, TunnelError> {
+    let mut request = url
+        .into_client_request()
+        .map_err(|e| TunnelError::ProtocolError { detail: e.to_string() })?;
+    request.headers_mut().insert(
+        "Authorization",
+        format!("Bearer {}", token)
+            .parse()
+            .map_err(|_| TunnelError::NotAuthenticated)?,
+    );
+    request.headers_mut().insert(
+        "Sec-WebSocket-Protocol",
+        "relay.tunnel.cloudproxy.app".parse().unwrap(),
+    );
+    Ok(request)
+}
+
+/// Open a throwaway connection to the relay to validate that a real session
+/// would succeed (auth, permission, firewall, VM reachability). Returns Ok(())
+/// once the relay sends CONNECT_SUCCESS_SID; maps handshake/transport failures
+/// to TunnelError so the caller can fall back to gcloud.
+pub async fn probe(target: &TunnelTarget, token: &str) -> Result<(), TunnelError> {
+    match tokio::time::timeout(PROBE_TIMEOUT, probe_inner(target, token)).await {
+        Ok(result) => result,
+        Err(_elapsed) => Err(TunnelError::RelayUnreachable),
+    }
+}
+
+async fn probe_inner(target: &TunnelTarget, token: &str) -> Result<(), TunnelError> {
+    let request = build_connect_request(&connect_url(target), token)?;
+
+    let (mut ws, _) = match tokio_tungstenite::connect_async(request).await {
+        Ok(pair) => pair,
+        Err(tokio_tungstenite::tungstenite::Error::Http(resp)) => {
+            let status = resp.status().as_u16();
+            let body = resp
+                .body()
+                .as_ref()
+                .map(|b| String::from_utf8_lossy(b).to_string())
+                .unwrap_or_default();
+            return Err(classify_http_status(status, &body));
+        }
+        Err(e) => return Err(TunnelError::RelayUnreachable_from(e)),
+    };
+
+    let mut pending = Vec::<u8>::new();
+    let result = loop {
+        let message = match ws.next().await {
+            None => {
+                break Err(TunnelError::ProtocolError {
+                    detail: "relay closed before CONNECT_SUCCESS_SID".to_string(),
+                });
+            }
+            Some(Ok(m)) => m,
+            Some(Err(e)) => break Err(TunnelError::RelayUnreachable_from(e)),
+        };
+        let bytes = match message {
+            Message::Binary(b) => b,
+            Message::Close(_) => {
+                break Err(TunnelError::ProtocolError {
+                    detail: "relay closed before CONNECT_SUCCESS_SID".to_string(),
+                });
+            }
+            _ => continue,
+        };
+        pending.extend_from_slice(&bytes);
+
+        let mut decoded = None;
+        while let Some((parsed, consumed)) = frame::decode(&pending)
+            .map_err(|e| TunnelError::ProtocolError { detail: format!("{:?}", e) })?
+        {
+            pending.drain(..consumed);
+            if matches!(parsed, Frame::ConnectSuccessSid(_)) {
+                decoded = Some(Ok(()));
+                break;
+            }
+        }
+        if let Some(result) = decoded {
+            break result;
+        }
+    };
+
+    let _ = ws.close(None).await;
+    result
+}
+
 /// Bridge one local TCP connection to the relay until either side closes.
 pub async fn run_session(
     target: TunnelTarget,
@@ -134,19 +230,7 @@ pub async fn run_session(
             Some(sid) => reconnect_url(&target, sid, policy.total_received()),
         };
 
-        let mut request = url
-            .into_client_request()
-            .map_err(|e| TunnelError::ProtocolError { detail: e.to_string() })?;
-        request.headers_mut().insert(
-            "Authorization",
-            format!("Bearer {}", token)
-                .parse()
-                .map_err(|_| TunnelError::NotAuthenticated)?,
-        );
-        request.headers_mut().insert(
-            "Sec-WebSocket-Protocol",
-            "relay.tunnel.cloudproxy.app".parse().unwrap(),
-        );
+        let request = build_connect_request(&url, &token)?;
 
         let (mut ws, _) = match tokio_tungstenite::connect_async(request).await {
             Ok(pair) => pair,
