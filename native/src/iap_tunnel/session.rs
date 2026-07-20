@@ -97,6 +97,60 @@ impl AckPolicy {
     }
 }
 
+/// Buffers outbound bytes not yet acknowledged by the relay, so they can be
+/// resent after a reconnect.
+///
+/// ACK semantics: the relay sends us `Frame::Ack(n)` / `Frame::ReconnectSuccessAck(n)`
+/// meaning "I have received `n` bytes of your outbound stream so far" — this
+/// is the mirror of our own `AckPolicy`, which tracks what WE received.
+#[derive(Debug, Default)]
+pub struct OutboundBuffer {
+    total_sent: u64,
+    confirmed: u64,
+    unacked: std::collections::VecDeque<u8>,
+}
+
+impl OutboundBuffer {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record bytes we just handed to the relay.
+    pub fn record_sent(&mut self, bytes: &[u8]) {
+        self.unacked.extend(bytes.iter().copied());
+        self.total_sent += bytes.len() as u64;
+    }
+
+    /// The relay told us it has received `confirmed_total` bytes of our
+    /// outbound stream in total. Drop the now-confirmed prefix.
+    pub fn on_relay_ack(&mut self, confirmed_total: u64) {
+        // Guard against a stale/repeated ack (confirmed_total <= confirmed,
+        // idempotent no-op) or a bogus one that would claim more than we've
+        // ever sent (clamp to total_sent).
+        if confirmed_total <= self.confirmed {
+            return;
+        }
+        let confirmed_total = confirmed_total.min(self.total_sent);
+        let to_drop = (confirmed_total - self.confirmed).min(self.unacked.len() as u64);
+        for _ in 0..to_drop {
+            self.unacked.pop_front();
+        }
+        self.confirmed = confirmed_total;
+    }
+
+    /// Given the relay's reconnect ack (bytes of our outbound stream it has
+    /// confirmed as of the resumed session), return everything from that
+    /// point to the end of what we've sent, in order, so it can be resent.
+    pub fn bytes_to_resend(&self, relay_confirmed: u64) -> Vec<u8> {
+        // `unacked` only holds bytes from `self.confirmed` onward, so a
+        // `relay_confirmed` below that (shouldn't happen) is clamped up; a
+        // value above `total_sent` (also shouldn't happen) is clamped down.
+        let relay_confirmed = relay_confirmed.clamp(self.confirmed, self.total_sent);
+        let skip = (relay_confirmed - self.confirmed) as usize;
+        self.unacked.iter().skip(skip).copied().collect()
+    }
+}
+
 use crate::iap_tunnel::error::{classify_http_status, TunnelError};
 use crate::iap_tunnel::frame::{self, Frame};
 use futures_util::{SinkExt, StreamExt};
@@ -215,6 +269,10 @@ pub async fn run_session(
     let mut sid: Option<String> = None;
     let mut reconnects = 0u32;
     let mut pending = Vec::<u8>::new();
+    // Lives outside the reconnect loop, like `pending`, so unacked outbound
+    // bytes survive a reconnect and can be resent — it is NOT cleared on
+    // reconnect (unlike `pending`, which holds inbound partial-frame state).
+    let mut outbound = OutboundBuffer::new();
 
     loop {
         if sid.is_some() {
@@ -255,6 +313,7 @@ pub async fn run_session(
             &mut policy,
             &mut sid,
             &mut pending,
+            &mut outbound,
         )
         .await?;
 
@@ -288,6 +347,7 @@ async fn pump(
     policy: &mut AckPolicy,
     sid: &mut Option<String>,
     pending: &mut Vec<u8>,
+    outbound: &mut OutboundBuffer,
 ) -> Result<bool, TunnelError> {
     let mut buf = vec![0u8; frame::MAX_DATA_FRAME_SIZE];
 
@@ -306,6 +366,7 @@ async fn pump(
                         tracing::warn!(error = %e, "relay send failed, will attempt reconnect");
                         return Ok(false);
                     }
+                    outbound.record_sent(chunk);
                 }
             }
             incoming = ws.next() => {
@@ -345,7 +406,21 @@ async fn pump(
                                 }
                             }
                         }
-                        Frame::Ack(_) | Frame::ReconnectSuccessAck(_) => {}
+                        Frame::Ack(n) => {
+                            outbound.on_relay_ack(n);
+                        }
+                        Frame::ReconnectSuccessAck(n) => {
+                            // The relay has confirmed `n` bytes of our
+                            // outbound stream as of the resumed session;
+                            // resend whatever it never got before it dropped.
+                            let resend = outbound.bytes_to_resend(n);
+                            for chunk in frame::chunks(&resend) {
+                                if let Err(e) = ws.send(Message::Binary(frame::encode_data(chunk))).await {
+                                    tracing::warn!(error = %e, "outbound resend failed, will attempt reconnect");
+                                    return Ok(false);
+                                }
+                            }
+                        }
                         Frame::Unknown { tag } => {
                             tracing::debug!(tag, "ignoring unknown relay frame");
                         }
@@ -413,5 +488,53 @@ mod tests {
         policy.on_received(10);
         policy.on_received(5);
         assert_eq!(policy.total_received(), 15);
+    }
+
+    #[test]
+    fn outbound_record_sent_accumulates_total_and_buffers_bytes() {
+        let mut outbound = OutboundBuffer::new();
+        outbound.record_sent(b"hello");
+        outbound.record_sent(b"world");
+        assert_eq!(outbound.total_sent, 10);
+        assert_eq!(outbound.unacked.iter().copied().collect::<Vec<u8>>(), b"helloworld");
+    }
+
+    #[test]
+    fn outbound_on_relay_ack_drops_confirmed_prefix() {
+        let mut outbound = OutboundBuffer::new();
+        outbound.record_sent(b"helloworld");
+        outbound.on_relay_ack(5);
+        assert_eq!(outbound.unacked.iter().copied().collect::<Vec<u8>>(), b"world");
+        assert_eq!(outbound.confirmed, 5);
+    }
+
+    #[test]
+    fn outbound_on_relay_ack_is_idempotent_for_stale_or_repeated_ack() {
+        let mut outbound = OutboundBuffer::new();
+        outbound.record_sent(b"helloworld");
+        outbound.on_relay_ack(5);
+        // Repeated ack at the same point: no-op.
+        outbound.on_relay_ack(5);
+        assert_eq!(outbound.unacked.iter().copied().collect::<Vec<u8>>(), b"world");
+        // Stale ack (relay re-confirms an earlier, smaller total): no-op.
+        outbound.on_relay_ack(2);
+        assert_eq!(outbound.unacked.iter().copied().collect::<Vec<u8>>(), b"world");
+        assert_eq!(outbound.confirmed, 5);
+    }
+
+    #[test]
+    fn outbound_bytes_to_resend_returns_unconfirmed_tail_after_partial_ack() {
+        let mut outbound = OutboundBuffer::new();
+        outbound.record_sent(b"helloworld");
+        outbound.on_relay_ack(5);
+        assert_eq!(outbound.bytes_to_resend(5), b"world".to_vec());
+    }
+
+    #[test]
+    fn outbound_bytes_to_resend_is_empty_after_full_ack() {
+        let mut outbound = OutboundBuffer::new();
+        outbound.record_sent(b"helloworld");
+        outbound.on_relay_ack(10);
+        assert_eq!(outbound.bytes_to_resend(10), Vec::<u8>::new());
     }
 }
