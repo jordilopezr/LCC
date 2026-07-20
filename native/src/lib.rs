@@ -4,6 +4,7 @@ pub mod app_dirs;
 pub mod gcloud;
 pub mod gcp_rest_client;
 pub mod tunnel;
+pub mod iap_tunnel;  // 27H1: native IAP TCP forwarding
 pub mod rdp_client;
 pub mod vnc_client;
 pub mod db_client;  // Sprint 4: Database Client Integration
