@@ -47,6 +47,7 @@ pub async fn start(target: TunnelTarget) -> Result<NativeTunnel, TunnelError> {
                 Ok(pair) => pair,
                 Err(e) => {
                     tracing::warn!(error = %e, "accept failed on native tunnel");
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                     continue;
                 }
             };
