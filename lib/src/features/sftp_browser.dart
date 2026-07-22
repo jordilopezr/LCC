@@ -183,12 +183,13 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
         final label = l10n.sftpUploadingFile(fileName);
         state = state.copyWith(operationInProgress: label, progress: 0);
 
-        await for (final p in sftpUploadStreaming(
+        await for (final p in sftpUploadParallel(
           host: host,
           port: port,
           username: username,
           localPath: localPath,
           remotePath: remotePath,
+          concurrency: 4,
         )) {
           final total = p.total.toInt();
           state = state.copyWith(
@@ -358,15 +359,23 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
 
       if (selectedDirectory != null) {
         localPath = path.join(selectedDirectory, file.name);
-        state = state.copyWith(operationInProgress: l10n.sftpDownloadingFile(file.name));
+        final label = l10n.sftpDownloadingFile(file.name);
+        state = state.copyWith(operationInProgress: label, progress: 0);
 
-        await sftpDownload(
+        await for (final p in sftpDownloadParallel(
           host: host,
           port: port,
           username: username,
           remotePath: file.path,
           localPath: localPath,
-        );
+          concurrency: 4,
+        )) {
+          final total = p.total.toInt();
+          state = state.copyWith(
+            operationInProgress: label,
+            progress: total > 0 ? p.transferred.toInt() / total : null,
+          );
+        }
 
         state = state.copyWith(operationInProgress: null);
       }
