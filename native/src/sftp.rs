@@ -560,6 +560,15 @@ pub fn sftp_upload_file_streaming(
     Ok(())
 }
 
+/// Decrements a shared counter on drop, so a panicking worker thread still
+/// releases its slot and the coordinator loop can terminate.
+struct RemainingGuard(Arc<AtomicUsize>);
+impl Drop for RemainingGuard {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
 /// Upload a file over `concurrency` parallel SSH connections, each writing a
 /// contiguous range at its offset. Falls back to the single-connection
 /// streaming path when the extra sessions cannot be established.
@@ -655,6 +664,7 @@ pub fn sftp_upload_file_parallel(
         let local = validated_local.clone();
         let remote = validated_remote.clone();
         handles.push(std::thread::spawn(move || {
+            let _guard = RemainingGuard(remaining);
             let result = (|| -> Result<()> {
                 let sftp = sess.sftp().map_err(|e| anyhow!("worker sftp: {}", e))?;
                 let mut rf = sftp
@@ -691,7 +701,6 @@ pub fn sftp_upload_file_parallel(
                 cancel.store(true, Ordering::Relaxed);
                 let _ = err_tx.send(e);
             }
-            remaining.fetch_sub(1, Ordering::Relaxed);
         }));
     }
     drop(err_tx);
@@ -705,13 +714,23 @@ pub fn sftp_upload_file_parallel(
             total,
         });
     }
+    let mut panicked = false;
     for h in handles {
-        let _ = h.join();
+        if h.join().is_err() {
+            cancel.store(true, Ordering::Relaxed);
+            tracing::error!("parallel upload worker panicked");
+            panicked = true;
+        }
     }
 
     if let Ok(first_err) = err_rx.try_recv() {
         let _ = coord_sftp.unlink(&validated_remote);
         return Err(anyhow!("Parallel upload failed: {}", first_err));
+    }
+
+    if panicked {
+        let _ = coord_sftp.unlink(&validated_remote);
+        return Err(anyhow!("Parallel upload failed: a worker thread panicked"));
     }
 
     // Verify the remote size before declaring success.
