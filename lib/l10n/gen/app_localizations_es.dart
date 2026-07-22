@@ -1580,11 +1580,6 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
-  String sftpUploadingFolderProgress(int current, int total, String fileName) {
-    return 'Subiendo $current/$total: $fileName…';
-  }
-
-  @override
   String sftpErrorUploadFolder(String error) {
     return 'No se pudo subir la carpeta: $error\n\nAlgunos archivos podrían haberse subido correctamente.';
   }

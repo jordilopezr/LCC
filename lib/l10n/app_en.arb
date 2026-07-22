@@ -855,14 +855,6 @@
       "folderName": {"type": "String"}
     }
   },
-  "sftpUploadingFolderProgress": "Uploading {current}/{total}: {fileName}…",
-  "@sftpUploadingFolderProgress": {
-    "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"},
-      "fileName": {"type": "String"}
-    }
-  },
   "sftpErrorUploadFolder": "Failed to upload folder: {error}\n\nSome files may have been uploaded successfully.",
   "@sftpErrorUploadFolder": {
     "placeholders": {

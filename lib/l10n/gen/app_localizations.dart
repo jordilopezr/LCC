@@ -2786,12 +2786,6 @@ abstract class AppLocalizations {
   /// **'Uploading folder {folderName}…'**
   String sftpUploadingFolder(String folderName);
 
-  /// No description provided for @sftpUploadingFolderProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'Uploading {current}/{total}: {fileName}…'**
-  String sftpUploadingFolderProgress(int current, int total, String fileName);
-
   /// No description provided for @sftpErrorUploadFolder.
   ///
   /// In en, this message translates to:

@@ -450,7 +450,6 @@
   "sftpUploadingBatch": "Subiendo {current}/{total}: {fileName}…",
   "sftpErrorUploadBatch": "No se pudieron subir los archivos: {error}\n\nAlgunos archivos podrían haberse subido correctamente.",
   "sftpUploadingFolder": "Subiendo la carpeta {folderName}…",
-  "sftpUploadingFolderProgress": "Subiendo {current}/{total}: {fileName}…",
   "sftpErrorUploadFolder": "No se pudo subir la carpeta: {error}\n\nAlgunos archivos podrían haberse subido correctamente.",
   "sftpErrorFolderNameInvalid": "Nombre de carpeta no válido.",
   "sftpDownloadingFile": "Descargando {fileName}…",
