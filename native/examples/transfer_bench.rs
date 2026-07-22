@@ -46,10 +46,14 @@ fn sess_open_write(sftp: &ssh2::Sftp, path: &str) -> ssh2::File {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    let [_, host, port, user, local, remote_dir] = &args[..] else {
-        eprintln!("usage: transfer_bench <host> <port> <username> <local_file> <remote_dir>");
+    if args.len() < 6 || args.len() > 7 {
+        eprintln!(
+            "usage: transfer_bench <host> <port> <username> <local_file> <remote_dir> [parallel_k]"
+        );
         std::process::exit(2);
-    };
+    }
+    let (host, port, user, local, remote_dir) =
+        (&args[1], &args[2], &args[3], &args[4], &args[5]);
     let port: u16 = port.parse().expect("port");
     let data = std::sync::Arc::new(std::fs::read(local).expect("read local file"));
     let size = data.len() as u64;
