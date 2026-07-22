@@ -1,9 +1,11 @@
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
-use ssh2::Session;
-use std::io::{Read, Write};
+use ssh2::{FileStat, OpenFlags, OpenType, Session};
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::net::TcpStream;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
+use std::sync::Arc;
 use tracing;
 
 /// Maximum file size for transfers (10 GB)
@@ -555,6 +557,178 @@ pub fn sftp_upload_file_streaming(
     // Final 100% event.
     let _ = sink.add(SftpProgress { transferred, total });
     tracing::info!(bytes = transferred, "File uploaded successfully (streaming)");
+    Ok(())
+}
+
+/// Upload a file over `concurrency` parallel SSH connections, each writing a
+/// contiguous range at its offset. Falls back to the single-connection
+/// streaming path when the extra sessions cannot be established.
+pub fn sftp_upload_file_parallel(
+    host: String,
+    port: u16,
+    username: String,
+    local_path: String,
+    remote_path: String,
+    concurrency: Option<u8>,
+    sink: crate::frb_generated::StreamSink<SftpProgress>,
+) -> Result<()> {
+    let k = concurrency.unwrap_or(4).clamp(1, 8) as usize;
+    let validated_local = validate_local_path(&local_path)?;
+    let validated_remote = validate_and_normalize_path(&remote_path, &username)?;
+
+    let total = std::fs::metadata(&validated_local)
+        .map_err(|e| anyhow!("Failed to stat local file '{}': {}", validated_local.display(), e))?
+        .len();
+    if total > MAX_FILE_SIZE {
+        return Err(anyhow!(
+            "File size exceeds the {} GB limit",
+            MAX_FILE_SIZE / (1024 * 1024 * 1024)
+        ));
+    }
+
+    // Small files: parallel setup costs more than it saves.
+    if total < PARALLEL_MIN_SIZE || k == 1 {
+        return sftp_upload_file_streaming(host, port, username, local_path, remote_path, sink);
+    }
+
+    tracing::info!(
+        local_path = %validated_local.display(),
+        remote_path = %validated_remote.display(),
+        total_bytes = total,
+        workers = k,
+        "Uploading file via SFTP (parallel)"
+    );
+
+    // Coordinator session (file create/truncate, final verification, cleanup)
+    // plus K worker sessions, all opened up-front so a MaxSessions-style
+    // rejection is detected here and triggers the single-connection fallback.
+    let coord = create_ssh_session(&host, port, &username)?;
+    let coord_sftp = coord.sftp().map_err(|e| anyhow!("SFTP session failed: {}", e))?;
+    let mut workers = Vec::with_capacity(k);
+    for i in 0..k {
+        match create_ssh_session(&host, port, &username) {
+            Ok(sess) => workers.push(sess),
+            Err(e) => {
+                tracing::warn!(
+                    worker = i,
+                    error = %e,
+                    "Parallel upload: extra session failed, falling back to single connection"
+                );
+                return sftp_upload_file_streaming(
+                    host, port, username, local_path, remote_path, sink,
+                );
+            }
+        }
+    }
+
+    // Create the remote file and set its final size (spec: truncate up-front).
+    {
+        let f = coord_sftp
+            .create(&validated_remote)
+            .map_err(|e| anyhow!("Failed to create remote file '{}': {}", validated_remote.display(), e))?;
+        drop(f);
+        let stat = FileStat {
+            size: Some(total),
+            uid: None,
+            gid: None,
+            perm: None,
+            atime: None,
+            mtime: None,
+        };
+        coord_sftp
+            .setstat(&validated_remote, stat)
+            .map_err(|e| anyhow!("Failed to size remote file: {}", e))?;
+    }
+
+    let transferred = Arc::new(AtomicU64::new(0));
+    let cancel = Arc::new(AtomicBool::new(false));
+    let remaining = Arc::new(AtomicUsize::new(k));
+    let (err_tx, err_rx) = std::sync::mpsc::channel::<anyhow::Error>();
+    let ranges = split_ranges(total, k);
+
+    let mut handles = Vec::with_capacity(k);
+    for (sess, (offset, len)) in workers.into_iter().zip(ranges.into_iter()) {
+        let transferred = Arc::clone(&transferred);
+        let cancel = Arc::clone(&cancel);
+        let remaining = Arc::clone(&remaining);
+        let err_tx = err_tx.clone();
+        let local = validated_local.clone();
+        let remote = validated_remote.clone();
+        handles.push(std::thread::spawn(move || {
+            let result = (|| -> Result<()> {
+                let sftp = sess.sftp().map_err(|e| anyhow!("worker sftp: {}", e))?;
+                let mut rf = sftp
+                    .open_mode(&remote, OpenFlags::WRITE, 0o644, OpenType::File)
+                    .map_err(|e| anyhow!("worker open remote: {}", e))?;
+                rf.seek(SeekFrom::Start(offset))
+                    .map_err(|e| anyhow!("worker seek remote: {}", e))?;
+                let mut lf = std::fs::File::open(&local)
+                    .map_err(|e| anyhow!("worker open local: {}", e))?;
+                lf.seek(SeekFrom::Start(offset))
+                    .map_err(|e| anyhow!("worker seek local: {}", e))?;
+
+                let mut buf = vec![0u8; 128 * 1024];
+                let mut left = len;
+                while left > 0 {
+                    if cancel.load(Ordering::Relaxed) {
+                        return Err(anyhow!("cancelled by sibling failure"));
+                    }
+                    let want = buf.len().min(left as usize);
+                    let n = lf
+                        .read(&mut buf[..want])
+                        .map_err(|e| anyhow!("worker read: {}", e))?;
+                    if n == 0 {
+                        return Err(anyhow!("local file shrank during upload"));
+                    }
+                    rf.write_all(&buf[..n])
+                        .map_err(|e| anyhow!("worker write: {}", e))?;
+                    left -= n as u64;
+                    transferred.fetch_add(n as u64, Ordering::Relaxed);
+                }
+                Ok(())
+            })();
+            if let Err(e) = result {
+                cancel.store(true, Ordering::Relaxed);
+                let _ = err_tx.send(e);
+            }
+            remaining.fetch_sub(1, Ordering::Relaxed);
+        }));
+    }
+    drop(err_tx);
+
+    // Coordinator: emit throttled progress until all workers finish.
+    let _ = sink.add(SftpProgress { transferred: 0, total });
+    while remaining.load(Ordering::Relaxed) > 0 {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        let _ = sink.add(SftpProgress {
+            transferred: transferred.load(Ordering::Relaxed),
+            total,
+        });
+    }
+    for h in handles {
+        let _ = h.join();
+    }
+
+    if let Ok(first_err) = err_rx.try_recv() {
+        let _ = coord_sftp.unlink(&validated_remote);
+        return Err(anyhow!("Parallel upload failed: {}", first_err));
+    }
+
+    // Verify the remote size before declaring success.
+    let st = coord_sftp
+        .stat(&validated_remote)
+        .map_err(|e| anyhow!("Failed to stat uploaded file: {}", e))?;
+    if st.size != Some(total) {
+        let _ = coord_sftp.unlink(&validated_remote);
+        return Err(anyhow!(
+            "Uploaded size mismatch: expected {}, got {:?}",
+            total,
+            st.size
+        ));
+    }
+
+    let _ = sink.add(SftpProgress { transferred: total, total });
+    tracing::info!(bytes = total, workers = k, "File uploaded successfully (parallel)");
     Ok(())
 }
 
