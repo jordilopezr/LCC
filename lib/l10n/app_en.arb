@@ -1356,5 +1356,15 @@
   "tunnelErrorRelayUnreachable": "Could not reach the IAP relay. Check the network or proxy settings.",
   "tunnelErrorProtocolError": "Unexpected response from the IAP relay.",
   "tunnelErrorLocalPortUnavailable": "No local port available for the tunnel.",
-  "tunnelErrorUnknown": "The tunnel could not be established."
+  "tunnelErrorUnknown": "The tunnel could not be established.",
+  "sftpFolderProgressLabel": "{percent}% — {done}/{total} MB, {filesDone}/{filesTotal} files",
+  "@sftpFolderProgressLabel": {
+    "placeholders": {
+      "percent": {"type": "int"},
+      "done": {"type": "int"},
+      "total": {"type": "int"},
+      "filesDone": {"type": "int"},
+      "filesTotal": {"type": "int"}
+    }
+  }
 }

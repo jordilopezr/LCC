@@ -682,5 +682,6 @@
   "tunnelErrorRelayUnreachable": "No se pudo contactar con el relay de IAP. Compruebe la red o la configuración del proxy.",
   "tunnelErrorProtocolError": "Respuesta inesperada del relay de IAP.",
   "tunnelErrorLocalPortUnavailable": "No hay ningún puerto local disponible para el túnel.",
-  "tunnelErrorUnknown": "No se pudo establecer el túnel."
+  "tunnelErrorUnknown": "No se pudo establecer el túnel.",
+  "sftpFolderProgressLabel": "{percent} % — {done}/{total} MB, {filesDone}/{filesTotal} archivos"
 }

@@ -2406,4 +2406,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get tunnelErrorUnknown => 'The tunnel could not be established.';
+
+  @override
+  String sftpFolderProgressLabel(
+    int percent,
+    int done,
+    int total,
+    int filesDone,
+    int filesTotal,
+  ) {
+    return '$percent% — $done/$total MB, $filesDone/$filesTotal files';
+  }
 }

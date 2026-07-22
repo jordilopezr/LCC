@@ -4183,6 +4183,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The tunnel could not be established.'**
   String get tunnelErrorUnknown;
+
+  /// No description provided for @sftpFolderProgressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% — {done}/{total} MB, {filesDone}/{filesTotal} files'**
+  String sftpFolderProgressLabel(
+    int percent,
+    int done,
+    int total,
+    int filesDone,
+    int filesTotal,
+  );
 }
 
 class _AppLocalizationsDelegate

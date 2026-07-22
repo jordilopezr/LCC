@@ -304,32 +304,68 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
         );
       }
 
-      // Upload every file, preserving its relative path, streaming per-byte
-      // progress so large files show a moving bar instead of a frozen counter.
-      var uploaded = 0;
+      // Upload every file, preserving its relative path, with a 3-worker pool
+      // (each worker using 2 internal connections) and an aggregate
+      // byte-based progress bar across the whole folder.
+      final dir = localDir;
+
+      // Total bytes for the whole folder (for the global progress bar).
+      final sizes = <String, int>{};
+      var totalBytes = 0;
       for (final f in files) {
-        final rel = path.relative(f.path, from: localDir);
-        uploaded++;
-        final label = l10n.sftpUploadingFolderProgress(
-          uploaded,
-          files.length,
-          path.basename(f.path),
+        final len = await f.length();
+        sizes[f.path] = len;
+        totalBytes += len;
+      }
+
+      // 3 files in flight, each with 2 internal connections (≤6 total).
+      var nextIndex = 0;
+      var filesDone = 0;
+      var doneBytes = 0;
+      final inFlight = <String, int>{};
+
+      void emitProgress() {
+        final current =
+            doneBytes + inFlight.values.fold<int>(0, (a, b) => a + b);
+        final fraction = totalBytes > 0 ? current / totalBytes : null;
+        state = state.copyWith(
+          operationInProgress: l10n.sftpFolderProgressLabel(
+            totalBytes > 0 ? (current * 100 ~/ totalBytes) : 100,
+            current ~/ 1000000,
+            totalBytes ~/ 1000000,
+            filesDone,
+            files.length,
+          ),
+          progress: fraction,
         );
-        state = state.copyWith(operationInProgress: label, progress: 0);
-        await for (final p in sftpUploadStreaming(
-          host: host,
-          port: port,
-          username: username,
-          localPath: f.path,
-          remotePath: path.join(remoteRoot, rel),
-        )) {
-          final total = p.total.toInt();
-          state = state.copyWith(
-            operationInProgress: label,
-            progress: total > 0 ? p.transferred.toInt() / total : null,
-          );
+      }
+
+      Future<void> worker() async {
+        while (true) {
+          final i = nextIndex++;
+          if (i >= files.length) return;
+          final f = files[i];
+          final rel = path.relative(f.path, from: dir);
+          await for (final p in sftpUploadParallel(
+            host: host,
+            port: port,
+            username: username,
+            localPath: f.path,
+            remotePath: path.join(remoteRoot, rel),
+            concurrency: 2,
+          )) {
+            inFlight[f.path] = p.transferred.toInt();
+            emitProgress();
+          }
+          inFlight.remove(f.path);
+          doneBytes += sizes[f.path] ?? 0;
+          filesDone++;
+          emitProgress();
         }
       }
+
+      emitProgress();
+      await Future.wait([worker(), worker(), worker()]);
 
       state = state.copyWith(operationInProgress: null);
       await refresh(l10n);
