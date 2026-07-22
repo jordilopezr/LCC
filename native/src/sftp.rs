@@ -345,6 +345,47 @@ fn create_ssh_session(host: &str, port: u16, username: &str) -> Result<Session> 
     Ok(sess)
 }
 
+/// Open `k` SSH sessions concurrently (one thread per session) instead of
+/// serially, so K high-latency handshakes overlap instead of stacking up.
+/// Returns all sessions in order on success, or the first error encountered
+/// (with the offending worker index) so the caller can fall back.
+fn create_ssh_sessions_concurrent(
+    host: &str,
+    port: u16,
+    username: &str,
+    k: usize,
+) -> std::result::Result<Vec<Session>, (usize, anyhow::Error)> {
+    let mut handles = Vec::with_capacity(k);
+    for _ in 0..k {
+        let host = host.to_string();
+        let username = username.to_string();
+        handles.push(std::thread::spawn(move || create_ssh_session(&host, port, &username)));
+    }
+
+    let mut sessions = Vec::with_capacity(k);
+    let mut first_err: Option<(usize, anyhow::Error)> = None;
+    for (i, h) in handles.into_iter().enumerate() {
+        match h.join() {
+            Ok(Ok(sess)) => sessions.push(sess),
+            Ok(Err(e)) => {
+                if first_err.is_none() {
+                    first_err = Some((i, e));
+                }
+            }
+            Err(_) => {
+                if first_err.is_none() {
+                    first_err = Some((i, anyhow!("session-creation thread panicked")));
+                }
+            }
+        }
+    }
+
+    match first_err {
+        Some(e) => Err(e),
+        None => Ok(sessions),
+    }
+}
+
 /// List directory contents via SFTP
 pub fn sftp_list_directory(
     host: String,
@@ -613,22 +654,21 @@ pub fn sftp_upload_file_parallel(
     // rejection is detected here and triggers the single-connection fallback.
     let coord = create_ssh_session(&host, port, &username)?;
     let coord_sftp = coord.sftp().map_err(|e| anyhow!("SFTP session failed: {}", e))?;
-    let mut workers = Vec::with_capacity(k);
-    for i in 0..k {
-        match create_ssh_session(&host, port, &username) {
-            Ok(sess) => workers.push(sess),
-            Err(e) => {
-                tracing::warn!(
-                    worker = i,
-                    error = %e,
-                    "Parallel upload: extra session failed, falling back to single connection"
-                );
-                return sftp_upload_file_streaming(
-                    host, port, username, local_path, remote_path, sink,
-                );
-            }
+    let workers = match create_ssh_sessions_concurrent(&host, port, &username, k) {
+        Ok(sessions) => sessions,
+        Err((i, e)) => {
+            tracing::warn!(
+                worker = i,
+                error = %e,
+                "Parallel upload: extra session failed, falling back to single connection"
+            );
+            drop(coord_sftp);
+            drop(coord);
+            return sftp_upload_file_streaming(
+                host, port, username, local_path, remote_path, sink,
+            );
         }
-    }
+    };
 
     // Create the remote file and set its final size (spec: truncate up-front).
     {
@@ -733,7 +773,21 @@ pub fn sftp_upload_file_parallel(
         return Err(anyhow!("Parallel upload failed: a worker thread panicked"));
     }
 
-    // Verify the remote size before declaring success.
+    // Verify all bytes were actually written. `stat` alone is vacuous here
+    // because `setstat` already pre-sized the remote file to `total` before
+    // any transfer happened, so it would report `total` even if a worker
+    // silently wrote fewer bytes than its range.
+    let written = transferred.load(Ordering::Relaxed);
+    if written != total {
+        let _ = coord_sftp.unlink(&validated_remote);
+        return Err(anyhow!(
+            "Uploaded byte count mismatch: expected {}, transferred {}",
+            total,
+            written
+        ));
+    }
+
+    // Verify the remote size as a secondary check.
     let st = coord_sftp
         .stat(&validated_remote)
         .map_err(|e| anyhow!("Failed to stat uploaded file: {}", e))?;
@@ -807,20 +861,19 @@ pub fn sftp_download_file_parallel(
         "Downloading file via SFTP (parallel)"
     );
 
-    let mut workers = Vec::with_capacity(k);
-    for i in 0..k {
-        match create_ssh_session(&host, port, &username) {
-            Ok(sess) => workers.push(sess),
-            Err(e) => {
-                tracing::warn!(
-                    worker = i,
-                    error = %e,
-                    "Parallel download: extra session failed, falling back to single connection"
-                );
-                return single(&sink);
-            }
+    let workers = match create_ssh_sessions_concurrent(&host, port, &username, k) {
+        Ok(sessions) => sessions,
+        Err((i, e)) => {
+            tracing::warn!(
+                worker = i,
+                error = %e,
+                "Parallel download: extra session failed, falling back to single connection"
+            );
+            drop(coord_sftp);
+            drop(coord);
+            return single(&sink);
         }
-    }
+    };
 
     // Preallocate the local file to its final size.
     {
