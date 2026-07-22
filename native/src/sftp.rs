@@ -76,6 +76,28 @@ fn copy_with_limit<R: Read, W: Write>(
     Ok(total_bytes)
 }
 
+/// Files below this size are not worth parallelizing (handshake dominates).
+pub(crate) const PARALLEL_MIN_SIZE: u64 = 8 * 1024 * 1024;
+
+/// Partition `[0, size)` into up to `k` contiguous `(offset, length)` ranges.
+/// The non-divisible remainder goes to the last range. Never returns
+/// zero-length ranges except for `size == 0` (one `(0, 0)` range).
+pub(crate) fn split_ranges(size: u64, k: usize) -> Vec<(u64, u64)> {
+    if size == 0 {
+        return vec![(0, 0)];
+    }
+    let k = (k.max(1) as u64).min(size);
+    let base = size / k;
+    let mut ranges = Vec::with_capacity(k as usize);
+    let mut offset = 0u64;
+    for i in 0..k {
+        let len = if i == k - 1 { size - offset } else { base };
+        ranges.push((offset, len));
+        offset += len;
+    }
+    ranges
+}
+
 /// Get the real home directory for a remote user
 ///
 /// This function determines the correct home directory by checking common patterns.
@@ -602,6 +624,47 @@ pub fn get_current_username() -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn split_ranges_covers_file_contiguously() {
+        // 100 bytes over 4 ranges: remainder goes to the LAST range.
+        let r = split_ranges(100, 4);
+        assert_eq!(r, vec![(0, 25), (25, 25), (50, 25), (75, 25)]);
+        let r = split_ranges(103, 4);
+        assert_eq!(r, vec![(0, 25), (25, 25), (50, 25), (75, 28)]);
+    }
+
+    #[test]
+    fn split_ranges_small_file_is_single_range() {
+        // Below PARALLEL_MIN_SIZE the caller uses one connection; split_ranges
+        // itself must still behave: k=1 yields the whole file.
+        assert_eq!(split_ranges(1234, 1), vec![(0, 1234)]);
+    }
+
+    #[test]
+    fn split_ranges_zero_size_is_one_empty_range() {
+        assert_eq!(split_ranges(0, 4), vec![(0, 0)]);
+    }
+
+    #[test]
+    fn split_ranges_more_workers_than_bytes() {
+        // 3 bytes, 4 workers: never emit zero-length ranges except size==0.
+        let r = split_ranges(3, 4);
+        assert_eq!(r, vec![(0, 1), (1, 1), (2, 1)]);
+    }
+
+    #[test]
+    fn split_ranges_reassembles_exactly() {
+        for (size, k) in [(8 * 1024 * 1024u64, 4usize), (1, 4), (999_999, 3)] {
+            let r = split_ranges(size, k);
+            let mut expected_offset = 0u64;
+            for (off, len) in &r {
+                assert_eq!(*off, expected_offset);
+                expected_offset += len;
+            }
+            assert_eq!(expected_offset, size);
+        }
+    }
 
     #[test]
     fn allows_absolute_remote_paths_outside_home() {
