@@ -322,9 +322,11 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
       var nextIndex = 0;
       var filesDone = 0;
       var doneBytes = 0;
+      var aborted = false;
       final inFlight = <String, int>{};
 
       void emitProgress() {
+        if (aborted) return;
         final current =
             doneBytes + inFlight.values.fold<int>(0, (a, b) => a + b);
         final fraction = totalBytes > 0 ? current / totalBytes : null;
@@ -342,25 +344,31 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
 
       Future<void> worker() async {
         while (true) {
+          if (aborted) return;
           final i = nextIndex++;
           if (i >= files.length) return;
           final f = files[i];
-          final rel = path.relative(f.path, from: dir);
-          await for (final p in sftpUploadParallel(
-            host: host,
-            port: port,
-            username: username,
-            localPath: f.path,
-            remotePath: path.join(remoteRoot, rel),
-            concurrency: 2,
-          )) {
-            inFlight[f.path] = p.transferred.toInt();
+          try {
+            final rel = path.relative(f.path, from: dir);
+            await for (final p in sftpUploadParallel(
+              host: host,
+              port: port,
+              username: username,
+              localPath: f.path,
+              remotePath: path.join(remoteRoot, rel),
+              concurrency: 2,
+            )) {
+              inFlight[f.path] = p.transferred.toInt();
+              emitProgress();
+            }
+            inFlight.remove(f.path);
+            doneBytes += sizes[f.path] ?? 0;
+            filesDone++;
             emitProgress();
+          } catch (e) {
+            aborted = true;
+            rethrow;
           }
-          inFlight.remove(f.path);
-          doneBytes += sizes[f.path] ?? 0;
-          filesDone++;
-          emitProgress();
         }
       }
 
