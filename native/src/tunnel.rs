@@ -22,8 +22,9 @@ pub enum TunnelEngine {
     Gcloud,
 }
 
-/// Read `LCC_TUNNEL_ENGINE`. `None` = try native, fall back to gcloud.
-/// Debug aid only; deliberately not exposed in Settings.
+/// Read `LCC_TUNNEL_ENGINE`. `None` (unset) and `gcloud` both use the default
+/// gcloud engine; `native` opts into the experimental native engine. Debug aid
+/// only; deliberately not exposed in Settings.
 pub fn selected_engine() -> Option<TunnelEngine> {
     match std::env::var("LCC_TUNNEL_ENGINE").ok()?.as_str() {
         "native" => Some(TunnelEngine::Native),
@@ -119,23 +120,17 @@ pub fn start_tunnel(project: &str, zone: &str, instance: &str, remote_port: u16)
 
     let forced = selected_engine();
 
-    // Native first unless gcloud was forced.
-    if forced != Some(TunnelEngine::Gcloud) {
-        match start_native(project, zone, instance, remote_port) {
-            Ok(tunnel) => {
-                let local_port = tunnel.local_port;
-                let mut tunnels = TUNNELS.lock().map_err(|_| anyhow!("Tunnel lock poisoned"))?;
-                tunnels.insert(make_tunnel_key(instance, remote_port), tunnel);
-                tracing::info!(instance, remote_port, local_port, engine = "native", "Tunnel established");
-                return Ok(local_port);
-            }
-            Err(err) => {
-                if forced == Some(TunnelEngine::Native) {
-                    return Err(err);
-                }
-                tracing::warn!(instance, error = %err, "Native tunnel failed, falling back to gcloud");
-            }
-        }
+    // gcloud is the default engine (reliable). The native engine is still
+    // experimental and only runs when explicitly opted in via
+    // LCC_TUNNEL_ENGINE=native, with no fallback so its failures are visible
+    // during debugging.
+    if forced == Some(TunnelEngine::Native) {
+        let tunnel = start_native(project, zone, instance, remote_port)?;
+        let local_port = tunnel.local_port;
+        let mut tunnels = TUNNELS.lock().map_err(|_| anyhow!("Tunnel lock poisoned"))?;
+        tunnels.insert(make_tunnel_key(instance, remote_port), tunnel);
+        tracing::info!(instance, remote_port, local_port, engine = "native", "Tunnel established");
+        return Ok(local_port);
     }
 
     let tunnel = start_gcloud(project, zone, instance, remote_port)?;
