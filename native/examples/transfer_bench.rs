@@ -34,6 +34,16 @@ fn report(label: &str, bytes: u64, secs: f64) {
     println!("{label}: {bytes} bytes in {secs:.1}s = {mbs:.2} MB/s");
 }
 
+fn sess_open_write(sftp: &ssh2::Sftp, path: &str) -> ssh2::File {
+    sftp.open_mode(
+        Path::new(path),
+        ssh2::OpenFlags::WRITE,
+        0o644,
+        ssh2::OpenType::File,
+    )
+    .expect("open write")
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let [_, host, port, user, local, remote_dir] = &args[..] else {
@@ -41,7 +51,7 @@ fn main() {
         std::process::exit(2);
     };
     let port: u16 = port.parse().expect("port");
-    let data = std::fs::read(local).expect("read local file");
+    let data = std::sync::Arc::new(std::fs::read(local).expect("read local file"));
     let size = data.len() as u64;
     println!("file: {local} ({size} bytes)");
 
@@ -97,4 +107,50 @@ fn main() {
     assert_eq!(st.size, Some(size), "raw size mismatch");
     sftp.unlink(Path::new(&raw_path)).expect("unlink raw");
     println!("raw channel verified and cleaned up");
+
+    // --- optional: parallel ranged upload with K sessions ---
+    if let Some(k_arg) = std::env::args().nth(6) {
+        let k: usize = k_arg.parse().expect("K");
+        let par_path = format!("{remote_dir}/bench_par.bin");
+        // Create + size the remote file first.
+        let f = sftp.create(Path::new(&par_path)).expect("create par");
+        drop(f);
+        let ranges: Vec<(u64, u64)> = {
+            let base = size / k as u64;
+            (0..k as u64)
+                .map(|i| {
+                    let off = i * base;
+                    let len = if i == k as u64 - 1 { size - off } else { base };
+                    (off, len)
+                })
+                .collect()
+        };
+        let start = Instant::now();
+        let mut handles = Vec::new();
+        for (off, len) in ranges {
+            let host = host.clone();
+            let user = user.clone();
+            let data = data.clone();
+            let par_path = par_path.clone();
+            handles.push(std::thread::spawn(move || {
+                let sess = session(&host, port, &user);
+                let sftp = sess.sftp().unwrap();
+                let mut rf = sess_open_write(&sftp, &par_path);
+                use std::io::Seek;
+                rf.seek(std::io::SeekFrom::Start(off)).unwrap();
+                let end = (off + len) as usize;
+                for chunk in data[off as usize..end].chunks(BUF) {
+                    rf.write_all(chunk).unwrap();
+                }
+            }));
+        }
+        for h in handles {
+            h.join().unwrap();
+        }
+        report(&format!("PAR{k}"), size, start.elapsed().as_secs_f64());
+        let st = sftp.stat(Path::new(&par_path)).expect("stat par");
+        assert_eq!(st.size, Some(size), "parallel size mismatch");
+        sftp.unlink(Path::new(&par_path)).expect("unlink par");
+        println!("parallel verified and cleaned up");
+    }
 }
