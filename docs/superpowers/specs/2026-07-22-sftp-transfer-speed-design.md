@@ -6,7 +6,12 @@
 
 ## Objetivo
 
-Acelerar las transferencias SFTP (subidas **y** descargas) del navegador de archivos, que hoy rinden ~0.7 MB/s sobre el túnel IAP, usando paralelismo de conexiones. Meta: acercarse a K× el techo por conexión (~1.6 MB/s), es decir **≈3–5 MB/s** con K=4.
+Acelerar las transferencias SFTP (subidas **y** descargas) del navegador de archivos, que hoy rinden ~0.7 MB/s sobre el túnel IAP, usando paralelismo de conexiones. Meta original: acercarse a K× el techo por conexión (~1.6 MB/s), es decir ≈3–5 MB/s con K=4.
+
+> **Resultado medido (2026-07-22, tras implementar).** La meta absoluta **no se cumplió**: el speedup real es de **~2×** (mediana de 5 comparaciones pareadas en la misma corrida: 1.8×, 1.9×, 3.1×, 2.1×, 1.3×), no 4×. Dos hallazgos que corrigen supuestos del diseño:
+> - El túnel gcloud **no** es el cuello de botella (su proceso llegó al 0.5 % de CPU), así que el riesgo anticipado no se materializó; el límite es la latencia del enlace a la relay.
+> - La red es **muy variable**: tres corridas consecutivas de PAR4 dieron 2.50 / 1.48 / 0.81 MB/s. Cualquier medición de una sola muestra es engañosa.
+> - **K=4 y K=2 son indistinguibles** dentro de ese ruido, así que el valor por defecto se bajó a **K=2**: misma ganancia con 3 conexiones por fichero en vez de 5 (y menos presión sobre `MaxStartups` de sshd en la subida de carpetas).
 
 ## Base empírica (benchmark 2026-07-22, `native/examples/transfer_bench.rs`)
 
@@ -37,7 +42,7 @@ Conclusiones que fijan el diseño:
 
 Nuevo código en `native/src/sftp.rs`:
 
-- **Particionado**: función pura `fn split_ranges(size: u64, k: usize) -> Vec<(u64, u64)>` (offset, longitud). Reglas: K=4 por defecto; ficheros **< 8 MB** no se particionan (una conexión; el handshake no compensa); el resto no divisible va al último rango; tamaño 0 → un rango vacío.
+- **Particionado**: función pura `fn split_ranges(size: u64, k: usize) -> Vec<(u64, u64)>` (offset, longitud). Reglas: **K=2 por defecto** (ver «Resultado medido»; originalmente se especificó 4); ficheros **< 8 MB** no se particionan (una conexión; el handshake no compensa); el resto no divisible va al último rango; tamaño 0 → un rango vacío.
 - **`sftp_upload_file_parallel(host, port, username, local_path, remote_path, concurrency, sink)`**:
   1. Valida rutas con las funciones existentes (`validate_local_path`, `validate_and_normalize_path`).
   2. Crea el fichero remoto y lo trunca al tamaño final (escritura posicionada requiere el fichero creado).
@@ -50,7 +55,7 @@ Nuevo código en `native/src/sftp.rs`:
 
 ## 2. Bridge
 
-- Wrappers en `native/src/api.rs`: `sftp_upload_parallel` y `sftp_download_parallel`, ambos con `StreamSink<SftpProgress>`; `concurrency: Option<u8>` (None = 4).
+- Wrappers en `native/src/api.rs`: `sftp_upload_parallel` y `sftp_download_parallel`, ambos con `StreamSink<SftpProgress>`; `concurrency: Option<u8>` (None = 2).
 - Regenerar el bridge y — lección aprendida — **recompilar ambos perfiles** de Rust (`cargo build` y `cargo build --release`): la app carga la lib de release aunque el build de Flutter sea debug.
 
 ## 3. Dart — subida de carpeta en paralelo

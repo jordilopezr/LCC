@@ -622,7 +622,7 @@ pub fn sftp_upload_file_parallel(
     concurrency: Option<u8>,
     sink: crate::frb_generated::StreamSink<SftpProgress>,
 ) -> Result<()> {
-    let k = concurrency.unwrap_or(4).clamp(1, 8) as usize;
+    let k = concurrency.unwrap_or(2).clamp(1, 8) as usize;
     let validated_local = validate_local_path(&local_path)?;
     let validated_remote = validate_and_normalize_path(&remote_path, &username)?;
 
@@ -817,7 +817,7 @@ pub fn sftp_download_file_parallel(
     concurrency: Option<u8>,
     sink: crate::frb_generated::StreamSink<SftpProgress>,
 ) -> Result<()> {
-    let k = concurrency.unwrap_or(4).clamp(1, 8) as usize;
+    let k = concurrency.unwrap_or(2).clamp(1, 8) as usize;
     let validated_remote = validate_and_normalize_path(&remote_path, &username)?;
     let validated_local = validate_local_path(&local_path)?;
 

@@ -189,7 +189,7 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
           username: username,
           localPath: localPath,
           remotePath: remotePath,
-          concurrency: 4,
+          concurrency: 2,
         )) {
           final total = p.total.toInt();
           state = state.copyWith(
@@ -412,7 +412,7 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
           username: username,
           remotePath: file.path,
           localPath: localPath,
-          concurrency: 4,
+          concurrency: 2,
         )) {
           final total = p.total.toInt();
           state = state.copyWith(
