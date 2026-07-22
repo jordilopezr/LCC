@@ -702,34 +702,44 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
                     tooltip: l10n.commonRefresh,
                   ),
                   const Spacer(),
-                  if (state.operationInProgress != null)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            value: state.progress,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(state.operationInProgress!),
-                        if (state.progress != null) ...[
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            width: 120,
-                            child: LinearProgressIndicator(value: state.progress),
-                          ),
-                          const SizedBox(width: 8),
-                          Text('${(state.progress! * 100).round()}%'),
-                        ],
-                      ],
-                    ),
                 ],
               ),
             ),
+
+            // Progress banner on its own full-width row so it never overflows
+            // the toolbar (the filename + bar + percentage can be wide).
+            if (state.operationInProgress != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8.0),
+                child: Row(
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        value: state.progress,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        state.operationInProgress!,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (state.progress != null) ...[
+                      const SizedBox(width: 12),
+                      SizedBox(
+                        width: 120,
+                        child: LinearProgressIndicator(value: state.progress),
+                      ),
+                      const SizedBox(width: 8),
+                      Text('${(state.progress! * 100).round()}%'),
+                    ],
+                  ],
+                ),
+              ),
 
             // Error display
             if (state.error != null)
