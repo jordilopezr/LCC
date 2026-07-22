@@ -462,6 +462,80 @@ pub fn sftp_upload_file(
     Ok(bytes_copied)
 }
 
+/// Byte-level progress of an SFTP transfer, streamed to the UI.
+#[derive(Debug, Clone)]
+pub struct SftpProgress {
+    pub transferred: u64,
+    pub total: u64,
+}
+
+/// Upload a file, emitting byte-level progress to `sink` (throttled to ~10/sec)
+/// so the UI can show a progress bar even for large files.
+pub fn sftp_upload_file_streaming(
+    host: String,
+    port: u16,
+    username: String,
+    local_path: String,
+    remote_path: String,
+    sink: crate::frb_generated::StreamSink<SftpProgress>,
+) -> Result<()> {
+    let validated_local_path = validate_local_path(&local_path)?;
+    let validated_remote_path = validate_and_normalize_path(&remote_path, &username)?;
+
+    let total = std::fs::metadata(&validated_local_path)
+        .map(|m| m.len())
+        .unwrap_or(0);
+
+    tracing::info!(
+        local_path = %validated_local_path.display(),
+        remote_path = %validated_remote_path.display(),
+        total_bytes = total,
+        "Uploading file via SFTP (streaming)"
+    );
+
+    let sess = create_ssh_session(&host, port, &username)?;
+    let sftp = sess.sftp()
+        .map_err(|e| anyhow!("Failed to create SFTP session: {}", e))?;
+
+    let mut local_file = std::fs::File::open(&validated_local_path)
+        .map_err(|e| anyhow!("Failed to open local file '{}': {}", validated_local_path.display(), e))?;
+    let mut remote_file = sftp.create(&validated_remote_path)
+        .map_err(|e| anyhow!("Failed to create remote file '{}': {}", validated_remote_path.display(), e))?;
+
+    let mut buffer = vec![0u8; 128 * 1024];
+    let mut transferred = 0u64;
+    let mut last_emit = std::time::Instant::now();
+    let _ = sink.add(SftpProgress { transferred: 0, total });
+
+    loop {
+        let n = local_file.read(&mut buffer)
+            .map_err(|e| anyhow!("Read error during upload: {}", e))?;
+        if n == 0 {
+            break;
+        }
+        transferred += n as u64;
+        if transferred > MAX_FILE_SIZE {
+            return Err(anyhow!(
+                "File size exceeds the {} GB limit",
+                MAX_FILE_SIZE / (1024 * 1024 * 1024)
+            ));
+        }
+        remote_file.write_all(&buffer[..n])
+            .map_err(|e| anyhow!("Write error during upload: {}", e))?;
+
+        // Throttle progress events to ~10/sec to avoid flooding the bridge.
+        if last_emit.elapsed() >= std::time::Duration::from_millis(100) {
+            let _ = sink.add(SftpProgress { transferred, total });
+            last_emit = std::time::Instant::now();
+        }
+    }
+
+    // Final 100% event.
+    let _ = sink.add(SftpProgress { transferred, total });
+    tracing::info!(bytes = transferred, "File uploaded successfully (streaming)");
+    Ok(())
+}
+
 /// Create a directory on remote server
 pub fn sftp_create_directory(
     host: String,

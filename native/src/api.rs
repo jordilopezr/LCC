@@ -318,6 +318,18 @@ pub fn sftp_upload(host: String, port: u16, username: String, local_path: String
     crate::sftp::sftp_upload_file(host, port, username, local_path, remote_path)
 }
 
+/// Streaming upload: emits byte-level progress so the UI can show a progress bar.
+pub fn sftp_upload_streaming(
+    host: String,
+    port: u16,
+    username: String,
+    local_path: String,
+    remote_path: String,
+    sink: crate::frb_generated::StreamSink<crate::sftp::SftpProgress>,
+) -> anyhow::Result<()> {
+    crate::sftp::sftp_upload_file_streaming(host, port, username, local_path, remote_path, sink)
+}
+
 pub fn sftp_mkdir(host: String, port: u16, username: String, remote_path: String) -> anyhow::Result<()> {
     crate::sftp::sftp_create_directory(host, port, username, remote_path)
 }

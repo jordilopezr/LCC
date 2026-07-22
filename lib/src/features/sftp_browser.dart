@@ -16,6 +16,10 @@ class SftpBrowserState {
   final bool isLoading;
   final String? error;
   final String? operationInProgress;
+  /// Fraction (0.0–1.0) of the file currently transferring, or null for an
+  /// indeterminate operation. Set alongside [operationInProgress] during
+  /// streaming uploads so the banner can show a real progress bar.
+  final double? progress;
   final String searchQuery;
 
   const SftpBrowserState({
@@ -24,6 +28,7 @@ class SftpBrowserState {
     this.isLoading = false,
     this.error,
     this.operationInProgress,
+    this.progress,
     this.searchQuery = '',
   });
 
@@ -33,6 +38,7 @@ class SftpBrowserState {
     bool? isLoading,
     String? error,
     String? operationInProgress,
+    double? progress,
     String? searchQuery,
   }) {
     return SftpBrowserState(
@@ -41,6 +47,7 @@ class SftpBrowserState {
       isLoading: isLoading ?? this.isLoading,
       error: error,
       operationInProgress: operationInProgress,
+      progress: progress,
       searchQuery: searchQuery ?? this.searchQuery,
     );
   }
@@ -173,15 +180,22 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
         fileName = _sanitizeFilename(path.basename(localPath));
         remotePath = path.join(state.currentPath, fileName);
 
-        state = state.copyWith(operationInProgress: l10n.sftpUploadingFile(fileName));
+        final label = l10n.sftpUploadingFile(fileName);
+        state = state.copyWith(operationInProgress: label, progress: 0);
 
-        await sftpUpload(
+        await for (final p in sftpUploadStreaming(
           host: host,
           port: port,
           username: username,
           localPath: localPath,
           remotePath: remotePath,
-        );
+        )) {
+          final total = p.total.toInt();
+          state = state.copyWith(
+            operationInProgress: label,
+            progress: total > 0 ? p.transferred.toInt() / total : null,
+          );
+        }
 
         state = state.copyWith(operationInProgress: null);
         await refresh(l10n);
@@ -289,25 +303,31 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
         );
       }
 
-      // Upload every file, preserving its relative path.
+      // Upload every file, preserving its relative path, streaming per-byte
+      // progress so large files show a moving bar instead of a frozen counter.
       var uploaded = 0;
       for (final f in files) {
         final rel = path.relative(f.path, from: localDir);
         uploaded++;
-        state = state.copyWith(
-          operationInProgress: l10n.sftpUploadingFolderProgress(
-            uploaded,
-            files.length,
-            path.basename(f.path),
-          ),
+        final label = l10n.sftpUploadingFolderProgress(
+          uploaded,
+          files.length,
+          path.basename(f.path),
         );
-        await sftpUpload(
+        state = state.copyWith(operationInProgress: label, progress: 0);
+        await for (final p in sftpUploadStreaming(
           host: host,
           port: port,
           username: username,
           localPath: f.path,
           remotePath: path.join(remoteRoot, rel),
-        );
+        )) {
+          final total = p.total.toInt();
+          state = state.copyWith(
+            operationInProgress: label,
+            progress: total > 0 ? p.transferred.toInt() / total : null,
+          );
+        }
       }
 
       state = state.copyWith(operationInProgress: null);
@@ -684,14 +704,27 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
                   const Spacer(),
                   if (state.operationInProgress != null)
                     Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const SizedBox(
+                        SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            value: state.progress,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         Text(state.operationInProgress!),
+                        if (state.progress != null) ...[
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 120,
+                            child: LinearProgressIndicator(value: state.progress),
+                          ),
+                          const SizedBox(width: 8),
+                          Text('${(state.progress! * 100).round()}%'),
+                        ],
                       ],
                     ),
                 ],

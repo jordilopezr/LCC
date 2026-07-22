@@ -45,3 +45,22 @@ class RemoteFileEntry {
           modified == other.modified &&
           permissions == other.permissions;
 }
+
+/// Byte-level progress of an SFTP transfer, streamed to the UI.
+class SftpProgress {
+  final BigInt transferred;
+  final BigInt total;
+
+  const SftpProgress({required this.transferred, required this.total});
+
+  @override
+  int get hashCode => transferred.hashCode ^ total.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SftpProgress &&
+          runtimeType == other.runtimeType &&
+          transferred == other.transferred &&
+          total == other.total;
+}

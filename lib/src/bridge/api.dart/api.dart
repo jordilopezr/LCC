@@ -362,6 +362,21 @@ Future<BigInt> sftpUpload({
   remotePath: remotePath,
 );
 
+/// Streaming upload: emits byte-level progress so the UI can show a progress bar.
+Stream<SftpProgress> sftpUploadStreaming({
+  required String host,
+  required int port,
+  required String username,
+  required String localPath,
+  required String remotePath,
+}) => RustLib.instance.api.crateApiSftpUploadStreaming(
+  host: host,
+  port: port,
+  username: username,
+  localPath: localPath,
+  remotePath: remotePath,
+);
+
 Future<void> sftpMkdir({
   required String host,
   required int port,
