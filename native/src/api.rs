@@ -330,6 +330,32 @@ pub fn sftp_upload_streaming(
     crate::sftp::sftp_upload_file_streaming(host, port, username, local_path, remote_path, sink)
 }
 
+/// Parallel upload: K SSH connections write ranges; emits aggregate progress.
+pub fn sftp_upload_parallel(
+    host: String,
+    port: u16,
+    username: String,
+    local_path: String,
+    remote_path: String,
+    concurrency: Option<u8>,
+    sink: crate::frb_generated::StreamSink<crate::sftp::SftpProgress>,
+) -> anyhow::Result<()> {
+    crate::sftp::sftp_upload_file_parallel(host, port, username, local_path, remote_path, concurrency, sink)
+}
+
+/// Parallel download: K SSH connections read ranges; emits aggregate progress.
+pub fn sftp_download_parallel(
+    host: String,
+    port: u16,
+    username: String,
+    remote_path: String,
+    local_path: String,
+    concurrency: Option<u8>,
+    sink: crate::frb_generated::StreamSink<crate::sftp::SftpProgress>,
+) -> anyhow::Result<()> {
+    crate::sftp::sftp_download_file_parallel(host, port, username, remote_path, local_path, concurrency, sink)
+}
+
 pub fn sftp_mkdir(host: String, port: u16, username: String, remote_path: String) -> anyhow::Result<()> {
     crate::sftp::sftp_create_directory(host, port, username, remote_path)
 }

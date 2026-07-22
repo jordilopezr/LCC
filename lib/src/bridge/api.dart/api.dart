@@ -377,6 +377,40 @@ Stream<SftpProgress> sftpUploadStreaming({
   remotePath: remotePath,
 );
 
+/// Parallel upload: K SSH connections write ranges; emits aggregate progress.
+Stream<SftpProgress> sftpUploadParallel({
+  required String host,
+  required int port,
+  required String username,
+  required String localPath,
+  required String remotePath,
+  int? concurrency,
+}) => RustLib.instance.api.crateApiSftpUploadParallel(
+  host: host,
+  port: port,
+  username: username,
+  localPath: localPath,
+  remotePath: remotePath,
+  concurrency: concurrency,
+);
+
+/// Parallel download: K SSH connections read ranges; emits aggregate progress.
+Stream<SftpProgress> sftpDownloadParallel({
+  required String host,
+  required int port,
+  required String username,
+  required String remotePath,
+  required String localPath,
+  int? concurrency,
+}) => RustLib.instance.api.crateApiSftpDownloadParallel(
+  host: host,
+  port: port,
+  username: username,
+  remotePath: remotePath,
+  localPath: localPath,
+  concurrency: concurrency,
+);
+
 Future<void> sftpMkdir({
   required String host,
   required int port,
