@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_pty/flutter_pty.dart';
@@ -21,6 +22,8 @@ class SshTerminalController {
   String? errorDetail;
 
   Pty? _pty;
+  StreamSubscription<String>? _outputSubscription;
+  bool _disposed = false;
 
   SshTerminalController({
     required this.username,
@@ -29,9 +32,13 @@ class SshTerminalController {
   });
 
   TerminalPhase get phase => phaseNotifier.value;
-  void _setPhase(TerminalPhase v) => phaseNotifier.value = v;
+  void _setPhase(TerminalPhase v) {
+    if (_disposed) return;
+    phaseNotifier.value = v;
+  }
 
   Future<void> start() async {
+    errorDetail = null;
     _setPhase(TerminalPhase.connectingTunnel);
     try {
       final port = await ensureTunnel();
@@ -58,7 +65,7 @@ class SshTerminalController {
       );
       _pty = pty;
 
-      pty.output
+      _outputSubscription = pty.output
           .cast<List<int>>()
           .transform(const Utf8Decoder())
           .listen(terminal.write);
@@ -66,6 +73,7 @@ class SshTerminalController {
       terminal.onResize = (w, h, pw, ph) => pty.resize(h, w);
 
       pty.exitCode.then((_) {
+        if (_disposed || !identical(_pty, pty)) return;
         if (phase != TerminalPhase.error) _setPhase(TerminalPhase.disconnected);
       });
 
@@ -77,12 +85,17 @@ class SshTerminalController {
   }
 
   void reconnect() {
+    _outputSubscription?.cancel();
+    _outputSubscription = null;
     _pty?.kill();
     _pty = null;
     start();
   }
 
   void dispose() {
+    _disposed = true;
+    _outputSubscription?.cancel();
+    _outputSubscription = null;
     _pty?.kill();
     _pty = null;
     phaseNotifier.dispose();
