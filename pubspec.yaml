@@ -50,6 +50,8 @@ dependencies:
   flutter_local_notifications: ^18.0.1
   window_manager: ^0.5.2
   path_provider: ^2.1.5
+  xterm: ^4.0.0
+  flutter_pty: ^0.4.2
 
 dev_dependencies:
   flutter_test:
