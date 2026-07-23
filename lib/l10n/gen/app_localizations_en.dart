@@ -2426,4 +2426,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String workspaceTerminalError(String detail) {
     return 'Could not open the SSH session: $detail';
   }
+
+  @override
+  String get workspaceNoTabs => 'Select a VM to get started';
+
+  @override
+  String get workspaceCloseTab => 'Close tab';
+
+  @override
+  String get workspaceTabOverview => 'Overview';
+
+  @override
+  String get workspaceTabSsh => 'SSH';
+
+  @override
+  String get workspaceTabSftp => 'SFTP';
 }

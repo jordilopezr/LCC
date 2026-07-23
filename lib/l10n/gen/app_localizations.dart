@@ -4213,6 +4213,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Could not open the SSH session: {detail}'**
   String workspaceTerminalError(String detail);
+
+  /// No description provided for @workspaceNoTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a VM to get started'**
+  String get workspaceNoTabs;
+
+  /// No description provided for @workspaceCloseTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tab'**
+  String get workspaceCloseTab;
+
+  /// No description provided for @workspaceTabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get workspaceTabOverview;
+
+  /// No description provided for @workspaceTabSsh.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH'**
+  String get workspaceTabSsh;
+
+  /// No description provided for @workspaceTabSftp.
+  ///
+  /// In en, this message translates to:
+  /// **'SFTP'**
+  String get workspaceTabSftp;
 }
 
 class _AppLocalizationsDelegate

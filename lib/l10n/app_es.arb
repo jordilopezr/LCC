@@ -686,5 +686,10 @@
   "workspaceTerminalConnecting": "Conectando…",
   "workspaceTerminalDisconnected": "La sesión terminó.",
   "workspaceReconnect": "Reconectar",
-  "workspaceTerminalError": "No se pudo abrir la sesión SSH: {detail}"
+  "workspaceTerminalError": "No se pudo abrir la sesión SSH: {detail}",
+  "workspaceNoTabs": "Selecciona una VM para empezar",
+  "workspaceCloseTab": "Cerrar pestaña",
+  "workspaceTabOverview": "Resumen",
+  "workspaceTabSsh": "SSH",
+  "workspaceTabSftp": "SFTP"
 }

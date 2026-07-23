@@ -1363,5 +1363,10 @@
   "workspaceTerminalDisconnected": "Session ended.",
   "workspaceReconnect": "Reconnect",
   "workspaceTerminalError": "Could not open the SSH session: {detail}",
-  "@workspaceTerminalError": { "placeholders": { "detail": {"type": "String"} } }
+  "@workspaceTerminalError": { "placeholders": { "detail": {"type": "String"} } },
+  "workspaceNoTabs": "Select a VM to get started",
+  "workspaceCloseTab": "Close tab",
+  "workspaceTabOverview": "Overview",
+  "workspaceTabSsh": "SSH",
+  "workspaceTabSftp": "SFTP"
 }

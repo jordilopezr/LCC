@@ -2462,4 +2462,19 @@ class AppLocalizationsEs extends AppLocalizations {
   String workspaceTerminalError(String detail) {
     return 'No se pudo abrir la sesión SSH: $detail';
   }
+
+  @override
+  String get workspaceNoTabs => 'Selecciona una VM para empezar';
+
+  @override
+  String get workspaceCloseTab => 'Cerrar pestaña';
+
+  @override
+  String get workspaceTabOverview => 'Resumen';
+
+  @override
+  String get workspaceTabSsh => 'SSH';
+
+  @override
+  String get workspaceTabSftp => 'SFTP';
 }
