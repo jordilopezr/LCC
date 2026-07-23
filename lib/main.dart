@@ -19,6 +19,8 @@ import 'src/features/snapshot_manager_dialog.dart';
 import 'src/services/storage_service.dart';
 import 'src/services/notification_service.dart';
 import 'src/features/workspace/overview_tab.dart';
+import 'src/features/workspace/workspace_panel.dart';
+import 'src/features/workspace/workspace_provider.dart';
 
 /// Helper: Check if instance has any active tunnel
 bool hasAnyActiveTunnel(
@@ -420,7 +422,7 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               SizedBox(width: 300, child: ResourceTree()),
               VerticalDivider(width: 1),
-              Expanded(child: InstanceDetailPane()),
+              Expanded(child: WorkspacePanel()),
             ],
           );
         },
@@ -1428,6 +1430,7 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
                     ref
                         .read(multiProjectSelectedInstanceProvider.notifier)
                         .select(pai);
+                    ref.read(workspaceProvider.notifier).openOverview(pai);
                   },
                 );
               }).toList(),
@@ -1717,6 +1720,7 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
                   ref
                       .read(multiProjectSelectedInstanceProvider.notifier)
                       .select(pai);
+                  ref.read(workspaceProvider.notifier).openOverview(pai);
                 },
               ),
             );
@@ -1902,6 +1906,7 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
       if (value == null) return;
       // Select the instance first
       ref.read(multiProjectSelectedInstanceProvider.notifier).select(pai);
+      ref.read(workspaceProvider.notifier).openOverview(pai);
 
       final connectionsNotifier = ref.read(activeConnectionsProvider.notifier);
 

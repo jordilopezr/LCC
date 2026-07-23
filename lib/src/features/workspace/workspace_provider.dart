@@ -12,6 +12,13 @@ class WorkspaceState {
         sessions: sessions ?? this.sessions,
         activeId: activeId ?? this.activeId,
       );
+
+  WorkspaceSession? get activeSession {
+    for (final s in sessions) {
+      if (s.id == activeId) return s;
+    }
+    return null;
+  }
 }
 
 final workspaceProvider =
