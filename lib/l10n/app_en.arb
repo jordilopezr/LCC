@@ -1372,5 +1372,7 @@
   "workspaceCloseTitle": "Close app?",
   "workspaceCloseWithSessions": "You have {count} active session(s). Close anyway?",
   "@workspaceCloseWithSessions": { "placeholders": { "count": {"type": "int"} } },
-  "workspaceCloseAnyway": "Close anyway"
+  "workspaceCloseAnyway": "Close anyway",
+  "workspaceScrollTabsLeft": "Scroll tabs left",
+  "workspaceScrollTabsRight": "Scroll tabs right"
 }

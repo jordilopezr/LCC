@@ -2488,4 +2488,10 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get workspaceCloseAnyway => 'Cerrar de todos modos';
+
+  @override
+  String get workspaceScrollTabsLeft => 'Desplazar pestañas a la izquierda';
+
+  @override
+  String get workspaceScrollTabsRight => 'Desplazar pestañas a la derecha';
 }

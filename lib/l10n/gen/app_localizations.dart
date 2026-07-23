@@ -4261,6 +4261,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close anyway'**
   String get workspaceCloseAnyway;
+
+  /// No description provided for @workspaceScrollTabsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll tabs left'**
+  String get workspaceScrollTabsLeft;
+
+  /// No description provided for @workspaceScrollTabsRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll tabs right'**
+  String get workspaceScrollTabsRight;
 }
 
 class _AppLocalizationsDelegate
