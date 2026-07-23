@@ -2441,4 +2441,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceTabSftp => 'SFTP';
+
+  @override
+  String get workspaceCloseTitle => 'Close app?';
+
+  @override
+  String workspaceCloseWithSessions(int count) {
+    return 'You have $count active session(s). Close anyway?';
+  }
+
+  @override
+  String get workspaceCloseAnyway => 'Close anyway';
 }

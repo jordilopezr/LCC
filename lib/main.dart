@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import 'src/bridge/api.dart/api.dart';
 import 'src/bridge/api.dart/gcloud.dart';
@@ -21,6 +22,7 @@ import 'src/services/notification_service.dart';
 import 'src/features/workspace/overview_tab.dart';
 import 'src/features/workspace/workspace_panel.dart';
 import 'src/features/workspace/workspace_provider.dart';
+import 'src/features/workspace/workspace_session.dart';
 
 /// Helper: Check if instance has any active tunnel
 bool hasAnyActiveTunnel(
@@ -36,6 +38,14 @@ bool hasAnyActiveTunnel(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Intercept the window close button so we can warn about live SSH/SFTP
+  // sessions before the app actually exits (desktop platforms only).
+  if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+  }
+
   await StorageService().init();
   await RustLib.init();
 
@@ -74,15 +84,87 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> with WindowListener {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+      windowManager.addListener(this);
+    }
+  }
+
+  @override
+  void dispose() {
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+      windowManager.removeListener(this);
+    }
+    super.dispose();
+  }
+
+  @override
+  void onWindowClose() async {
+    final hasLiveSessions = ref.read(workspaceProvider.notifier).hasLiveSessions;
+    if (!hasLiveSessions) {
+      await windowManager.destroy();
+      return;
+    }
+
+    final context = _navigatorKey.currentContext;
+    if (context == null) {
+      // No context to show a dialog with — fall back to exiting.
+      await windowManager.destroy();
+      return;
+    }
+
+    final liveCount = ref
+        .read(workspaceProvider)
+        .sessions
+        .where((s) => s.type != SessionType.overview)
+        .length;
+    final l10n = AppLocalizations.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.workspaceCloseTitle),
+        content: Text(l10n.workspaceCloseWithSessions(liveCount)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              l10n.workspaceCloseAnyway,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await windowManager.destroy();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final appThemeMode = ref.watch(themeModeProvider);
     final appLocale = ref.watch(localeProvider);
 
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: AppLocalizations.localizationsDelegates,

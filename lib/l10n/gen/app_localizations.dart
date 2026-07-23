@@ -4243,6 +4243,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'SFTP'**
   String get workspaceTabSftp;
+
+  /// No description provided for @workspaceCloseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Close app?'**
+  String get workspaceCloseTitle;
+
+  /// No description provided for @workspaceCloseWithSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'You have {count} active session(s). Close anyway?'**
+  String workspaceCloseWithSessions(int count);
+
+  /// No description provided for @workspaceCloseAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Close anyway'**
+  String get workspaceCloseAnyway;
 }
 
 class _AppLocalizationsDelegate

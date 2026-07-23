@@ -1368,5 +1368,9 @@
   "workspaceCloseTab": "Close tab",
   "workspaceTabOverview": "Overview",
   "workspaceTabSsh": "SSH",
-  "workspaceTabSftp": "SFTP"
+  "workspaceTabSftp": "SFTP",
+  "workspaceCloseTitle": "Close app?",
+  "workspaceCloseWithSessions": "You have {count} active session(s). Close anyway?",
+  "@workspaceCloseWithSessions": { "placeholders": { "count": {"type": "int"} } },
+  "workspaceCloseAnyway": "Close anyway"
 }

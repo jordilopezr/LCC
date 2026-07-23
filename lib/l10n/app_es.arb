@@ -691,5 +691,8 @@
   "workspaceCloseTab": "Cerrar pestaña",
   "workspaceTabOverview": "Resumen",
   "workspaceTabSsh": "SSH",
-  "workspaceTabSftp": "SFTP"
+  "workspaceTabSftp": "SFTP",
+  "workspaceCloseTitle": "¿Cerrar la aplicación?",
+  "workspaceCloseWithSessions": "Tienes {count} sesión(es) activa(s). ¿Cerrar de todos modos?",
+  "workspaceCloseAnyway": "Cerrar de todos modos"
 }
