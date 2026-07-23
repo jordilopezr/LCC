@@ -1904,9 +1904,10 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
       items: items,
     ).then((value) {
       if (value == null) return;
-      // Select the instance first
+      // Select the instance first so the chosen action targets it. A
+      // right-click action is not a "view this VM" gesture, so it must not
+      // open an Overview tab — only the row taps do that.
       ref.read(multiProjectSelectedInstanceProvider.notifier).select(pai);
-      ref.read(workspaceProvider.notifier).openOverview(pai);
 
       final connectionsNotifier = ref.read(activeConnectionsProvider.notifier);
 
