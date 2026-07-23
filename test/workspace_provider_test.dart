@@ -127,4 +127,19 @@ void main() {
     wn().closeOthers(s2); // keep s2 + pinned s1, close s3
     expect(ws().sessions.map((s) => s.id).toSet(), {s1, s2});
   });
+
+  test('closeToRight closes unpinned tabs after the target but spares pinned', () {
+    final a = _vm('a');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(a);
+    final s3 = wn().openSsh(a);
+    final s4 = wn().openSsh(a);
+    wn().togglePin(s1);
+    wn().togglePin(s2); // pinned zone: [s1, s2]; then unpinned [s3, s4]
+    // Order is [s1, s2, s3, s4]. closeToRight(s1) targets everything visually
+    // after s1: s2 (pinned → spared), s3 and s4 (unpinned → closed).
+    wn().closeToRight(s1);
+    expect(ws().sessions.map((s) => s.id).toSet(), {s1, s2});
+    expect(ws().sessions.any((s) => s.id == s3 || s.id == s4), false);
+  });
 }
