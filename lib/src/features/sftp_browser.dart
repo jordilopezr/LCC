@@ -16,6 +16,7 @@ class SftpBrowserState {
   final bool isLoading;
   final String? error;
   final String? operationInProgress;
+
   /// Fraction (0.0–1.0) of the file currently transferring, or null for an
   /// indeterminate operation. Set alongside [operationInProgress] during
   /// streaming uploads so the banner can show a real progress bar.
@@ -236,7 +237,11 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
         final remotePath = path.join(state.currentPath, fileName);
 
         state = state.copyWith(
-          operationInProgress: l10n.sftpUploadingBatch(uploadedCount, totalFiles, fileName),
+          operationInProgress: l10n.sftpUploadingBatch(
+            uploadedCount,
+            totalFiles,
+            fileName,
+          ),
         );
 
         await sftpUpload(
@@ -285,13 +290,22 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
 
       // Snapshot the tree first so we can create parents before children and
       // report progress over a known total.
-      final entries =
-          await Directory(localDir).list(recursive: true, followLinks: false).toList();
-      final subDirs = entries.whereType<Directory>().map((d) => d.path).toList()..sort();
+      final entries = await Directory(
+        localDir,
+      ).list(recursive: true, followLinks: false).toList();
+      final subDirs = entries.whereType<Directory>().map((d) => d.path).toList()
+        ..sort();
       final files = entries.whereType<File>().toList();
 
-      state = state.copyWith(operationInProgress: l10n.sftpUploadingFolder(folderName));
-      await sftpMkdir(host: host, port: port, username: username, remotePath: remoteRoot);
+      state = state.copyWith(
+        operationInProgress: l10n.sftpUploadingFolder(folderName),
+      );
+      await sftpMkdir(
+        host: host,
+        port: port,
+        username: username,
+        remotePath: remoteRoot,
+      );
 
       // Recreate the directory structure (sorted => parents precede children).
       for (final d in subDirs) {
@@ -452,30 +466,22 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
     final trimmedName = dirName.trim();
 
     if (trimmedName.isEmpty) {
-      state = state.copyWith(
-        error: l10n.sftpErrorDirNameEmpty,
-      );
+      state = state.copyWith(error: l10n.sftpErrorDirNameEmpty);
       return;
     }
 
     if (trimmedName.contains('/') || trimmedName.contains('\\')) {
-      state = state.copyWith(
-        error: l10n.sftpErrorDirNameSeparators,
-      );
+      state = state.copyWith(error: l10n.sftpErrorDirNameSeparators);
       return;
     }
 
     if (trimmedName.contains('..')) {
-      state = state.copyWith(
-        error: l10n.sftpErrorDirNameParentRef,
-      );
+      state = state.copyWith(error: l10n.sftpErrorDirNameParentRef);
       return;
     }
 
     if (trimmedName.length > 255) {
-      state = state.copyWith(
-        error: l10n.sftpErrorDirNameTooLong,
-      );
+      state = state.copyWith(error: l10n.sftpErrorDirNameTooLong);
       return;
     }
 
@@ -524,7 +530,9 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
 
   Future<void> deleteEntry(RemoteFileEntry file, AppLocalizations l10n) async {
     try {
-      state = state.copyWith(operationInProgress: l10n.sftpDeletingFile(file.name));
+      state = state.copyWith(
+        operationInProgress: l10n.sftpDeletingFile(file.name),
+      );
 
       await sftpDelete(
         host: host,
@@ -539,7 +547,9 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
     } catch (e, stackTrace) {
       // Structured logging for debugging
       debugPrint('═══ SFTP ERROR: Delete Entry ═══');
-      debugPrint('Operation: Delete ${file.isDirectory ? "directory" : "file"}');
+      debugPrint(
+        'Operation: Delete ${file.isDirectory ? "directory" : "file"}',
+      );
       debugPrint('Host: $host:$port');
       debugPrint('Username: $username');
       debugPrint('Entry Name: ${file.name}');
@@ -558,7 +568,10 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
   }
 
   /// Download file to temp directory for preview
-  Future<String?> downloadForPreview(RemoteFileEntry file, AppLocalizations l10n) async {
+  Future<String?> downloadForPreview(
+    RemoteFileEntry file,
+    AppLocalizations l10n,
+  ) async {
     try {
       state = state.copyWith(operationInProgress: l10n.sftpLoadingPreview);
 
@@ -593,12 +606,15 @@ class SftpBrowserNotifier extends Notifier<SftpBrowserState> {
 }
 
 // Create a unique provider for each SFTP session
-NotifierProvider<SftpBrowserNotifier, SftpBrowserState> createSftpBrowserProvider() {
-  return NotifierProvider<SftpBrowserNotifier, SftpBrowserState>(SftpBrowserNotifier.new);
+NotifierProvider<SftpBrowserNotifier, SftpBrowserState>
+createSftpBrowserProvider() {
+  return NotifierProvider<SftpBrowserNotifier, SftpBrowserState>(
+    SftpBrowserNotifier.new,
+  );
 }
 
 // SFTP Browser Dialog Widget
-class SftpBrowserDialog extends ConsumerStatefulWidget {
+class SftpBrowserDialog extends StatelessWidget {
   final String host;
   final int port;
   final String username;
@@ -613,10 +629,63 @@ class SftpBrowserDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<SftpBrowserDialog> createState() => _SftpBrowserDialogState();
+  Widget build(BuildContext context) {
+    return Dialog(
+      child: SizedBox(
+        width: 900,
+        height: 700,
+        child: Stack(
+          children: [
+            SftpBrowserBody(
+              host: host,
+              port: port,
+              username: username,
+              instanceName: instanceName,
+            ),
+            // Close affordance lives in the dialog chrome, not the body,
+            // since the workspace tab that reuses SftpBrowserBody has no
+            // close button (the tab strip owns closing there).
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
+/// The SFTP file-browser panel: header, search bar, toolbar, transfer
+/// progress banner, error banner, and the file listing with drag & drop
+/// support. Owns the [SftpBrowserNotifier] lifecycle (creates the provider
+/// on init and calls `initialize` once the first frame is up).
+///
+/// Used both inside [SftpBrowserDialog] (wrapped in a fixed-size `Dialog`)
+/// and directly inside a workspace tab (sized by its parent).
+class SftpBrowserBody extends ConsumerStatefulWidget {
+  final String host;
+  final int port;
+  final String username;
+  final String instanceName;
+
+  const SftpBrowserBody({
+    super.key,
+    required this.host,
+    required this.port,
+    required this.username,
+    required this.instanceName,
+  });
+
+  @override
+  ConsumerState<SftpBrowserBody> createState() => _SftpBrowserBodyState();
+}
+
+class _SftpBrowserBodyState extends ConsumerState<SftpBrowserBody> {
   late final NotifierProvider<SftpBrowserNotifier, SftpBrowserState> provider;
   bool _isDragging = false;
 
@@ -628,12 +697,9 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       final l10n = AppLocalizations.of(context);
-      ref.read(provider.notifier).initialize(
-        widget.host,
-        widget.port,
-        widget.username,
-        l10n,
-      );
+      ref
+          .read(provider.notifier)
+          .initialize(widget.host, widget.port, widget.username, l10n);
     });
   }
 
@@ -642,298 +708,340 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
     final state = ref.watch(provider);
     final l10n = AppLocalizations.of(context);
 
-    return Dialog(
-      child: Container(
-        width: 900,
-        height: 700,
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              const Icon(Icons.folder_open, size: 28, color: Colors.blue),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.sftpFileBrowserTitle(widget.instanceName),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      state.currentPath,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Divider(),
+
+          // Search Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: l10n.sftpSearchHint,
+                prefixIcon: const Icon(Icons.search, size: 20),
+                suffixIcon: state.searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: () =>
+                            ref.read(provider.notifier).clearSearch(),
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                isDense: true,
+              ),
+              onChanged: (value) =>
+                  ref.read(provider.notifier).updateSearchQuery(value),
+            ),
+          ),
+
+          // Toolbar
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Row(
               children: [
-                const Icon(Icons.folder_open, size: 28, color: Colors.blue),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.sftpFileBrowserTitle(widget.instanceName),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        state.currentPath,
-                        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                      ),
-                    ],
+                // Parent Directory Navigation Button
+                IconButton(
+                  onPressed:
+                      (state.isLoading ||
+                          state.currentPath == '/home/${widget.username}')
+                      ? null
+                      : () {
+                          final parentPath = path.dirname(state.currentPath);
+                          ref
+                              .read(provider.notifier)
+                              .navigateTo(parentPath, l10n);
+                        },
+                  icon: const Icon(Icons.arrow_upward),
+                  tooltip: l10n.sftpParentDirectoryTooltip,
+                  color: Colors.blue.shade700,
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => ref.read(provider.notifier).uploadFile(l10n),
+                  icon: const Icon(Icons.upload_file, size: 18),
+                  label: Text(l10n.sftpUploadFileButton),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade600,
+                    foregroundColor: Colors.white,
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.of(context).pop(),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => ref.read(provider.notifier).uploadFolder(l10n),
+                  icon: const Icon(Icons.drive_folder_upload, size: 18),
+                  label: Text(l10n.sftpUploadFolderButton),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                  ),
                 ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => _showCreateDirectoryDialog(l10n),
+                  icon: const Icon(Icons.create_new_folder, size: 18),
+                  label: Text(l10n.sftpNewFolderButton),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue.shade600,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  onPressed: state.isLoading
+                      ? null
+                      : () => ref.read(provider.notifier).refresh(l10n),
+                  icon: const Icon(Icons.refresh),
+                  tooltip: l10n.commonRefresh,
+                ),
+                const Spacer(),
               ],
             ),
-            const Divider(),
+          ),
 
-            // Search Bar
+          // Progress banner on its own full-width row so it never overflows
+          // the toolbar (the filename + bar + percentage can be wide).
+          if (state.operationInProgress != null)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
-              child: TextField(
-                decoration: InputDecoration(
-                  hintText: l10n.sftpSearchHint,
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: state.searchQuery.isNotEmpty
-                      ? IconButton(
-                          icon: const Icon(Icons.clear, size: 20),
-                          onPressed: () => ref.read(provider.notifier).clearSearch(),
-                        )
-                      : null,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  isDense: true,
-                ),
-                onChanged: (value) => ref.read(provider.notifier).updateSearchQuery(value),
-              ),
-            ),
-
-            // Toolbar
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              padding: const EdgeInsets.only(bottom: 8.0),
               child: Row(
                 children: [
-                  // Parent Directory Navigation Button
-                  IconButton(
-                    onPressed: (state.isLoading || state.currentPath == '/home/${widget.username}')
-                        ? null
-                        : () {
-                            final parentPath = path.dirname(state.currentPath);
-                            ref.read(provider.notifier).navigateTo(parentPath, l10n);
-                          },
-                    icon: const Icon(Icons.arrow_upward),
-                    tooltip: l10n.sftpParentDirectoryTooltip,
-                    color: Colors.blue.shade700,
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: state.isLoading ? null : () => ref.read(provider.notifier).uploadFile(l10n),
-                    icon: const Icon(Icons.upload_file, size: 18),
-                    label: Text(l10n.sftpUploadFileButton),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade600,
-                      foregroundColor: Colors.white,
+                  SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      value: state.progress,
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: state.isLoading ? null : () => ref.read(provider.notifier).uploadFolder(l10n),
-                    icon: const Icon(Icons.drive_folder_upload, size: 18),
-                    label: Text(l10n.sftpUploadFolderButton),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green.shade700,
-                      foregroundColor: Colors.white,
+                  Expanded(
+                    child: Text(
+                      state.operationInProgress!,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: state.isLoading ? null : () => _showCreateDirectoryDialog(l10n),
-                    icon: const Icon(Icons.create_new_folder, size: 18),
-                    label: Text(l10n.sftpNewFolderButton),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.blue.shade600,
-                      foregroundColor: Colors.white,
+                  if (state.progress != null) ...[
+                    const SizedBox(width: 12),
+                    SizedBox(
+                      width: 120,
+                      child: LinearProgressIndicator(value: state.progress),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IconButton(
-                    onPressed: state.isLoading ? null : () => ref.read(provider.notifier).refresh(l10n),
-                    icon: const Icon(Icons.refresh),
-                    tooltip: l10n.commonRefresh,
-                  ),
-                  const Spacer(),
+                    const SizedBox(width: 8),
+                    Text('${(state.progress! * 100).round()}%'),
+                  ],
                 ],
               ),
             ),
 
-            // Progress banner on its own full-width row so it never overflows
-            // the toolbar (the filename + bar + percentage can be wide).
-            if (state.operationInProgress != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8.0),
-                child: Row(
-                  children: [
-                    SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        value: state.progress,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        state.operationInProgress!,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (state.progress != null) ...[
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: 120,
-                        child: LinearProgressIndicator(value: state.progress),
-                      ),
-                      const SizedBox(width: 8),
-                      Text('${(state.progress! * 100).round()}%'),
-                    ],
-                  ],
-                ),
+          // Error display
+          if (state.error != null)
+            Container(
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: Colors.red.shade200),
               ),
-
-            // Error display
-            if (state.error != null)
-              Container(
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade50,
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.red.shade200),
-                ),
-                child: Row(
-                  children: [
-                    Icon(Icons.error_outline, color: Colors.red.shade700, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        state.error!,
-                        style: TextStyle(color: Colors.red.shade700),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close, size: 18),
-                      onPressed: () => ref.read(provider.notifier).clearError(),
-                    ),
-                  ],
-                ),
-              ),
-
-            // File list with drag & drop support
-            Expanded(
-              child: DropTarget(
-                onDragEntered: (details) {
-                  setState(() => _isDragging = true);
-                },
-                onDragExited: (details) {
-                  setState(() => _isDragging = false);
-                },
-                onDragDone: (details) async {
-                  setState(() => _isDragging = false);
-                  await ref.read(provider.notifier).uploadFiles(details.files, l10n);
-                },
-                child: Container(
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: _isDragging ? Colors.blue : Colors.transparent,
-                      width: 3,
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                    color: _isDragging ? Colors.blue.withValues(alpha: 0.05) : null,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    color: Colors.red.shade700,
+                    size: 20,
                   ),
-                  child: state.isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : state.filteredFiles.isEmpty
-                          ? Center(
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    _isDragging
-                                        ? Icons.file_upload
-                                        : (state.searchQuery.isEmpty ? Icons.folder_open : Icons.search_off),
-                                    size: 64,
-                                    color: _isDragging ? Colors.blue : Colors.grey.shade400,
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Text(
-                                    _isDragging
-                                        ? l10n.sftpDropFilesHere
-                                        : (state.searchQuery.isEmpty
-                                            ? l10n.sftpEmptyFolder
-                                            : l10n.sftpNoFilesMatch(state.searchQuery)),
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(
-                                      color: _isDragging ? Colors.blue : Colors.grey.shade600,
-                                      fontSize: 16,
-                                      fontWeight: _isDragging ? FontWeight.bold : FontWeight.normal,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Stack(
-                              children: [
-                                ListView.builder(
-                                  itemCount: state.filteredFiles.length,
-                                  itemBuilder: (context, index) {
-                                    final file = state.filteredFiles[index];
-                                    return _FileListTile(
-                                      file: file,
-                                      searchQuery: state.searchQuery,
-                                      onTap: () {
-                                        if (file.isDirectory) {
-                                          ref.read(provider.notifier).navigateTo(file.path, l10n);
-                                        }
-                                      },
-                                      onPreview: _canPreview(file) && !file.isDirectory
-                                          ? () => _showPreview(file, l10n)
-                                          : null,
-                                      onDownload: file.isDirectory ? null : () {
-                                        ref.read(provider.notifier).downloadFile(file, l10n);
-                                      },
-                                      onDelete: file.name == '..' ? null : () {
-                                        _showDeleteConfirmation(file, l10n);
-                                      },
-                                    );
-                                  },
-                                ),
-                                // Drag overlay
-                                if (_isDragging)
-                                  Container(
-                                    color: Colors.blue.withValues(alpha: 0.1),
-                                    child: Center(
-                                      child: Column(
-                                        mainAxisAlignment: MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.file_upload,
-                                            size: 80,
-                                            color: Colors.blue.shade700,
-                                          ),
-                                          const SizedBox(height: 16),
-                                          Text(
-                                            l10n.sftpDropFilesHere,
-                                            style: TextStyle(
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.blue.shade700,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      state.error!,
+                      style: TextStyle(color: Colors.red.shade700),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 18),
+                    onPressed: () => ref.read(provider.notifier).clearError(),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
+
+          // File list with drag & drop support
+          Expanded(
+            child: DropTarget(
+              onDragEntered: (details) {
+                setState(() => _isDragging = true);
+              },
+              onDragExited: (details) {
+                setState(() => _isDragging = false);
+              },
+              onDragDone: (details) async {
+                setState(() => _isDragging = false);
+                await ref
+                    .read(provider.notifier)
+                    .uploadFiles(details.files, l10n);
+              },
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: _isDragging ? Colors.blue : Colors.transparent,
+                    width: 3,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  color: _isDragging
+                      ? Colors.blue.withValues(alpha: 0.05)
+                      : null,
+                ),
+                child: state.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : state.filteredFiles.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              _isDragging
+                                  ? Icons.file_upload
+                                  : (state.searchQuery.isEmpty
+                                        ? Icons.folder_open
+                                        : Icons.search_off),
+                              size: 64,
+                              color: _isDragging
+                                  ? Colors.blue
+                                  : Colors.grey.shade400,
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              _isDragging
+                                  ? l10n.sftpDropFilesHere
+                                  : (state.searchQuery.isEmpty
+                                        ? l10n.sftpEmptyFolder
+                                        : l10n.sftpNoFilesMatch(
+                                            state.searchQuery,
+                                          )),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: _isDragging
+                                    ? Colors.blue
+                                    : Colors.grey.shade600,
+                                fontSize: 16,
+                                fontWeight: _isDragging
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : Stack(
+                        children: [
+                          ListView.builder(
+                            itemCount: state.filteredFiles.length,
+                            itemBuilder: (context, index) {
+                              final file = state.filteredFiles[index];
+                              return _FileListTile(
+                                file: file,
+                                searchQuery: state.searchQuery,
+                                onTap: () {
+                                  if (file.isDirectory) {
+                                    ref
+                                        .read(provider.notifier)
+                                        .navigateTo(file.path, l10n);
+                                  }
+                                },
+                                onPreview:
+                                    _canPreview(file) && !file.isDirectory
+                                    ? () => _showPreview(file, l10n)
+                                    : null,
+                                onDownload: file.isDirectory
+                                    ? null
+                                    : () {
+                                        ref
+                                            .read(provider.notifier)
+                                            .downloadFile(file, l10n);
+                                      },
+                                onDelete: file.name == '..'
+                                    ? null
+                                    : () {
+                                        _showDeleteConfirmation(file, l10n);
+                                      },
+                              );
+                            },
+                          ),
+                          // Drag overlay
+                          if (_isDragging)
+                            Container(
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              child: Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.file_upload,
+                                      size: 80,
+                                      color: Colors.blue.shade700,
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      l10n.sftpDropFilesHere,
+                                      style: TextStyle(
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -961,7 +1069,9 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
           ElevatedButton(
             onPressed: () {
               if (controller.text.isNotEmpty) {
-                ref.read(provider.notifier).createDirectory(controller.text, l10n);
+                ref
+                    .read(provider.notifier)
+                    .createDirectory(controller.text, l10n);
                 Navigator.pop(context);
               }
             },
@@ -969,7 +1079,9 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
           ),
         ],
       ),
-    ).then((_) => controller.dispose()); // Dispose controller when dialog closes
+    ).then(
+      (_) => controller.dispose(),
+    ); // Dispose controller when dialog closes
   }
 
   void _showDeleteConfirmation(RemoteFileEntry file, AppLocalizations l10n) {
@@ -1001,7 +1113,24 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
     if (file.isDirectory || file.name == '..') return false;
 
     final ext = path.extension(file.name).toLowerCase();
-    const textExtensions = ['.txt', '.md', '.log', '.json', '.xml', '.yaml', '.yml', '.conf', '.ini', '.sh', '.py', '.js', '.dart', '.html', '.css', '.sql'];
+    const textExtensions = [
+      '.txt',
+      '.md',
+      '.log',
+      '.json',
+      '.xml',
+      '.yaml',
+      '.yml',
+      '.conf',
+      '.ini',
+      '.sh',
+      '.py',
+      '.js',
+      '.dart',
+      '.html',
+      '.css',
+      '.sql',
+    ];
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
 
     return textExtensions.contains(ext) || imageExtensions.contains(ext);
@@ -1009,7 +1138,9 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
 
   /// Show file preview dialog
   Future<void> _showPreview(RemoteFileEntry file, AppLocalizations l10n) async {
-    final localPath = await ref.read(provider.notifier).downloadForPreview(file, l10n);
+    final localPath = await ref
+        .read(provider.notifier)
+        .downloadForPreview(file, l10n);
     if (localPath == null || !mounted) return;
 
     final ext = path.extension(file.name).toLowerCase();
@@ -1031,14 +1162,19 @@ class _SftpBrowserDialogState extends ConsumerState<SftpBrowserDialog> {
               Row(
                 children: [
                   Icon(
-                    imageExtensions.contains(ext) ? Icons.image : Icons.description,
+                    imageExtensions.contains(ext)
+                        ? Icons.image
+                        : Icons.description,
                     color: Colors.blue,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
                       file.name,
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -1124,7 +1260,11 @@ class _FileListTile extends StatelessWidget {
                   ),
                 if (onDelete != null)
                   IconButton(
-                    icon: Icon(Icons.delete, size: 20, color: Colors.red.shade400),
+                    icon: Icon(
+                      Icons.delete,
+                      size: 20,
+                      color: Colors.red.shade400,
+                    ),
                     onPressed: onDelete,
                     tooltip: l10n.commonDelete,
                   ),
@@ -1166,7 +1306,7 @@ class _FileListTile extends StatelessWidget {
     final double b = bytes.toDouble();
 
     if (b < 1024) {
-      return '${bytes.toInt()} B';  // Safe: small values
+      return '${bytes.toInt()} B'; // Safe: small values
     }
     if (b < 1024 * 1024) {
       return '${(b / 1024).toStringAsFixed(1)} KB';
@@ -1283,7 +1423,10 @@ class _TextPreviewState extends State<_TextPreview> {
           children: [
             const Icon(Icons.error, size: 64, color: Colors.red),
             const SizedBox(height: 16),
-            Text(l10n.sftpErrorLoadFile(_error!), style: const TextStyle(color: Colors.red)),
+            Text(
+              l10n.sftpErrorLoadFile(_error!),
+              style: const TextStyle(color: Colors.red),
+            ),
           ],
         ),
       );
@@ -1298,10 +1441,7 @@ class _TextPreviewState extends State<_TextPreview> {
       child: SingleChildScrollView(
         child: SelectableText(
           _content ?? '',
-          style: const TextStyle(
-            fontFamily: 'monospace',
-            fontSize: 13,
-          ),
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
         ),
       ),
     );
