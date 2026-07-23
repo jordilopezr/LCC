@@ -29,6 +29,7 @@ class _SftpTabState extends ConsumerState<SftpTab> {
     final vm = widget.session.target;
     try {
       final username = await getUsername();
+      if (!mounted) return;
       final port = await ref
           .read(activeConnectionsProvider.notifier)
           .connect(vm.projectId, vm.zone, vm.name, remotePort: 22);
