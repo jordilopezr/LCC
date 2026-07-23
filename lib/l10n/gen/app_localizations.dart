@@ -4273,6 +4273,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Scroll tabs right'**
   String get workspaceScrollTabsRight;
+
+  /// No description provided for @workspaceAllTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'All tabs'**
+  String get workspaceAllTabs;
 }
 
 class _AppLocalizationsDelegate

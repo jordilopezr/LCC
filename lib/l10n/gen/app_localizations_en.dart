@@ -2458,4 +2458,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceScrollTabsRight => 'Scroll tabs right';
+
+  @override
+  String get workspaceAllTabs => 'All tabs';
 }

@@ -696,5 +696,6 @@
   "workspaceCloseWithSessions": "Tienes {count} sesión(es) activa(s). ¿Cerrar de todos modos?",
   "workspaceCloseAnyway": "Cerrar de todos modos",
   "workspaceScrollTabsLeft": "Desplazar pestañas a la izquierda",
-  "workspaceScrollTabsRight": "Desplazar pestañas a la derecha"
+  "workspaceScrollTabsRight": "Desplazar pestañas a la derecha",
+  "workspaceAllTabs": "Todas las pestañas"
 }

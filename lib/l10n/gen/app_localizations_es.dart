@@ -2494,4 +2494,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get workspaceScrollTabsRight => 'Desplazar pestañas a la derecha';
+
+  @override
+  String get workspaceAllTabs => 'Todas las pestañas';
 }

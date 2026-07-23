@@ -1374,5 +1374,6 @@
   "@workspaceCloseWithSessions": { "placeholders": { "count": {"type": "int"} } },
   "workspaceCloseAnyway": "Close anyway",
   "workspaceScrollTabsLeft": "Scroll tabs left",
-  "workspaceScrollTabsRight": "Scroll tabs right"
+  "workspaceScrollTabsRight": "Scroll tabs right",
+  "workspaceAllTabs": "All tabs"
 }

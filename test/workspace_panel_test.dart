@@ -123,4 +123,39 @@ void main() {
       FlutterError.onError = previousOnError;
     }
   });
+
+  testWidgets('all-tabs menu lists every tab and focuses on select',
+      (tester) async {
+    // Same rationale as the overflow test above: the 300px host triggers
+    // RenderFlex overflow warnings from the real OverviewTab content, so
+    // swallow only those FlutterErrors for the duration of this test.
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      final message = details.exception.toString();
+      if (message.contains('A RenderFlex overflowed')) return;
+      previousOnError?.call(details);
+    };
+    final c = ProviderContainer();
+    try {
+      final wn = c.read(workspaceProvider.notifier);
+      wn.openOverview(_vm('alpha'));
+      final beta = wn.openSsh(_vm('beta'));
+      await tester.pumpWidget(_host(c));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('all-tabs-menu')));
+      await tester.pumpAndSettle();
+      expect(find.text('beta · SSH'), findsWidgets);
+      await tester.tap(find.text('beta · SSH').last);
+      await tester.pumpAndSettle();
+      expect(c.read(workspaceProvider).activeId, beta);
+    } finally {
+      // Dispose synchronously (not via addTearDown) so ConnectionsNotifier's
+      // health-check Timer.periodic is cancelled before the framework's
+      // end-of-test pending-timer invariant check runs. In finally so a
+      // failed expect() surfaces its own error instead of a pending-timer
+      // error.
+      c.dispose();
+      FlutterError.onError = previousOnError;
+    }
+  });
 }

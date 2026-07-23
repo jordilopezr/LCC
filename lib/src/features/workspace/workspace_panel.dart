@@ -173,6 +173,25 @@ class _ScrollableTabsState extends State<_ScrollableTabs> {
           visualDensity: VisualDensity.compact,
           onPressed: () => _step(160),
         ),
+      PopupMenuButton<String>(
+        key: const ValueKey('all-tabs-menu'),
+        icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+        padding: EdgeInsets.zero,
+        style: IconButton.styleFrom(
+          minimumSize: Size.zero,
+          padding: EdgeInsets.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        tooltip: l10n.workspaceAllTabs,
+        onSelected: widget.notifier.focus,
+        itemBuilder: (context) => [
+          for (final s in widget.sessions)
+            PopupMenuItem<String>(
+              value: s.id,
+              child: Text(_tabLabel(context, s)),
+            ),
+        ],
+      ),
     ]);
   }
 }
