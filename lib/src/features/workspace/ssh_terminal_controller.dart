@@ -42,6 +42,7 @@ class SshTerminalController {
     _setPhase(TerminalPhase.connectingTunnel);
     try {
       final port = await ensureTunnel();
+      if (_disposed) return;
       if (port == null) {
         errorDetail = 'Tunnel could not be established';
         _setPhase(TerminalPhase.error);
@@ -50,6 +51,7 @@ class SshTerminalController {
       _setPhase(TerminalPhase.launching);
 
       final support = await getApplicationSupportDirectory();
+      if (_disposed) return;
       final knownHosts = p.join(support.path, 'ssh_known_hosts');
 
       final pty = Pty.start(
@@ -63,6 +65,13 @@ class SshTerminalController {
         columns: terminal.viewWidth,
         rows: terminal.viewHeight,
       );
+      if (_disposed) {
+        // dispose() ran while we were awaiting the tunnel/support dir, so it
+        // could not kill a pty that did not exist yet. Kill this one now,
+        // otherwise the ssh child process leaks.
+        pty.kill();
+        return;
+      }
       _pty = pty;
 
       _outputSubscription = pty.output
