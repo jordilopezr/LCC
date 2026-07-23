@@ -1,16 +1,23 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../gcloud_provider.dart';
+import 'workspace_group.dart';
 import 'workspace_session.dart';
 
 class WorkspaceState {
   final List<WorkspaceSession> sessions;
   final String? activeId;
-  const WorkspaceState({this.sessions = const [], this.activeId});
+  final List<WorkspaceGroup> groups;
+  const WorkspaceState(
+      {this.sessions = const [], this.activeId, this.groups = const []});
 
-  WorkspaceState copyWith({List<WorkspaceSession>? sessions, String? activeId}) =>
+  WorkspaceState copyWith(
+          {List<WorkspaceSession>? sessions,
+          String? activeId,
+          List<WorkspaceGroup>? groups}) =>
       WorkspaceState(
         sessions: sessions ?? this.sessions,
         activeId: activeId ?? this.activeId,
+        groups: groups ?? this.groups,
       );
 
   WorkspaceSession? get activeSession {
@@ -26,12 +33,14 @@ final workspaceProvider =
 
 class WorkspaceNotifier extends Notifier<WorkspaceState> {
   int _counter = 0;
+  int _groupCounter = 0;
   final Map<String, int> _tunnelRefs = {};
 
   @override
   WorkspaceState build() => const WorkspaceState();
 
   String _newId() => 'session-${_counter++}';
+  String _newGroupId() => 'group-${_groupCounter++}';
 
   WorkspaceSession? _find(bool Function(WorkspaceSession) test) {
     for (final s in state.sessions) {
@@ -111,7 +120,11 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
         nextActive = remaining[idx > 0 ? idx - 1 : 0].id;
       }
     }
-    state = WorkspaceState(sessions: remaining, activeId: nextActive);
+    state = WorkspaceState(
+      sessions: remaining,
+      activeId: nextActive,
+      groups: _prunedGroups(remaining, state.groups),
+    );
   }
 
   void reorder(int oldIndex, int newIndex) {
@@ -169,6 +182,112 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     final victims = state.sessions
         .sublist(idx + 1)
         .where((s) => !s.pinned)
+        .map((s) => s.id)
+        .toList();
+    for (final v in victims) {
+      close(v);
+    }
+  }
+
+  GroupColor _nextColor() {
+    final used = state.groups.map((g) => g.color).toSet();
+    for (final c in GroupColor.values) {
+      if (!used.contains(c)) return c;
+    }
+    return GroupColor.values[state.groups.length % GroupColor.values.length];
+  }
+
+  /// Drops groups that no longer have any member session.
+  List<WorkspaceGroup> _prunedGroups(List<WorkspaceSession> sessions,
+      List<WorkspaceGroup> groups) {
+    final live = sessions.map((s) => s.groupId).whereType<String>().toSet();
+    return groups.where((g) => live.contains(g.id)).toList();
+  }
+
+  String newGroupFromSession(String id) {
+    final session = _find((s) => s.id == id);
+    if (session == null) return '';
+    final group = WorkspaceGroup(
+        id: _newGroupId(), name: session.target.name, color: _nextColor());
+    final list = [
+      for (final s in state.sessions)
+        if (s.id == id) s.copyWith(pinned: false, groupId: group.id) else s,
+    ];
+    state = state.copyWith(
+      sessions: _canonicalOrder(list),
+      groups: [...state.groups, group],
+    );
+    return group.id;
+  }
+
+  void groupByVm(String vmKey) {
+    final members =
+        state.sessions.where((s) => !s.pinned && s.vmKey == vmKey).toList();
+    if (members.isEmpty) return;
+    final group = WorkspaceGroup(
+        id: _newGroupId(), name: members.first.target.name, color: _nextColor());
+    final memberIds = members.map((s) => s.id).toSet();
+    final list = [
+      for (final s in state.sessions)
+        if (memberIds.contains(s.id)) s.copyWith(groupId: group.id) else s,
+    ];
+    state = state.copyWith(
+      sessions: _canonicalOrder(list),
+      groups: [...state.groups, group],
+    );
+  }
+
+  void addToGroup(String sessionId, String groupId) {
+    final list = [
+      for (final s in state.sessions)
+        if (s.id == sessionId) s.copyWith(pinned: false, groupId: groupId) else s,
+    ];
+    state = state.copyWith(sessions: _canonicalOrder(list));
+  }
+
+  void removeFromGroup(String sessionId) {
+    final list = [
+      for (final s in state.sessions)
+        if (s.id == sessionId) s.copyWith(clearGroup: true) else s,
+    ];
+    state = state.copyWith(
+      sessions: _canonicalOrder(list),
+      groups: _prunedGroups(list, state.groups),
+    );
+  }
+
+  void renameGroup(String groupId, String name) {
+    state = state.copyWith(
+      groups: [
+        for (final g in state.groups)
+          if (g.id == groupId) g.copyWith(name: name) else g,
+      ],
+    );
+  }
+
+  void recolorGroup(String groupId, GroupColor color) {
+    state = state.copyWith(
+      groups: [
+        for (final g in state.groups)
+          if (g.id == groupId) g.copyWith(color: color) else g,
+      ],
+    );
+  }
+
+  void ungroup(String groupId) {
+    final list = [
+      for (final s in state.sessions)
+        if (s.groupId == groupId) s.copyWith(clearGroup: true) else s,
+    ];
+    state = state.copyWith(
+      sessions: _canonicalOrder(list),
+      groups: state.groups.where((g) => g.id != groupId).toList(),
+    );
+  }
+
+  void closeGroup(String groupId) {
+    final victims = state.sessions
+        .where((s) => s.groupId == groupId)
         .map((s) => s.id)
         .toList();
     for (final v in victims) {

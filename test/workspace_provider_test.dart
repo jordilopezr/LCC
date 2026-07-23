@@ -4,6 +4,7 @@ import 'package:linux_cloud_connector/src/bridge/api.dart/gcloud.dart';
 import 'package:linux_cloud_connector/src/features/gcloud_provider.dart';
 import 'package:linux_cloud_connector/src/features/workspace/workspace_session.dart';
 import 'package:linux_cloud_connector/src/features/workspace/workspace_provider.dart';
+import 'package:linux_cloud_connector/src/features/workspace/workspace_group.dart';
 
 // Records disconnect() calls so we can assert the ref-count behavior without
 // touching the Rust bridge.
@@ -141,5 +142,59 @@ void main() {
     wn().closeToRight(s1);
     expect(ws().sessions.map((s) => s.id).toSet(), {s1, s2});
     expect(ws().sessions.any((s) => s.id == s3 || s.id == s4), false);
+  });
+
+  test('newGroupFromSession clusters and names after the VM; members stay contiguous', () {
+    final a = _vm('web');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(_vm('other'));
+    final s3 = wn().openSsh(a);
+    final g = wn().newGroupFromSession(s1);
+    wn().addToGroup(s3, g);
+    final ids = ws().sessions.map((s) => s.id).toList();
+    // s1 and s3 are contiguous (the group block); s2 is loose.
+    expect((ids.indexOf(s3) - ids.indexOf(s1)).abs(), 1);
+    expect(ws().groups.single.name, 'web');
+  });
+
+  test('groupByVm groups all unpinned sessions of a VM', () {
+    final a = _vm('db');
+    wn().openSsh(a);
+    wn().openSftp(a);
+    wn().openSsh(_vm('unrelated'));
+    wn().groupByVm(a.uniqueKey);
+    final grp = ws().groups.single;
+    final inGroup = ws().sessions.where((s) => s.groupId == grp.id).toList();
+    expect(inGroup.length, 2);
+    expect(inGroup.every((s) => s.vmKey == a.uniqueKey), true);
+  });
+
+  test('ungroup drops the group and clears membership', () {
+    final a = _vm('web');
+    final s1 = wn().openSsh(a);
+    final g = wn().newGroupFromSession(s1);
+    wn().ungroup(g);
+    expect(ws().groups, isEmpty);
+    expect(ws().sessions.single.groupId, isNull);
+  });
+
+  test('closeGroup closes members and still releases the tunnel', () {
+    final a = _vm('web');
+    final s1 = wn().openSsh(a);
+    wn().openSsh(a);
+    final g = wn().newGroupFromSession(s1);
+    wn().addToGroup(ws().sessions.firstWhere((s) => s.id != s1).id, g);
+    wn().closeGroup(g);
+    expect(ws().sessions, isEmpty);
+    expect(ws().groups, isEmpty);
+    expect(fake.disconnects, [('web', 22)]);
+  });
+
+  test('emptying a group by close prunes it', () {
+    final a = _vm('web');
+    final s1 = wn().openSsh(a);
+    final g = wn().newGroupFromSession(s1);
+    wn().close(s1);
+    expect(ws().groups, isEmpty);
   });
 }
