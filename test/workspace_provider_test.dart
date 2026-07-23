@@ -95,4 +95,36 @@ void main() {
     wn().openSsh(a);
     expect(wn().hasLiveSessions, true);
   });
+
+  test('pinned sessions sort before unpinned, preserving relative order', () {
+    final a = _vm('a');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(a);
+    final s3 = wn().openSsh(a);
+    wn().togglePin(s3); // pin the last
+    final ids = ws().sessions.map((s) => s.id).toList();
+    expect(ids.first, s3);            // pinned floated to front
+    expect(ids.sublist(1), [s1, s2]); // others keep order
+    expect(ws().sessions.firstWhere((s) => s.id == s3).pinned, true);
+  });
+
+  test('unpin returns a session to the unpinned zone', () {
+    final a = _vm('a');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(a);
+    wn().togglePin(s1);
+    wn().togglePin(s1);
+    expect(ws().sessions.firstWhere((s) => s.id == s1).pinned, false);
+    expect(ws().sessions.map((s) => s.id), [s1, s2]);
+  });
+
+  test('closeOthers keeps the target and any pinned; closeToRight spares pinned', () {
+    final a = _vm('a');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(a);
+    final s3 = wn().openSsh(a);
+    wn().togglePin(s1);
+    wn().closeOthers(s2); // keep s2 + pinned s1, close s3
+    expect(ws().sessions.map((s) => s.id).toSet(), {s1, s2});
+  });
 }
