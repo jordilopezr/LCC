@@ -98,8 +98,8 @@ void main() {
       if (message.contains('A RenderFlex overflowed')) return;
       previousOnError?.call(details);
     };
+    final c = ProviderContainer();
     try {
-      final c = ProviderContainer();
       final wn = c.read(workspaceProvider.notifier);
       // One tab: no overflow, no arrows.
       wn.openOverview(_vm('vm1'));
@@ -114,11 +114,12 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('scroll-left')), findsOneWidget);
       expect(find.byKey(const ValueKey('scroll-right')), findsOneWidget);
+    } finally {
       // Dispose synchronously (not via addTearDown) so ConnectionsNotifier's
       // health-check Timer.periodic is cancelled before the framework's
-      // end-of-test pending-timer invariant check runs.
+      // end-of-test pending-timer invariant check runs. In finally so a failed
+      // expect() surfaces its own error instead of a pending-timer error.
       c.dispose();
-    } finally {
       FlutterError.onError = previousOnError;
     }
   });
