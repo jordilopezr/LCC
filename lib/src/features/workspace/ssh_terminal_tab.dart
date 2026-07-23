@@ -27,6 +27,7 @@ class _SshTerminalTabState extends ConsumerState<SshTerminalTab> {
   Future<void> _boot() async {
     final vm = widget.session.target;
     final username = await getUsername();
+    if (!mounted) return;
     final controller = SshTerminalController(
       username: username,
       instanceName: vm.name,
