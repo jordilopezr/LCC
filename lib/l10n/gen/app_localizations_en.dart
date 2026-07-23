@@ -2412,4 +2412,18 @@ class AppLocalizationsEn extends AppLocalizations {
   ) {
     return '$percent% — $done/$total MB, $filesDone/$filesTotal files';
   }
+
+  @override
+  String get workspaceTerminalConnecting => 'Connecting…';
+
+  @override
+  String get workspaceTerminalDisconnected => 'Session ended.';
+
+  @override
+  String get workspaceReconnect => 'Reconnect';
+
+  @override
+  String workspaceTerminalError(String detail) {
+    return 'Could not open the SSH session: $detail';
+  }
 }

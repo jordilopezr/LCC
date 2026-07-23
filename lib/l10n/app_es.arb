@@ -682,5 +682,9 @@
   "tunnelErrorProtocolError": "Respuesta inesperada del relay de IAP.",
   "tunnelErrorLocalPortUnavailable": "No hay ningún puerto local disponible para el túnel.",
   "tunnelErrorUnknown": "No se pudo establecer el túnel.",
-  "sftpFolderProgressLabel": "{percent} % — {done}/{total} MB, {filesDone}/{filesTotal} archivos"
+  "sftpFolderProgressLabel": "{percent} % — {done}/{total} MB, {filesDone}/{filesTotal} archivos",
+  "workspaceTerminalConnecting": "Conectando…",
+  "workspaceTerminalDisconnected": "La sesión terminó.",
+  "workspaceReconnect": "Reconectar",
+  "workspaceTerminalError": "No se pudo abrir la sesión SSH: {detail}"
 }

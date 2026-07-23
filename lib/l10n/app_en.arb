@@ -1358,5 +1358,10 @@
       "filesDone": {"type": "int"},
       "filesTotal": {"type": "int"}
     }
-  }
+  },
+  "workspaceTerminalConnecting": "Connecting…",
+  "workspaceTerminalDisconnected": "Session ended.",
+  "workspaceReconnect": "Reconnect",
+  "workspaceTerminalError": "Could not open the SSH session: {detail}",
+  "@workspaceTerminalError": { "placeholders": { "detail": {"type": "String"} } }
 }

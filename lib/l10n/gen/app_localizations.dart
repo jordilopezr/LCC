@@ -4189,6 +4189,30 @@ abstract class AppLocalizations {
     int filesDone,
     int filesTotal,
   );
+
+  /// No description provided for @workspaceTerminalConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get workspaceTerminalConnecting;
+
+  /// No description provided for @workspaceTerminalDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Session ended.'**
+  String get workspaceTerminalDisconnected;
+
+  /// No description provided for @workspaceReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect'**
+  String get workspaceReconnect;
+
+  /// No description provided for @workspaceTerminalError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the SSH session: {detail}'**
+  String workspaceTerminalError(String detail);
 }
 
 class _AppLocalizationsDelegate
