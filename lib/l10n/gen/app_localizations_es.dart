@@ -2497,4 +2497,16 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get workspaceAllTabs => 'Todas las pestañas';
+
+  @override
+  String get workspacePinTab => 'Anclar pestaña';
+
+  @override
+  String get workspaceUnpinTab => 'Desanclar pestaña';
+
+  @override
+  String get workspaceCloseOthers => 'Cerrar las demás';
+
+  @override
+  String get workspaceCloseToRight => 'Cerrar las pestañas de la derecha';
 }

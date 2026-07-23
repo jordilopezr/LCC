@@ -1375,5 +1375,9 @@
   "workspaceCloseAnyway": "Close anyway",
   "workspaceScrollTabsLeft": "Scroll tabs left",
   "workspaceScrollTabsRight": "Scroll tabs right",
-  "workspaceAllTabs": "All tabs"
+  "workspaceAllTabs": "All tabs",
+  "workspacePinTab": "Pin tab",
+  "workspaceUnpinTab": "Unpin tab",
+  "workspaceCloseOthers": "Close others",
+  "workspaceCloseToRight": "Close tabs to the right"
 }

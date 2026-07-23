@@ -697,5 +697,9 @@
   "workspaceCloseAnyway": "Cerrar de todos modos",
   "workspaceScrollTabsLeft": "Desplazar pestañas a la izquierda",
   "workspaceScrollTabsRight": "Desplazar pestañas a la derecha",
-  "workspaceAllTabs": "Todas las pestañas"
+  "workspaceAllTabs": "Todas las pestañas",
+  "workspacePinTab": "Anclar pestaña",
+  "workspaceUnpinTab": "Desanclar pestaña",
+  "workspaceCloseOthers": "Cerrar las demás",
+  "workspaceCloseToRight": "Cerrar las pestañas de la derecha"
 }

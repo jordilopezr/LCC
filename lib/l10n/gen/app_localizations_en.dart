@@ -2461,4 +2461,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceAllTabs => 'All tabs';
+
+  @override
+  String get workspacePinTab => 'Pin tab';
+
+  @override
+  String get workspaceUnpinTab => 'Unpin tab';
+
+  @override
+  String get workspaceCloseOthers => 'Close others';
+
+  @override
+  String get workspaceCloseToRight => 'Close tabs to the right';
 }

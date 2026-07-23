@@ -58,10 +58,114 @@ class _TabStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final pinned = sessions.where((s) => s.pinned).toList();
+    final rest = sessions.where((s) => !s.pinned).toList();
     return SizedBox(
       height: 40,
-      child: _ScrollableTabs(
-          sessions: sessions, activeId: activeId, notifier: notifier),
+      child: Row(children: [
+        if (pinned.isNotEmpty)
+          _PinnedZone(sessions: pinned, activeId: activeId, notifier: notifier),
+        Expanded(
+          child: _ScrollableTabs(
+              sessions: rest, activeId: activeId, notifier: notifier),
+        ),
+      ]),
+    );
+  }
+}
+
+class _PinnedZone extends StatelessWidget {
+  final List<WorkspaceSession> sessions;
+  final String? activeId;
+  final WorkspaceNotifier notifier;
+  const _PinnedZone(
+      {required this.sessions, required this.activeId, required this.notifier});
+
+  IconData _icon(SessionType t) => switch (t) {
+        SessionType.overview => Icons.dashboard_outlined,
+        SessionType.ssh => Icons.terminal,
+        SessionType.sftp => Icons.folder_outlined,
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      key: const ValueKey('pinned-zone'),
+      decoration: BoxDecoration(
+        border: Border(
+            right: BorderSide(color: scheme.outlineVariant, width: 2)),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        for (final s in sessions)
+          _TabContextMenu(
+            session: s,
+            notifier: notifier,
+            child: InkWell(
+              key: ValueKey('pinned-tab-${s.id}'),
+              onTap: () => notifier.focus(s.id),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      width: 2,
+                      color: s.id == activeId ? scheme.primary : Colors.transparent,
+                    ),
+                  ),
+                ),
+                child: Icon(_icon(s.type), size: 16),
+              ),
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+/// Wraps a tab with a right-click (secondary-tap) context menu.
+class _TabContextMenu extends StatelessWidget {
+  final WorkspaceSession session;
+  final WorkspaceNotifier notifier;
+  final Widget child;
+  const _TabContextMenu(
+      {required this.session, required this.notifier, required this.child});
+
+  Future<void> _show(BuildContext context, Offset pos) async {
+    final l10n = AppLocalizations.of(context);
+    final overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+          pos.dx, pos.dy, overlay.size.width - pos.dx, overlay.size.height - pos.dy),
+      items: [
+        PopupMenuItem(
+            value: 'pin',
+            child: Text(session.pinned ? l10n.workspaceUnpinTab : l10n.workspacePinTab)),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'close', child: Text(l10n.workspaceCloseTab)),
+        PopupMenuItem(value: 'others', child: Text(l10n.workspaceCloseOthers)),
+        PopupMenuItem(value: 'right', child: Text(l10n.workspaceCloseToRight)),
+      ],
+    );
+    switch (value) {
+      case 'pin':
+        notifier.togglePin(session.id);
+      case 'close':
+        notifier.close(session.id);
+      case 'others':
+        notifier.closeOthers(session.id);
+      case 'right':
+        notifier.closeToRight(session.id);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onSecondaryTapUp: (d) => _show(context, d.globalPosition),
+      child: child,
     );
   }
 }
@@ -154,12 +258,16 @@ class _ScrollableTabsState extends State<_ScrollableTabs> {
             for (final s in widget.sessions)
               KeyedSubtree(
                 key: _keyFor(s.id),
-                child: _Tab(
-                  label: _tabLabel(context, s),
-                  active: s.id == widget.activeId,
-                  onTap: () => widget.notifier.focus(s.id),
-                  onClose: () => widget.notifier.close(s.id),
-                  closeTooltip: l10n.workspaceCloseTab,
+                child: _TabContextMenu(
+                  session: s,
+                  notifier: widget.notifier,
+                  child: _Tab(
+                    label: _tabLabel(context, s),
+                    active: s.id == widget.activeId,
+                    onTap: () => widget.notifier.focus(s.id),
+                    onClose: () => widget.notifier.close(s.id),
+                    closeTooltip: l10n.workspaceCloseTab,
+                  ),
                 ),
               ),
           ],

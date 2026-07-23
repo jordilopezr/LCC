@@ -4279,6 +4279,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'All tabs'**
   String get workspaceAllTabs;
+
+  /// No description provided for @workspacePinTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin tab'**
+  String get workspacePinTab;
+
+  /// No description provided for @workspaceUnpinTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin tab'**
+  String get workspaceUnpinTab;
+
+  /// No description provided for @workspaceCloseOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Close others'**
+  String get workspaceCloseOthers;
+
+  /// No description provided for @workspaceCloseToRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tabs to the right'**
+  String get workspaceCloseToRight;
 }
 
 class _AppLocalizationsDelegate
