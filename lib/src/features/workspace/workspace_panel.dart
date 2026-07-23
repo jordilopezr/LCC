@@ -176,6 +176,9 @@ class _ScrollableTabsState extends State<_ScrollableTabs> {
       PopupMenuButton<String>(
         key: const ValueKey('all-tabs-menu'),
         icon: const Icon(Icons.keyboard_arrow_down, size: 18),
+        // Shrunk to the icon's own bounds: a larger button (even
+        // VisualDensity.compact) steals enough width to push the strip into
+        // overflow at narrow panel widths. Small target is fine on desktop.
         padding: EdgeInsets.zero,
         style: IconButton.styleFrom(
           minimumSize: Size.zero,
