@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import 'workspace_provider.dart';
 import 'workspace_session.dart';
+import 'workspace_group.dart';
+import 'group_color_theme.dart';
 import 'overview_tab.dart';
 import 'ssh_terminal_tab.dart';
 import 'sftp_tab.dart';
@@ -23,7 +25,11 @@ class WorkspacePanel extends ConsumerWidget {
         ws.sessions.indexWhere((s) => s.id == ws.activeId).clamp(0, ws.sessions.length - 1);
 
     return Column(children: [
-      _TabStrip(sessions: ws.sessions, activeId: ws.activeId, notifier: notifier),
+      _TabStrip(
+          sessions: ws.sessions,
+          groups: ws.groups,
+          activeId: ws.activeId,
+          notifier: notifier),
       const Divider(height: 1),
       Expanded(
         child: IndexedStack(
@@ -51,10 +57,14 @@ class WorkspacePanel extends ConsumerWidget {
 
 class _TabStrip extends StatelessWidget {
   final List<WorkspaceSession> sessions;
+  final List<WorkspaceGroup> groups;
   final String? activeId;
   final WorkspaceNotifier notifier;
   const _TabStrip(
-      {required this.sessions, required this.activeId, required this.notifier});
+      {required this.sessions,
+      required this.groups,
+      required this.activeId,
+      required this.notifier});
 
   @override
   Widget build(BuildContext context) {
@@ -64,10 +74,17 @@ class _TabStrip extends StatelessWidget {
       height: 40,
       child: Row(children: [
         if (pinned.isNotEmpty)
-          _PinnedZone(sessions: pinned, activeId: activeId, notifier: notifier),
+          _PinnedZone(
+              sessions: pinned,
+              groups: groups,
+              activeId: activeId,
+              notifier: notifier),
         Expanded(
           child: _ScrollableTabs(
-              sessions: rest, activeId: activeId, notifier: notifier),
+              sessions: rest,
+              groups: groups,
+              activeId: activeId,
+              notifier: notifier),
         ),
       ]),
     );
@@ -76,10 +93,14 @@ class _TabStrip extends StatelessWidget {
 
 class _PinnedZone extends StatelessWidget {
   final List<WorkspaceSession> sessions;
+  final List<WorkspaceGroup> groups;
   final String? activeId;
   final WorkspaceNotifier notifier;
   const _PinnedZone(
-      {required this.sessions, required this.activeId, required this.notifier});
+      {required this.sessions,
+      required this.groups,
+      required this.activeId,
+      required this.notifier});
 
   IconData _icon(SessionType t) => switch (t) {
         SessionType.overview => Icons.dashboard_outlined,
@@ -101,6 +122,7 @@ class _PinnedZone extends StatelessWidget {
           _TabContextMenu(
             session: s,
             notifier: notifier,
+            groups: groups,
             child: InkWell(
               key: ValueKey('pinned-tab-${s.id}'),
               onTap: () => notifier.focus(s.id),
@@ -127,9 +149,13 @@ class _PinnedZone extends StatelessWidget {
 class _TabContextMenu extends StatelessWidget {
   final WorkspaceSession session;
   final WorkspaceNotifier notifier;
+  final List<WorkspaceGroup> groups;
   final Widget child;
   const _TabContextMenu(
-      {required this.session, required this.notifier, required this.child});
+      {required this.session,
+      required this.notifier,
+      required this.groups,
+      required this.child});
 
   Future<void> _show(BuildContext context, Offset pos) async {
     final l10n = AppLocalizations.of(context);
@@ -144,20 +170,33 @@ class _TabContextMenu extends StatelessWidget {
             value: 'pin',
             child: Text(session.pinned ? l10n.workspaceUnpinTab : l10n.workspacePinTab)),
         const PopupMenuDivider(),
+        PopupMenuItem(value: 'newgroup', child: Text(l10n.workspaceNewGroup)),
+        for (final g in groups)
+          PopupMenuItem(
+              value: 'addto:${g.id}',
+              child: Text('${l10n.workspaceAddToGroup}: ${g.name}')),
+        PopupMenuItem(value: 'groupvm', child: Text(l10n.workspaceGroupByVm)),
+        const PopupMenuDivider(),
         PopupMenuItem(value: 'close', child: Text(l10n.workspaceCloseTab)),
         PopupMenuItem(value: 'others', child: Text(l10n.workspaceCloseOthers)),
         PopupMenuItem(value: 'right', child: Text(l10n.workspaceCloseToRight)),
       ],
     );
-    switch (value) {
-      case 'pin':
-        notifier.togglePin(session.id);
-      case 'close':
-        notifier.close(session.id);
-      case 'others':
-        notifier.closeOthers(session.id);
-      case 'right':
-        notifier.closeToRight(session.id);
+    if (value == null) return;
+    if (value == 'pin') {
+      notifier.togglePin(session.id);
+    } else if (value == 'newgroup') {
+      notifier.newGroupFromSession(session.id);
+    } else if (value.startsWith('addto:')) {
+      notifier.addToGroup(session.id, value.substring(6));
+    } else if (value == 'groupvm') {
+      notifier.groupByVm(session.vmKey);
+    } else if (value == 'close') {
+      notifier.close(session.id);
+    } else if (value == 'others') {
+      notifier.closeOthers(session.id);
+    } else if (value == 'right') {
+      notifier.closeToRight(session.id);
     }
   }
 
@@ -172,10 +211,14 @@ class _TabContextMenu extends StatelessWidget {
 
 class _ScrollableTabs extends StatefulWidget {
   final List<WorkspaceSession> sessions;
+  final List<WorkspaceGroup> groups;
   final String? activeId;
   final WorkspaceNotifier notifier;
   const _ScrollableTabs(
-      {required this.sessions, required this.activeId, required this.notifier});
+      {required this.sessions,
+      required this.groups,
+      required this.activeId,
+      required this.notifier});
 
   @override
   State<_ScrollableTabs> createState() => _ScrollableTabsState();
@@ -238,6 +281,48 @@ class _ScrollableTabsState extends State<_ScrollableTabs> {
 
   GlobalKey _keyFor(String id) => _tabKeys.putIfAbsent(id, () => GlobalKey());
 
+  List<Widget> _buildRow(BuildContext context, AppLocalizations l10n) {
+    final scheme = Theme.of(context).colorScheme;
+    final widgets = <Widget>[];
+    final emitted = <String>{};
+    for (final s in widget.sessions) {
+      if (s.groupId != null) {
+        if (!emitted.add(s.groupId!)) continue; // group already emitted
+        final group = widget.groups.firstWhere((g) => g.id == s.groupId,
+            orElse: () => WorkspaceGroup(
+                id: s.groupId!, name: '', color: GroupColor.grey));
+        final members =
+            widget.sessions.where((m) => m.groupId == s.groupId).toList();
+        widgets.add(_TabGroup(
+          group: group,
+          members: members,
+          activeId: widget.activeId,
+          notifier: widget.notifier,
+          groups: widget.groups,
+          tabKey: _keyFor,
+          color: groupColor(group.color, scheme),
+        ));
+      } else {
+        widgets.add(KeyedSubtree(
+          key: _keyFor(s.id),
+          child: _TabContextMenu(
+            session: s,
+            notifier: widget.notifier,
+            groups: widget.groups,
+            child: _Tab(
+              label: _tabLabel(context, s),
+              active: s.id == widget.activeId,
+              onTap: () => widget.notifier.focus(s.id),
+              onClose: () => widget.notifier.close(s.id),
+              closeTooltip: l10n.workspaceCloseTab,
+            ),
+          ),
+        ));
+      }
+    }
+    return widgets;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
@@ -254,23 +339,7 @@ class _ScrollableTabsState extends State<_ScrollableTabs> {
         child: ListView(
           controller: _controller,
           scrollDirection: Axis.horizontal,
-          children: [
-            for (final s in widget.sessions)
-              KeyedSubtree(
-                key: _keyFor(s.id),
-                child: _TabContextMenu(
-                  session: s,
-                  notifier: widget.notifier,
-                  child: _Tab(
-                    label: _tabLabel(context, s),
-                    active: s.id == widget.activeId,
-                    onTap: () => widget.notifier.focus(s.id),
-                    onClose: () => widget.notifier.close(s.id),
-                    closeTooltip: l10n.workspaceCloseTab,
-                  ),
-                ),
-              ),
-          ],
+          children: _buildRow(context, l10n),
         ),
       ),
       if (_overflow)
@@ -304,6 +373,134 @@ class _ScrollableTabsState extends State<_ScrollableTabs> {
         ],
       ),
     ]);
+  }
+}
+
+class _TabGroup extends StatelessWidget {
+  final WorkspaceGroup group;
+  final List<WorkspaceSession> members;
+  final String? activeId;
+  final WorkspaceNotifier notifier;
+  final List<WorkspaceGroup> groups;
+  final GlobalKey Function(String id) tabKey;
+  final Color color;
+  const _TabGroup(
+      {required this.group,
+      required this.members,
+      required this.activeId,
+      required this.notifier,
+      required this.groups,
+      required this.tabKey,
+      required this.color});
+
+  Future<void> _headerMenu(BuildContext context, Offset pos) async {
+    final l10n = AppLocalizations.of(context);
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final value = await showMenu<String>(
+      context: context,
+      position: RelativeRect.fromLTRB(
+          pos.dx, pos.dy, overlay.size.width - pos.dx, overlay.size.height - pos.dy),
+      items: [
+        PopupMenuItem(value: 'rename', child: Text(l10n.workspaceRenameGroup)),
+        for (final c in GroupColor.values)
+          PopupMenuItem(
+            value: 'color:${c.name}',
+            child: Row(children: [
+              Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                      color: groupColor(c, Theme.of(context).colorScheme),
+                      shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Text(c.name),
+            ]),
+          ),
+        const PopupMenuDivider(),
+        PopupMenuItem(value: 'ungroup', child: Text(l10n.workspaceUngroup)),
+        PopupMenuItem(value: 'close', child: Text(l10n.workspaceCloseGroup)),
+      ],
+    );
+    if (value == null) return;
+    if (value == 'rename') {
+      if (!context.mounted) return;
+      final name = await _promptName(context, group.name);
+      if (name != null && name.isNotEmpty) notifier.renameGroup(group.id, name);
+    } else if (value.startsWith('color:')) {
+      final c = GroupColor.values.firstWhere((g) => g.name == value.substring(6));
+      notifier.recolorGroup(group.id, c);
+    } else if (value == 'ungroup') {
+      notifier.ungroup(group.id);
+    } else if (value == 'close') {
+      notifier.closeGroup(group.id);
+    }
+  }
+
+  Future<String?> _promptName(BuildContext context, String initial) {
+    final l10n = AppLocalizations.of(context);
+    final ctrl = TextEditingController(text: initial);
+    return showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(l10n.workspaceRenameGroupTitle),
+        content: TextField(controller: ctrl, autofocus: true),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context), child: Text(l10n.commonCancel)),
+          TextButton(
+              onPressed: () => Navigator.pop(context, ctrl.text),
+              child: Text(l10n.commonOk)),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        GestureDetector(
+          onSecondaryTapUp: (d) => _headerMenu(context, d.globalPosition),
+          onTap: () => _headerMenu(
+              context,
+              (context.findRenderObject() as RenderBox)
+                  .localToGlobal(const Offset(0, 30))),
+          child: Container(
+            key: const ValueKey('group-header'),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            height: 26,
+            decoration: BoxDecoration(
+                color: color, borderRadius: BorderRadius.circular(6)),
+            alignment: Alignment.center,
+            child: Text(group.name,
+                style: TextStyle(
+                    color: scheme.onPrimary, fontWeight: FontWeight.w600, fontSize: 12)),
+          ),
+        ),
+        for (final s in members)
+          KeyedSubtree(
+            key: tabKey(s.id),
+            child: _TabContextMenu(
+              session: s,
+              notifier: notifier,
+              groups: groups,
+              child: _Tab(
+                label: _tabLabel(context, s),
+                active: s.id == activeId,
+                onTap: () => notifier.focus(s.id),
+                onClose: () => notifier.close(s.id),
+                closeTooltip: AppLocalizations.of(context).workspaceCloseTab,
+              ),
+            ),
+          ),
+      ]),
+    );
   }
 }
 

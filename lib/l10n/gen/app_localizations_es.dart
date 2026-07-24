@@ -2509,4 +2509,25 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get workspaceCloseToRight => 'Cerrar las pestañas de la derecha';
+
+  @override
+  String get workspaceNewGroup => 'Nuevo grupo desde esta pestaña';
+
+  @override
+  String get workspaceAddToGroup => 'Añadir a grupo';
+
+  @override
+  String get workspaceGroupByVm => 'Agrupar todas las pestañas de esta VM';
+
+  @override
+  String get workspaceRenameGroup => 'Renombrar grupo…';
+
+  @override
+  String get workspaceUngroup => 'Desagrupar';
+
+  @override
+  String get workspaceCloseGroup => 'Cerrar grupo';
+
+  @override
+  String get workspaceRenameGroupTitle => 'Renombrar grupo';
 }

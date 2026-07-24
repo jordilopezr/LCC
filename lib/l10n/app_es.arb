@@ -701,5 +701,12 @@
   "workspacePinTab": "Anclar pestaña",
   "workspaceUnpinTab": "Desanclar pestaña",
   "workspaceCloseOthers": "Cerrar las demás",
-  "workspaceCloseToRight": "Cerrar las pestañas de la derecha"
+  "workspaceCloseToRight": "Cerrar las pestañas de la derecha",
+  "workspaceNewGroup": "Nuevo grupo desde esta pestaña",
+  "workspaceAddToGroup": "Añadir a grupo",
+  "workspaceGroupByVm": "Agrupar todas las pestañas de esta VM",
+  "workspaceRenameGroup": "Renombrar grupo…",
+  "workspaceUngroup": "Desagrupar",
+  "workspaceCloseGroup": "Cerrar grupo",
+  "workspaceRenameGroupTitle": "Renombrar grupo"
 }

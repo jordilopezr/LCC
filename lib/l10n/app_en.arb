@@ -1379,5 +1379,12 @@
   "workspacePinTab": "Pin tab",
   "workspaceUnpinTab": "Unpin tab",
   "workspaceCloseOthers": "Close others",
-  "workspaceCloseToRight": "Close tabs to the right"
+  "workspaceCloseToRight": "Close tabs to the right",
+  "workspaceNewGroup": "New group from this tab",
+  "workspaceAddToGroup": "Add to group",
+  "workspaceGroupByVm": "Group all tabs of this VM",
+  "workspaceRenameGroup": "Rename group…",
+  "workspaceUngroup": "Ungroup",
+  "workspaceCloseGroup": "Close group",
+  "workspaceRenameGroupTitle": "Rename group"
 }

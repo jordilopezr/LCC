@@ -4303,6 +4303,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Close tabs to the right'**
   String get workspaceCloseToRight;
+
+  /// No description provided for @workspaceNewGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'New group from this tab'**
+  String get workspaceNewGroup;
+
+  /// No description provided for @workspaceAddToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to group'**
+  String get workspaceAddToGroup;
+
+  /// No description provided for @workspaceGroupByVm.
+  ///
+  /// In en, this message translates to:
+  /// **'Group all tabs of this VM'**
+  String get workspaceGroupByVm;
+
+  /// No description provided for @workspaceRenameGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group…'**
+  String get workspaceRenameGroup;
+
+  /// No description provided for @workspaceUngroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Ungroup'**
+  String get workspaceUngroup;
+
+  /// No description provided for @workspaceCloseGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Close group'**
+  String get workspaceCloseGroup;
+
+  /// No description provided for @workspaceRenameGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group'**
+  String get workspaceRenameGroupTitle;
 }
 
 class _AppLocalizationsDelegate

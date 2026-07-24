@@ -190,4 +190,35 @@ void main() {
       FlutterError.onError = previousOnError;
     }
   });
+
+  testWidgets('a group renders a header chip with its name', (tester) async {
+    // Same rationale as the overflow/all-tabs/pinned tests above: the 300px
+    // host triggers RenderFlex overflow warnings from the real OverviewTab
+    // content, so swallow only those FlutterErrors for the duration of this
+    // test.
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = (details) {
+      final message = details.exception.toString();
+      if (message.contains('A RenderFlex overflowed')) return;
+      previousOnError?.call(details);
+    };
+    final c = ProviderContainer();
+    try {
+      final wn = c.read(workspaceProvider.notifier);
+      final s = wn.openSsh(_vm('web'));
+      wn.newGroupFromSession(s);
+      await tester.pumpWidget(_host(c));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('group-header')), findsOneWidget);
+      expect(find.text('web'), findsWidgets);
+    } finally {
+      // Dispose synchronously (not via addTearDown) so ConnectionsNotifier's
+      // health-check Timer.periodic is cancelled before the framework's
+      // end-of-test pending-timer invariant check runs. In finally so a
+      // failed expect() surfaces its own error instead of a pending-timer
+      // error.
+      c.dispose();
+      FlutterError.onError = previousOnError;
+    }
+  });
 }

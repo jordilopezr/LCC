@@ -2473,4 +2473,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get workspaceCloseToRight => 'Close tabs to the right';
+
+  @override
+  String get workspaceNewGroup => 'New group from this tab';
+
+  @override
+  String get workspaceAddToGroup => 'Add to group';
+
+  @override
+  String get workspaceGroupByVm => 'Group all tabs of this VM';
+
+  @override
+  String get workspaceRenameGroup => 'Rename group…';
+
+  @override
+  String get workspaceUngroup => 'Ungroup';
+
+  @override
+  String get workspaceCloseGroup => 'Close group';
+
+  @override
+  String get workspaceRenameGroupTitle => 'Rename group';
 }
