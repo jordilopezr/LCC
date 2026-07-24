@@ -127,12 +127,15 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
     );
   }
 
-  void reorder(int oldIndex, int newIndex) {
+  void reorderSession(String movedId, String targetId) {
+    if (movedId == targetId) return;
     final list = [...state.sessions];
-    if (newIndex > oldIndex) newIndex -= 1;
-    final moved = list.removeAt(oldIndex);
-    list.insert(newIndex, moved);
-    state = state.copyWith(sessions: list);
+    final from = list.indexWhere((s) => s.id == movedId);
+    if (from < 0) return;
+    final moved = list.removeAt(from);
+    final to = list.indexWhere((s) => s.id == targetId);
+    list.insert(to < 0 ? list.length : to, moved);
+    state = state.copyWith(sessions: _canonicalOrder(list));
   }
 
   /// Canonical visual order: pinned first (relative order preserved), then

@@ -209,6 +209,43 @@ class _TabContextMenu extends StatelessWidget {
   }
 }
 
+/// Wraps a tab with drag-and-drop reordering affordances. Not used for
+/// pinned tabs (pin order is menu-only in v1).
+class _DraggableTab extends StatelessWidget {
+  final String sessionId;
+  final WorkspaceNotifier notifier;
+  final Widget child;
+  const _DraggableTab(
+      {required this.sessionId, required this.notifier, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return DragTarget<String>(
+      onWillAcceptWithDetails: (d) => d.data != sessionId,
+      onAcceptWithDetails: (d) => notifier.reorderSession(d.data, sessionId),
+      builder: (context, candidate, rejected) {
+        return Draggable<String>(
+          data: sessionId,
+          feedback: Material(
+              color: Colors.transparent,
+              child: Opacity(opacity: 0.8, child: child)),
+          childWhenDragging: Opacity(opacity: 0.4, child: child),
+          child: Container(
+            decoration: candidate.isNotEmpty
+                ? BoxDecoration(
+                    border: Border(
+                        left: BorderSide(
+                            color: Theme.of(context).colorScheme.primary,
+                            width: 2)))
+                : null,
+            child: child,
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _ScrollableTabs extends StatefulWidget {
   final List<WorkspaceSession> sessions;
   final List<WorkspaceGroup> groups;
@@ -305,16 +342,20 @@ class _ScrollableTabsState extends State<_ScrollableTabs> {
       } else {
         widgets.add(KeyedSubtree(
           key: _keyFor(s.id),
-          child: _TabContextMenu(
-            session: s,
+          child: _DraggableTab(
+            sessionId: s.id,
             notifier: widget.notifier,
-            groups: widget.groups,
-            child: _Tab(
-              label: _tabLabel(context, s),
-              active: s.id == widget.activeId,
-              onTap: () => widget.notifier.focus(s.id),
-              onClose: () => widget.notifier.close(s.id),
-              closeTooltip: l10n.workspaceCloseTab,
+            child: _TabContextMenu(
+              session: s,
+              notifier: widget.notifier,
+              groups: widget.groups,
+              child: _Tab(
+                label: _tabLabel(context, s),
+                active: s.id == widget.activeId,
+                onTap: () => widget.notifier.focus(s.id),
+                onClose: () => widget.notifier.close(s.id),
+                closeTooltip: l10n.workspaceCloseTab,
+              ),
             ),
           ),
         ));
@@ -486,16 +527,20 @@ class _TabGroup extends StatelessWidget {
         for (final s in members)
           KeyedSubtree(
             key: tabKey(s.id),
-            child: _TabContextMenu(
-              session: s,
+            child: _DraggableTab(
+              sessionId: s.id,
               notifier: notifier,
-              groups: groups,
-              child: _Tab(
-                label: _tabLabel(context, s),
-                active: s.id == activeId,
-                onTap: () => notifier.focus(s.id),
-                onClose: () => notifier.close(s.id),
-                closeTooltip: AppLocalizations.of(context).workspaceCloseTab,
+              child: _TabContextMenu(
+                session: s,
+                notifier: notifier,
+                groups: groups,
+                child: _Tab(
+                  label: _tabLabel(context, s),
+                  active: s.id == activeId,
+                  onTap: () => notifier.focus(s.id),
+                  onClose: () => notifier.close(s.id),
+                  closeTooltip: AppLocalizations.of(context).workspaceCloseTab,
+                ),
               ),
             ),
           ),

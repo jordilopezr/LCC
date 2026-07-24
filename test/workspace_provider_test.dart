@@ -208,4 +208,23 @@ void main() {
     expect(ws().groups.map((g) => g.id), [gB]); // A pruned, B remains
     expect(ws().sessions.where((s) => s.groupId == gB).length, 2);
   });
+
+  test('reorderSession moves a loose tab and stays canonical', () {
+    final a = _vm('a');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(a);
+    final s3 = wn().openSsh(a);
+    wn().reorderSession(s3, s1); // move s3 before s1
+    expect(ws().sessions.map((s) => s.id), [s3, s1, s2]);
+  });
+
+  test('reorderSession keeps pinned ahead of unpinned', () {
+    final a = _vm('a');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(a);
+    wn().togglePin(s1); // s1 pinned, order [s1, s2]
+    wn().reorderSession(s2, s1); // try to move s2 before pinned s1
+    // canonical order forces pinned first regardless.
+    expect(ws().sessions.map((s) => s.id), [s1, s2]);
+  });
 }
