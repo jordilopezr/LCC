@@ -1,0 +1,1351 @@
+{
+  "@@locale": "en",
+  "appTitle": "Lightweight Cloud Connector",
+  "settingsLanguageTitle": "Language",
+  "settingsLanguageSystem": "System default",
+  "commonCancel": "Cancel",
+  "commonClose": "Close",
+  "commonSave": "Save",
+  "commonDelete": "Delete",
+  "commonRemove": "Remove",
+  "commonRetry": "Retry",
+  "commonRefresh": "Refresh",
+  "commonCopy": "Copy",
+  "commonError": "Error",
+  "commonWarning": "Warning",
+  "commonOk": "OK",
+  "commonYes": "Yes",
+  "commonNo": "No",
+  "commonConnect": "Connect",
+  "commonDisconnect": "Disconnect",
+  "commonAdd": "Add",
+  "commonEdit": "Edit",
+  "commonLoading": "Loading…",
+  "commonNever": "Never",
+  "accountManageTitle": "Manage Accounts",
+  "accountActiveTunnelsWarning": "Active tunnels will be disconnected when switching accounts.",
+  "accountNoneFound": "No authenticated accounts found.",
+  "accountActiveBadge": "ACTIVE",
+  "accountSwitchButton": "Switch",
+  "accountSwitchedTo": "Switched to {account}",
+  "@accountSwitchedTo": {
+    "placeholders": {
+      "account": {"type": "String"}
+    }
+  },
+  "accountRemoveTooltip": "Remove account",
+  "accountAddButton": "Add Account",
+  "accountRemoveTitle": "Remove Account",
+  "accountRemoveConfirm": "Revoke credentials for {email}?",
+  "@accountRemoveConfirm": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "accountActiveAccountWarning": "This is the active account. All tunnels will be disconnected.",
+  "commonGcpErrorPermissionDenied": "Access denied. Check your GCP permissions.",
+  "commonGcpErrorNotFound": "Resource not found.",
+  "commonGcpErrorUnauthenticated": "Authentication required. Please re-login.",
+  "commonGcpErrorQuotaExceeded": "GCP quota exceeded.",
+  "commonGcpErrorNetwork": "Network error. Check your connection.",
+  "commonGcpErrorUnknown": "An error occurred. Please check your configuration.",
+  "accountRemovedSnackbar": "Account {email} removed",
+  "@accountRemovedSnackbar": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "tunnelManagerTitle": "Tunnel Manager",
+  "tunnelTotalCount": "{count} Total",
+  "@tunnelTotalCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tunnelHealthyCount": "{count} Healthy",
+  "@tunnelHealthyCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tunnelErrorCount": "{count} Error",
+  "@tunnelErrorCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tunnelReconnectingCount": "{count} Reconnecting",
+  "@tunnelReconnectingCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tunnelNoActiveTunnels": "No active tunnels",
+  "tunnelConnectPrompt": "Connect to an instance to create a tunnel",
+  "tunnelDisconnectAll": "Disconnect All",
+  "tunnelDisconnectAllTitle": "Disconnect All Tunnels?",
+  "tunnelDisconnectAllConfirm": "This will close all {count} active tunnel(s).",
+  "@tunnelDisconnectAllConfirm": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tunnelCleanupZombies": "Cleanup Zombies",
+  "tunnelNoZombiesFound": "No zombie tunnels found",
+  "tunnelCleanedUpZombies": "Cleaned up {count} zombie tunnel(s)",
+  "@tunnelCleanedUpZombies": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "tunnelCleanupFailed": "Cleanup failed: {error}",
+  "@tunnelCleanupFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "tunnelStatusReconnecting": "Reconnecting",
+  "tunnelStatusHealthy": "Healthy",
+  "tunnelAutoReconnect": "Auto-reconnect",
+  "tunnelRetryNow": "Retry Now",
+  "doctorTitle": "Connectivity Doctor",
+  "doctorRunAgain": "Run Again",
+  "doctorRunning": "Running…",
+  "doctorExportReport": "Export Report",
+  "doctorReportExported": "Report exported to: {path}",
+  "@doctorReportExported": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "doctorCopyPath": "Copy Path",
+  "doctorExportFailed": "Failed to export report: {error}",
+  "@doctorExportFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "doctorConfirmFixTitle": "Confirm Fix Action",
+  "doctorConfirmStartVm": "Start the VM instance \"{instanceName}\"?",
+  "@doctorConfirmStartVm": {
+    "placeholders": {
+      "instanceName": {"type": "String"}
+    }
+  },
+  "doctorConfirmReauthenticate": "Re-authenticate with gcloud? This will open a browser window.",
+  "doctorConfirmExecuteFix": "Execute fix action \"{fixActionId}\"?",
+  "@doctorConfirmExecuteFix": {
+    "placeholders": {
+      "fixActionId": {"type": "String"}
+    }
+  },
+  "doctorExecute": "Execute",
+  "doctorFixFailed": "Fix failed: {error}",
+  "@doctorFixFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "doctorRunningChecks": "Running connectivity checks…",
+  "commonErrorPrefix": "Error: {error}",
+  "@commonErrorPrefix": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "doctorNoResultsYet": "No results yet",
+  "doctorCommandCopied": "Command copied to clipboard",
+  "doctorCategoryAuthentication": "Authentication",
+  "doctorCategoryProjectPermissions": "Project & Permissions",
+  "doctorCategoryIapNetwork": "IAP & Network",
+  "doctorCategoryVmStatus": "VM Status",
+  "doctorCategoryLocalEnvironment": "Local Environment",
+  "doctorTotalDuration": "Total: {ms}ms",
+  "@doctorTotalDuration": {
+    "placeholders": {
+      "ms": {"type": "int"}
+    }
+  },
+  "doctorCopyCommand": "Copy Command",
+  "doctorFix": "Fix",
+  "dbConnectionTitle": "Database Connection",
+  "dbTabNewConnection": "New Connection",
+  "dbTabSavedProfiles": "Saved Profiles",
+  "dbCreatingTunnel": "Creating tunnel to port {port}…",
+  "@dbCreatingTunnel": {
+    "placeholders": {
+      "port": {"type": "int"}
+    }
+  },
+  "dbTunnelCreationFailed": "Failed to create tunnel",
+  "dbLaunched": "Launched {clientName}",
+  "@dbLaunched": {
+    "placeholders": {
+      "clientName": {"type": "String"}
+    }
+  },
+  "dbLaunchedFallback": "Launched {clientName} (fallback)",
+  "@dbLaunchedFallback": {
+    "placeholders": {
+      "clientName": {"type": "String"}
+    }
+  },
+  "dbConnectionFailed": "Connection failed: {error}",
+  "@dbConnectionFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dbEnterProfileName": "Please enter a profile name",
+  "dbProfileSaved": "Profile \"{name}\" saved",
+  "@dbProfileSaved": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "dbTypeLabel": "Database Type",
+  "dbRemotePortLabel": "Remote Port",
+  "dbCustomPort": "Custom port",
+  "dbDatabaseNameOptional": "Database Name (optional)",
+  "dbUsernameOptional": "Username (optional)",
+  "dbSqlClientLabel": "SQL Client",
+  "dbNoCompatibleClients": "No compatible clients found for {dbType}.\nPlease install one of the supported clients.",
+  "@dbNoCompatibleClients": {
+    "placeholders": {
+      "dbType": {"type": "String"}
+    }
+  },
+  "dbAutoClient": "Auto",
+  "dbErrorLoadingClients": "Error loading clients: {error}",
+  "@dbErrorLoadingClients": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dbConnecting": "Connecting…",
+  "dbConnectAndLaunch": "Connect & Launch",
+  "dbSaveAsProfileLabel": "Save as Profile",
+  "dbProfileNameLabel": "Profile Name",
+  "dbProfileNameHint": "e.g., Production MySQL",
+  "dbNoSavedProfiles": "No saved profiles",
+  "dbNoSavedProfilesHint": "Create a connection and save it as a profile for quick access",
+  "dbDeleteProfileTitle": "Delete Profile",
+  "dbDeleteProfileConfirm": "Are you sure you want to delete \"{name}\"?",
+  "@dbDeleteProfileConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "dbTypePortLabel": "{dbType} (Port {port})",
+  "@dbTypePortLabel": {
+    "placeholders": {
+      "dbType": {"type": "String"},
+      "port": {"type": "int"}
+    }
+  },
+  "dbDatabaseLabel": "Database: {name}",
+  "@dbDatabaseLabel": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "dbClientLabel": "Client: {clientName}",
+  "@dbClientLabel": {
+    "placeholders": {
+      "clientName": {"type": "String"}
+    }
+  },
+  "dbDeleteProfileTooltip": "Delete profile",
+  "winCredTitle": "Windows Password",
+  "winCredGeneratePasswordTab": "Generate Password",
+  "winCredStoredCredentialsTab": "Stored Credentials",
+  "winCredInfoBox": "Generate a new Windows password or reset an existing one. The password will be stored securely in your system keyring.",
+  "commonUsernameLabel": "Username",
+  "winCredUsernameHint": "Windows username (e.g., Administrator)",
+  "winCredEmailLabel": "Email",
+  "winCredEmailHint": "Your email address (for GCP tracking)",
+  "winCredGenerateNew": "Generate New",
+  "winCredResetPassword": "Reset Password",
+  "winCredWaitingForAgent": "Waiting for Windows guest agent response…",
+  "winCredMayTake60s": "This may take up to 60 seconds",
+  "winCredGeneratedCredential": "Generated Credential",
+  "winCredNoStoredCredentials": "No stored credentials",
+  "winCredNoStoredCredentialsHint": "Generate a password for a Windows VM to store it here",
+  "winCredClearAll": "Clear All",
+  "winCredUsernameField": "Username: ",
+  "winCredPasswordField": "Password: ",
+  "winCredCopyUsernameTooltip": "Copy username",
+  "winCredCopyPasswordTooltip": "Copy password",
+  "winCredHidePassword": "Hide password",
+  "winCredShowPassword": "Show password",
+  "commonCurrentChip": "Current",
+  "commonPleaseEnterUsername": "Please enter a username",
+  "winCredPasswordWord": "Password",
+  "winCredCopiedToClipboard": "{label} copied to clipboard",
+  "@winCredCopiedToClipboard": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "winCredCopiedToClipboardSensitive": "{label} copied to clipboard (clears in 30s)",
+  "@winCredCopiedToClipboardSensitive": {
+    "placeholders": {
+      "label": {"type": "String"}
+    }
+  },
+  "winCredDeleteCredentialTitle": "Delete Credential",
+  "winCredDeleteCredentialConfirm": "Are you sure you want to delete the stored credential for {username}@{instanceName}?",
+  "@winCredDeleteCredentialConfirm": {
+    "placeholders": {
+      "username": {"type": "String"},
+      "instanceName": {"type": "String"}
+    }
+  },
+  "winCredClearAllTitle": "Clear All Credentials",
+  "winCredClearAllConfirm": "Are you sure you want to delete ALL stored Windows credentials? This action cannot be undone.",
+  "sshfsDialogTitle": "Mount Remote Filesystem",
+  "sshfsUnavailableDefaultIssue": "SSHFS is not available",
+  "sshfsMountAction": "Mount",
+  "sshfsActiveMountsTab": "Active Mounts",
+  "sshfsNotAvailableTitle": "SSHFS Not Available",
+  "sshfsMountInfoText": "Mount a remote directory from {instanceName} to your local filesystem. The tunnel on port {port} will be used for the connection.",
+  "@sshfsMountInfoText": {
+    "placeholders": {
+      "instanceName": {"type": "String"},
+      "port": {"type": "int"}
+    }
+  },
+  "sshfsUsernameLabel": "SSH Username",
+  "sshfsUsernameHint": "Username on the remote VM",
+  "sshfsRemotePathLabel": "Remote Path",
+  "sshfsLocalMountPointLabel": "Local Mount Point",
+  "sshfsResetToDefaultTooltip": "Reset to default",
+  "sshfsMountOptionsTitle": "Mount Options",
+  "sshfsReadOnlyOption": "Read Only",
+  "sshfsCacheOption": "Cache",
+  "sshfsCompressionOption": "Compression",
+  "sshfsAutoReconnectOption": "Auto-Reconnect",
+  "sshfsMountingButton": "Mounting…",
+  "sshfsNoActiveMountsTitle": "No active mounts",
+  "sshfsNoActiveMountsSubtitle": "Mount a remote directory to see it here",
+  "sshfsActiveMountsCount": "{count} active mounts",
+  "@sshfsActiveMountsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "sshfsUnmountAllButton": "Unmount All",
+  "sshfsThisInstance": "This instance ({instanceName})",
+  "@sshfsThisInstance": {
+    "placeholders": {
+      "instanceName": {"type": "String"}
+    }
+  },
+  "sshfsInfoProject": "Project",
+  "sshfsInfoZone": "Zone",
+  "sshfsInfoLocalMount": "Local Mount",
+  "sshfsInfoTunnelPort": "Tunnel Port",
+  "sshfsOpenButton": "Open",
+  "sshfsUnmountButton": "Unmount",
+  "sshfsRemotePathRequired": "Please enter a remote path",
+  "sshfsLocalPathRequired": "Please enter a local mount point",
+  "sshfsUnmountAllConfirmMessage": "Are you sure you want to unmount all SSHFS mounts?",
+  "settingsTitle": "Settings",
+  "settingsAppearanceTitle": "Appearance",
+  "settingsAutoRefreshTitle": "Auto-Refresh",
+  "settingsEnableAutoRefresh": "Enable Auto-Refresh",
+  "settingsAutoRefreshSubtitle": "Automatically refresh instance list",
+  "settingsRefreshIntervalLabel": "Refresh Interval",
+  "settingsUpdateEverySeconds": "Update every {seconds} seconds",
+  "@settingsUpdateEverySeconds": {
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+  "settingsIntervalDisabled": "Disabled",
+  "settingsInterval10s": "10 seconds",
+  "settingsInterval30s": "30 seconds",
+  "settingsInterval60s": "1 minute",
+  "settingsInterval120s": "2 minutes",
+  "settingsInterval300s": "5 minutes",
+  "settingsCustomInterval": "Custom Interval",
+  "settingsCustomIntervalSubtitle": "Specify a custom interval (5-600s)",
+  "settingsSecondsLabel": "Seconds",
+  "settingsSecondsHelper": "Min: 5, Max: 600",
+  "settingsInvalidNumber": "Please enter a valid number",
+  "settingsIntervalRange": "Interval must be between 5 and 600 seconds",
+  "settingsRefreshIntervalSet": "Refresh interval set to {seconds} seconds",
+  "@settingsRefreshIntervalSet": {
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+  "settingsSetButton": "Set",
+  "settingsNotificationsTitle": "Notifications",
+  "settingsEnableNotifications": "Enable Desktop Notifications",
+  "settingsNotificationsSubtitle": "Get notified about VM state changes and events",
+  "settingsNotifiedAboutLabel": "You will be notified about:",
+  "settingsNotifyVmState": "• VM state changes (RUNNING ↔ STOPPED)",
+  "settingsNotifyIapFailures": "• IAP tunnel failures",
+  "settingsNotifyLifecycleResults": "• Lifecycle operation results (start/stop/reset)",
+  "settingsSystemDependenciesTitle": "System Dependencies",
+  "settingsRdpClientTitle": "RDP Client",
+  "settingsVncClientTitle": "VNC Client",
+  "settingsAboutTitle": "About",
+  "settingsEditionsDescription": "Editions follow a half-year cadence (YYH#). 26H2 covers the second half of 2026. Builds deliver continuous fixes between editions.",
+  "settingsSupportDevelopmentTitle": "Support Development",
+  "settingsSupportMessage": "If you find this tool useful, consider supporting its development!",
+  "settingsChooseThemeLabel": "Choose your preferred theme:",
+  "settingsThemeLight": "Light",
+  "settingsThemeDark": "Dark",
+  "settingsThemeSystem": "System (Auto)",
+  "settingsThemeLightDesc": "Always use light theme",
+  "settingsThemeDarkDesc": "Always use dark theme",
+  "settingsThemeSystemDesc": "Follow your system preference",
+  "settingsNoRdpClients": "No RDP clients detected. Please install one of: Remmina, FreeRDP, KRDC, or GNOME Connections.",
+  "settingsSelectRdpClient": "Select your preferred RDP client:",
+  "settingsNotInstalled": "Not Installed",
+  "settingsInstallClientHint": "Install this client to use it",
+  "settingsRdpClientSet": "RDP client set to {name}",
+  "@settingsRdpClientSet": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "settingsClientTip": "💡 Tip: If your preferred client is unavailable, the app will automatically try other installed clients.",
+  "settingsErrorDetectingRdp": "Error detecting RDP clients: {error}",
+  "@settingsErrorDetectingRdp": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "settingsNoVncClients": "No VNC clients detected. Please install one of: Remmina, TigerVNC, KRDC, or Vinagre.",
+  "settingsSelectVncClient": "Select your preferred VNC client:",
+  "settingsVncClientSet": "VNC client set to {name}",
+  "@settingsVncClientSet": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "settingsErrorDetectingVnc": "Error detecting VNC clients: {error}",
+  "@settingsErrorDetectingVnc": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "settingsDependencyStatusLabel": "Status of tools used by the application:",
+  "settingsDepRdpClients": "RDP Clients",
+  "settingsDepVncClients": "VNC Clients",
+  "settingsDepSqlClients": "SQL Clients",
+  "settingsRequiredBadge": "Required",
+  "settingsInstalledCount": "{count} Installed",
+  "@settingsInstalledCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "settingsInstalledLabel": "Installed",
+  "settingsNotFound": "Not Found",
+  "settingsErrorCheckingDeps": "Error checking dependencies: {error}",
+  "@settingsErrorCheckingDeps": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "settingsRdpDescRemmina": "Feature-rich, supports config files",
+  "settingsRdpDescFreeRdp": "CLI-based, widely available",
+  "settingsRdpDescKrdc": "KDE default remote desktop client",
+  "settingsRdpDescGnome": "Modern GNOME remote desktop app",
+  "settingsRdpDescMstsc": "Windows native remote desktop client",
+  "settingsVncDescRemmina": "Feature-rich, supports both RDP and VNC",
+  "settingsVncDescTigerVnc": "High-performance VNC viewer",
+  "settingsVncDescKrdc": "KDE VNC and RDP client",
+  "settingsVncDescVinagre": "GNOME VNC viewer",
+  "commonEditionLabel": "Edition {version}",
+  "@commonEditionLabel": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "commonBuildLabel": "Build {build}",
+  "@commonBuildLabel": {
+    "placeholders": {
+      "build": {
+        "type": "String"
+      }
+    }
+  },
+  "manualInstanceTitle": "Add Instance Manually",
+  "manualInstanceDescription": "Add an instance when you have view permission but not list permission.",
+  "manualInstanceProjectIdLabel": "Project ID",
+  "manualInstanceProjectIdHint": "e.g., my-project-123",
+  "manualInstanceProjectIdRequired": "Project ID is required",
+  "manualInstanceZoneLabel": "Zone",
+  "manualInstanceZoneHint": "e.g., us-central1-a",
+  "manualInstanceZoneRequired": "Zone is required",
+  "manualInstanceNameLabel": "Instance Name",
+  "manualInstanceNameHint": "e.g., my-vm-instance",
+  "manualInstanceNameRequired": "Instance name is required",
+  "manualInstanceSearching": "Searching…",
+  "manualInstanceSearchButton": "Search Instance",
+  "manualInstanceFoundTitle": "Instance Found!",
+  "manualInstanceViaMethod": "via {method}",
+  "@manualInstanceViaMethod": {
+    "placeholders": {
+      "method": {"type": "String"}
+    }
+  },
+  "manualInstanceFieldName": "Name",
+  "manualInstanceFieldStatus": "Status",
+  "manualInstanceFieldMachineType": "Machine Type",
+  "manualInstanceAddButton": "Add Instance",
+  "snapshotDialogTitle": "VM Snapshots",
+  "snapshotTabList": "Snapshots",
+  "snapshotTabListWithCount": "Snapshots ({count})",
+  "@snapshotTabListWithCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "snapshotTabCreate": "Create",
+  "snapshotEmptyList": "No snapshots for this VM",
+  "snapshotMetaCreated": "Created: {date}",
+  "@snapshotMetaCreated": {
+    "placeholders": {
+      "date": {"type": "String"}
+    }
+  },
+  "snapshotMetaDisk": "Disk: {size}",
+  "@snapshotMetaDisk": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "snapshotMetaStored": "Stored: {size}",
+  "@snapshotMetaStored": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "snapshotMetaSource": "Source: {disk}",
+  "@snapshotMetaSource": {
+    "placeholders": {
+      "disk": {"type": "String"}
+    }
+  },
+  "snapshotRestoreDiskButton": "Restore disk",
+  "snapshotDeleteTitle": "Delete snapshot",
+  "snapshotDeleteConfirm": "Permanently delete this snapshot?",
+  "snapshotDeletedSnackbar": "Snapshot \"{name}\" deleted.",
+  "@snapshotDeletedSnackbar": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "snapshotDeleteError": "Error deleting: {error}",
+  "@snapshotDeleteError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "snapshotRestoreTitle": "Restore from snapshot",
+  "snapshotRestoreDescription": "A new disk will be created from snapshot \"{name}\".",
+  "@snapshotRestoreDescription": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "snapshotRestoreVmNote": "The VM is not modified automatically — you will get the gcloud commands to do the swap.",
+  "snapshotNewDiskNameLabel": "New disk name",
+  "snapshotCreateDiskButton": "Create disk",
+  "snapshotCreatingDiskFromSnapshot": "Creating disk from snapshot…",
+  "snapshotCreateDiskError": "Error creating disk: {error}",
+  "@snapshotCreateDiskError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "snapshotDiskCreatedTitle": "Disk created from snapshot",
+  "snapshotDiskCreatedMessage": "Disk \"{name}\" created in {zone}.",
+  "@snapshotDiskCreatedMessage": {
+    "placeholders": {
+      "name": {"type": "String"},
+      "zone": {"type": "String"}
+    }
+  },
+  "snapshotRestoreCommandsIntro": "To restore the VM, run these commands:",
+  "snapshotCopyCommandsButton": "Copy commands",
+  "snapshotCommandsCopiedSnackbar": "Commands copied to clipboard",
+  "snapshotNameRequired": "Name is required",
+  "snapshotNameMaxLength": "Maximum 63 characters",
+  "snapshotNameMustStartLowercase": "Must start with a lowercase letter",
+  "snapshotNameInvalidChars": "Only lowercase letters, digits and hyphens",
+  "snapshotNameNoTrailingHyphen": "Cannot end with a hyphen",
+  "snapshotCreatedSnackbar": "Snapshot \"{name}\" created. It may take a few minutes to appear as READY.",
+  "@snapshotCreatedSnackbar": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "snapshotCreateError": "Error creating snapshot: {error}",
+  "@snapshotCreateError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "snapshotNameFieldLabel": "Snapshot name *",
+  "snapshotNameFieldHelper": "Only lowercase letters, digits and hyphens. Max 63 chars.",
+  "snapshotDescriptionFieldLabel": "Description (optional)",
+  "snapshotCreateButton": "Create Snapshot",
+  "snapshotCreateDurationNote": "Snapshots may take 2–5 minutes to complete.",
+  "snapshotCreatingOverlay": "Creating snapshot…\nThis may take several minutes.",
+  "snapshotDetectingBootDisk": "Detecting boot disk…",
+  "snapshotBootDiskDetectError": "Could not detect boot disk: {error}",
+  "@snapshotBootDiskDetectError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "snapshotBootDiskLabel": "Boot disk:",
+
+  "clientTestTitle": "Client Libraries Testing",
+  "clientTestTabApi": "API Testing",
+  "clientTestTabLifecycle": "Lifecycle Ops",
+  "clientTestTabPerformance": "Performance",
+  "clientTestRunAllTooltip": "Run All Tests",
+  "clientTestRunningAll": "Running all tests…",
+  "clientTestLabelClientLibs": "Client Libraries",
+  "clientTestHeaderTitle": "Google Cloud Client Libraries Integration",
+  "clientTestHeaderDescription": "Test and compare the new Client Libraries integration with traditional gcloud CLI. Client Libraries use direct REST API calls for better performance.",
+  "clientTestAuthTitle": "Authentication Test",
+  "clientTestRetryAuth": "Retry Authentication",
+  "clientTestProjectsComparisonTitle": "Projects Listing Comparison",
+  "clientTestNoProjectsFound": "No projects found",
+  "clientTestFoundProjectsCount": "Found {count} projects",
+  "@clientTestFoundProjectsCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "clientTestAndMoreCount": "… and {count} more",
+  "@clientTestAndMoreCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "clientTestAuthenticateFirst": "Please authenticate with gcloud first",
+  "clientTestPerfBenchmarkTitle": "Performance Benchmark",
+  "clientTestBenchmarkDescription": "Measures the time to list all projects using both methods.",
+  "clientTestRunningBenchmark": "Running benchmark…",
+  "clientTestRunBenchmarkButton": "Run Benchmark",
+  "clientTestComputeInstancesTitle": "Compute Engine Instances",
+  "clientTestSelectProjectHint": "Please select a project from the main dashboard to test instance listing.",
+  "clientTestNoInstancesFound": "No instances found",
+  "clientTestFoundInstancesCount": "Found {count} instances",
+  "@clientTestFoundInstancesCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "clientTestRefreshBothButton": "Refresh Both",
+  "clientTestLifecycleTitle": "Lifecycle Operations Testing",
+  "clientTestLifecycleDescription": "Test VM lifecycle operations (start/stop/reset) using both CLI and Client Libraries. Select an instance from the main dashboard to begin testing.",
+  "clientTestSelectProjectInstanceHint": "Please select a project and instance from the main dashboard",
+  "clientTestInstanceStatusZone": "Status: {status} • Zone: {zone}",
+  "@clientTestInstanceStatusZone": {
+    "placeholders": {
+      "status": {"type": "String"},
+      "zone": {"type": "String"}
+    }
+  },
+  "clientTestCurrentlyTestingWith": "Currently testing with: {method}",
+  "@clientTestCurrentlyTestingWith": {
+    "placeholders": {
+      "method": {"type": "String"}
+    }
+  },
+  "clientTestTestOperationsLabel": "Test Operations:",
+  "clientTestStartingInstance": "Starting instance…",
+  "clientTestInstanceStartedSuccess": "Instance started successfully!",
+  "clientTestStartInstanceButton": "Start Instance",
+  "clientTestStoppingInstance": "Stopping instance…",
+  "clientTestInstanceStoppedSuccess": "Instance stopped successfully!",
+  "clientTestStopInstanceButton": "Stop Instance",
+  "clientTestResettingInstance": "Resetting instance…",
+  "clientTestInstanceResetSuccess": "Instance reset successfully!",
+  "clientTestResetInstanceButton": "Reset Instance",
+  "clientTestTestingTipsTitle": "Testing Tips",
+  "clientTestTestingTipsBody": "• Switch the API method in the main dashboard AppBar to test both implementations\n• Operations take 30-120 seconds to complete\n• Watch the console for detailed timing information\n• Client Libraries should be slightly faster due to direct API calls",
+  "clientTestPerfStatsTitle": "Performance Statistics",
+  "clientTestPerfStatsDescription": "Aggregate performance data comparing gcloud CLI and Client Libraries. Run benchmarks from the API Testing tab to populate statistics.",
+  "clientTestBenchmarkSummaryTitle": "Benchmark Results Summary",
+  "clientTestMetricSpeedup": "Speedup",
+  "clientTestMetricImprovement": "Improvement",
+  "clientTestRunBenchmarkHint": "Run benchmark from API Testing tab to see results",
+  "clientTestExpectedGainsTitle": "Expected Performance Gains",
+  "clientTestOpListProjects": "List Projects",
+  "clientTestOpListInstances": "List Instances",
+  "clientTestOpStartStopInstance": "Start/Stop Instance",
+  "clientTestReasonListProjects": "Faster API calls, no process overhead",
+  "clientTestReasonListInstances": "Direct REST API vs CLI JSON parsing",
+  "clientTestReasonStartStop": "Reduced latency from direct API",
+  "clientTestReasonReset": "Minimal overhead difference",
+  "clientTestExpectedGainsFooter": "Client Libraries excel in high-frequency operations. The more API calls, the larger the cumulative time savings.",
+  "diagTitle": "VM Diagnostics",
+  "diagSubtitle": "{instanceName} ({zone})",
+  "@diagSubtitle": {
+    "placeholders": {
+      "instanceName": {"type": "String"},
+      "zone": {"type": "String"}
+    }
+  },
+  "diagTabSerialConsole": "Serial Console",
+  "diagTabDiagnostics": "Diagnostics",
+  "diagTabAuditLogs": "Audit Logs",
+  "diagLogsExportedTo": "Logs exported to: {path}",
+  "@diagLogsExportedTo": {
+    "placeholders": {
+      "path": {"type": "String"}
+    }
+  },
+  "diagOpenAction": "Open",
+  "diagExportFailed": "Export failed: {error}",
+  "@diagExportFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "diagPortLabel": "Port: ",
+  "diagSearchHint": "Search logs…",
+  "diagAutoScrollTooltip": "Auto-scroll",
+  "diagStopAutoRefreshTooltip": "Stop auto-refresh",
+  "diagAutoRefreshTooltip": "Auto-refresh (5s)",
+  "diagExportLogsTooltip": "Export logs",
+  "diagCopyToClipboardTooltip": "Copy to clipboard",
+  "diagCopiedToClipboard": "Copied to clipboard",
+  "diagFetchedAt": "Fetched: {timestamp}",
+  "@diagFetchedAt": {
+    "placeholders": {
+      "timestamp": {"type": "String"}
+    }
+  },
+  "diagLinesCount": "{count} lines",
+  "@diagLinesCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diagLinesCountFiltered": "{count} lines (filtered)",
+  "@diagLinesCountFiltered": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "diagSerialPortDisabledTitle": "Serial Port Logging Disabled",
+  "diagErrorLoadingSerialTitle": "Error Loading Serial Output",
+  "diagCopyEnableCommandButton": "Copy Enable Command",
+  "diagCommandCopiedToClipboard": "Command copied to clipboard",
+  "diagNoData": "No data",
+  "diagInstanceStatusTitle": "Instance Status",
+  "diagLabelStatus": "Status",
+  "diagLabelMachineType": "Machine Type",
+  "diagLabelZone": "Zone",
+  "diagLabelProject": "Project",
+  "diagLabelCreated": "Created",
+  "diagLabelLastStarted": "Last Started",
+  "diagLabelLastStopped": "Last Stopped",
+  "diagGuestAgentTitle": "Guest Agent",
+  "diagStatusReporting": "Reporting",
+  "diagStatusNotReporting": "Not Reporting",
+  "diagLabelOsType": "OS Type",
+  "diagLabelOsVersion": "OS Version",
+  "diagLabelLastHeartbeat": "Last Heartbeat",
+  "diagGuestAgentWarning": "The guest agent may not be installed or running.",
+  "diagNetworkInterfacesTitle": "Network Interfaces",
+  "diagInterfaceNumber": "Interface {number}",
+  "@diagInterfaceNumber": {
+    "placeholders": {
+      "number": {"type": "int"}
+    }
+  },
+  "diagLabelNetwork": "Network",
+  "diagLabelSubnetwork": "Subnetwork",
+  "diagLabelInternalIp": "Internal IP",
+  "diagLabelExternalIp": "External IP",
+  "diagValueNone": "None",
+  "diagLabelTier": "Tier",
+  "diagDisksTitle": "Disks",
+  "diagBootChip": "Boot",
+  "diagLabelType": "Type",
+  "diagLabelSize": "Size",
+  "diagSizeGb": "{size} GB",
+  "@diagSizeGb": {
+    "placeholders": {
+      "size": {"type": "int"}
+    }
+  },
+  "diagLabelMode": "Mode",
+  "diagLabelAutoDelete": "Auto-delete",
+  "diagLabelsTitle": "Labels",
+  "diagLabelKeyValue": "{key}: {value}",
+  "@diagLabelKeyValue": {
+    "placeholders": {
+      "key": {"type": "String"},
+      "value": {"type": "String"}
+    }
+  },
+  "diagLastLabel": "Last: ",
+  "diagHours1": "1 hour",
+  "diagHours6": "6 hours",
+  "diagHours24": "24 hours",
+  "diagDays3": "3 days",
+  "diagDays7": "7 days",
+  "diagThisInstanceOnly": "This instance only",
+  "diagPermissionDeniedTitle": "Permission Denied",
+  "diagErrorLoadingAuditLogsTitle": "Error Loading Audit Logs",
+  "diagNoAuditLogsFound": "No audit logs found in the selected time range",
+  "diagUnknownOperation": "Unknown operation",
+  "diagSystemFallback": "System",
+  "diagLogSubtitle": "{timestamp} - {principal}",
+  "@diagLogSubtitle": {
+    "placeholders": {
+      "timestamp": {"type": "String"},
+      "principal": {"type": "String"}
+    }
+  },
+  "diagLabelSeverity": "Severity",
+  "diagLabelResource": "Resource",
+  "diagValueNa": "N/A",
+  "diagLabelResourceType": "Resource Type",
+  "diagLabelLog": "Log",
+  "diagLabelRequest": "Request",
+  "sftpErrorLoadDirectory": "Failed to load directory \"{path}\": {error}\n\nCheck permissions and network connectivity.",
+  "@sftpErrorLoadDirectory": {
+    "placeholders": {
+      "path": {"type": "String"},
+      "error": {"type": "String"}
+    }
+  },
+  "sftpUploadingFile": "Uploading {fileName}…",
+  "@sftpUploadingFile": {
+    "placeholders": {
+      "fileName": {"type": "String"}
+    }
+  },
+  "sftpErrorUploadFile": "Failed to upload \"{fileName}\": {error}\n\nCheck file permissions and disk space.",
+  "@sftpErrorUploadFile": {
+    "placeholders": {
+      "fileName": {"type": "String"},
+      "error": {"type": "String"}
+    }
+  },
+  "sftpUploadingBatch": "Uploading {current}/{total}: {fileName}…",
+  "@sftpUploadingBatch": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"},
+      "fileName": {"type": "String"}
+    }
+  },
+  "sftpUploadingFolder": "Uploading folder {folderName}…",
+  "@sftpUploadingFolder": {
+    "placeholders": {
+      "folderName": {"type": "String"}
+    }
+  },
+  "sftpUploadingFolderProgress": "Uploading {current}/{total}: {fileName}…",
+  "@sftpUploadingFolderProgress": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "total": {"type": "int"},
+      "fileName": {"type": "String"}
+    }
+  },
+  "sftpErrorUploadFolder": "Failed to upload folder: {error}\n\nSome files may have been uploaded successfully.",
+  "@sftpErrorUploadFolder": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "sftpErrorFolderNameInvalid": "Invalid folder name.",
+  "sftpErrorUploadBatch": "Failed to upload files: {error}\n\nSome files may have been uploaded successfully.",
+  "@sftpErrorUploadBatch": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "sftpDownloadingFile": "Downloading {fileName}…",
+  "@sftpDownloadingFile": {
+    "placeholders": {
+      "fileName": {"type": "String"}
+    }
+  },
+  "sftpErrorDownloadFile": "Failed to download \"{fileName}\": {error}\n\nCheck local disk space and permissions.",
+  "@sftpErrorDownloadFile": {
+    "placeholders": {
+      "fileName": {"type": "String"},
+      "error": {"type": "String"}
+    }
+  },
+  "sftpErrorDirNameEmpty": "Directory name cannot be empty.",
+  "sftpErrorDirNameSeparators": "Directory name cannot contain path separators (/ or \\).",
+  "sftpErrorDirNameParentRef": "Directory name cannot contain \"..\" (parent directory references).",
+  "sftpErrorDirNameTooLong": "Directory name too long (max 255 characters).",
+  "sftpCreatingDirectory": "Creating directory…",
+  "sftpErrorCreateDirectory": "Failed to create directory \"{dirName}\": {error}\n\nCheck remote permissions.",
+  "@sftpErrorCreateDirectory": {
+    "placeholders": {
+      "dirName": {"type": "String"},
+      "error": {"type": "String"}
+    }
+  },
+  "sftpDeletingFile": "Deleting {fileName}…",
+  "@sftpDeletingFile": {
+    "placeholders": {
+      "fileName": {"type": "String"}
+    }
+  },
+  "sftpErrorDeleteFile": "Failed to delete \"{fileName}\": {error}\n\nCheck remote permissions and ensure it is not in use.",
+  "@sftpErrorDeleteFile": {
+    "placeholders": {
+      "fileName": {"type": "String"},
+      "error": {"type": "String"}
+    }
+  },
+  "sftpLoadingPreview": "Loading preview…",
+  "sftpErrorLoadPreview": "Failed to load preview: {error}",
+  "@sftpErrorLoadPreview": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "sftpFileBrowserTitle": "File Browser - {instanceName}",
+  "@sftpFileBrowserTitle": {
+    "placeholders": {
+      "instanceName": {"type": "String"}
+    }
+  },
+  "sftpSearchHint": "Search files and folders…",
+  "sftpParentDirectoryTooltip": "Go to parent directory",
+  "sftpUploadButton": "Upload",
+  "sftpUploadFileButton": "Upload File",
+  "sftpUploadFolderButton": "Upload Folder",
+  "sftpNewFolderButton": "New Folder",
+  "sftpDropFilesHere": "Drop files here to upload",
+  "sftpEmptyFolder": "This folder is empty\n\nDrag & drop files here to upload",
+  "sftpNoFilesMatch": "No files match \"{query}\"",
+  "@sftpNoFilesMatch": {
+    "placeholders": {
+      "query": {"type": "String"}
+    }
+  },
+  "sftpCreateFolderTitle": "Create New Folder",
+  "sftpFolderNameLabel": "Folder Name",
+  "sftpCreateButton": "Create",
+  "sftpConfirmDeleteTitle": "Confirm Delete",
+  "sftpConfirmDeleteMessage": "Are you sure you want to delete \"{fileName}\"?",
+  "@sftpConfirmDeleteMessage": {
+    "placeholders": {
+      "fileName": {"type": "String"}
+    }
+  },
+  "sftpFolderLabel": "Folder",
+  "sftpPreviewTooltip": "Preview",
+  "sftpDownloadTooltip": "Download",
+  "sftpErrorLoadFile": "Failed to load file: {error}",
+  "@sftpErrorLoadFile": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "sftpErrorLoadImage": "Failed to load image",
+
+  "dashboardLoadingAccountsTooltip": "Loading accounts…",
+  "appLogoutButton": "Logout",
+  "appConnectionHistoryTitle": "Connection History",
+  "appExportLogsTooltip": "Export Logs",
+  "appAboutTooltip": "About",
+  "dashboardGcloudRequiredTitle": "Google Cloud CLI Required",
+  "dashboardGcloudRequiredDescription": "Lightweight Cloud Connector requires the Google Cloud CLI (gcloud) to connect to your GCP resources.",
+  "dashboardInstallInstructionsTitle": "Installation Instructions",
+  "dashboardInstallInstructionsBody": "Please go to the following site and follow the instructions to install the Google Cloud SDK for your operating system:",
+  "dashboardOpenInstructionsButton": "Open Instructions in Browser",
+  "dashboardCheckAgainButton": "Check Again",
+  "dashboardLaunchingBrowserLogin": "Launching browser for login…",
+  "dashboardLoginFailed": "Login Failed: {error}",
+  "@dashboardLoginFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dashboardLoginButton": "Login to Google Cloud",
+  "appExportingLogs": "Exporting logs…",
+  "appLogsExportedTitle": "Logs Exported Successfully",
+  "appLogsExportedBody": "All logs have been consolidated and exported to:",
+  "appLogsExportedHint": "You can share this file for troubleshooting.",
+  "appExportLogsFailed": "Failed to export logs: {error}",
+  "@appExportLogsFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "appLogoutMultiAccountCount": "You have {count} authenticated accounts.",
+  "@appLogoutMultiAccountCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "appLogoutActiveAccount": "Active: {email}",
+  "@appLogoutActiveAccount": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "appLogoutThisAccount": "Logout {email}",
+  "@appLogoutThisAccount": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "appLogoutAllAccounts": "Logout All",
+  "appLogoutConfirmSingle": "This will revoke your Google Cloud credentials from this machine. Are you sure?",
+  "appLoggedOutAccount": "Logged out {email}.",
+  "@appLoggedOutAccount": {
+    "placeholders": {
+      "email": {"type": "String"}
+    }
+  },
+  "appLogoutError": "Logout Error: {error}",
+  "@appLogoutError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "appLoggedOutFullMessage": "Logged out successfully. All cached data cleared.",
+  "dashboardAutoRefreshEnabledTooltip": "Auto-refresh enabled ({seconds}s)",
+  "@dashboardAutoRefreshEnabledTooltip": {
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+  "dashboardEnableAutoRefreshTooltip": "Enable auto-refresh",
+  "dashboardAutoRefreshDisabledSnackbar": "Auto-refresh disabled",
+  "dashboardAutoRefreshEnabledSnackbar": "Auto-refresh enabled ({seconds}s interval)",
+  "@dashboardAutoRefreshEnabledSnackbar": {
+    "placeholders": {
+      "seconds": {"type": "int"}
+    }
+  },
+  "appAddedInstanceSnackbar": "Added instance: {name}",
+  "@appAddedInstanceSnackbar": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "appCopyright": "© 2026 Jordi Lopez Reyes",
+  "appTagline": "A native tool to simplify Google Cloud IAP connections on Linux.",
+  "appEditionsCalverTitle": "LCC Editions — CalVer",
+  "appEditionsCalverBody": "Editions follow a half-year cadence (YYH#):\n  • 26H1 — First half of 2026\n  • 26H2 — Second half of 2026 (current)\nBuilds provide continuous fixes between editions.",
+  "appWhatsNewTitle": "What's new in Edition {edition}:",
+  "@appWhatsNewTitle": {
+    "placeholders": {
+      "edition": {"type": "String"}
+    }
+  },
+  "appWhatsNewItem1": "• VM Labels display & label-based search",
+  "appWhatsNewItem2": "• Suspend/Resume VM state",
+  "appWhatsNewItem3": "• OS Login & Windows VM auto-detection",
+  "appWhatsNewItem4": "• Global Tunnel Manager + Auto-Reconnect",
+  "appWhatsNewItem5": "• Multi-account & Project Explorer",
+  "appWhatsNewItem6": "• Connectivity Doctor (10 diagnostic checks)",
+  "appWhatsNewItem7": "• SSHFS Mount, Database Clients, Windows Credentials",
+  "appDeveloperLabel": "Developer:",
+  "appSourceCodeLabel": "Source Code:",
+  "appTechStackLabel": "Tech Stack:",
+  "appTechStackValue": "Flutter • Rust • Google Cloud Client Libraries",
+  "dashboardSearchInstancesHint": "Search instances…",
+  "dashboardFilterAll": "All",
+  "dashboardAllProjectsHint": "All Projects",
+  "dashboardNoProjectsSelected": "No projects selected",
+  "dashboardSelectProjectsHint": "Click \"Select Projects\" above to choose GCP projects",
+  "dashboardProjectsErrorsTitle": "Some projects had errors",
+  "dashboardPermissionDeniedParen": "(Permission denied)",
+  "dashboardErrorParen": "(Error)",
+  "dashboardNoInstancesFoundProjects": "No instances found in selected projects.",
+  "dashboardNoMatchingInstances": "No matching instances.",
+  "dashboardFavoritesCount": "Favorites ({count})",
+  "@dashboardFavoritesCount": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "dashboardRemoveFavoriteTooltip": "Remove from favorites",
+  "dashboardAddFavoriteTooltip": "Add to favorites",
+  "dashboardPermissionDenied": "Permission denied",
+  "dashboardErrorLoadingShort": "Error loading",
+  "dashboardRunningTunnelActive": "RUNNING • Tunnel Active • {machineType}",
+  "@dashboardRunningTunnelActive": {
+    "placeholders": {
+      "machineType": {"type": "String"}
+    }
+  },
+  "dashboardMenuMountSshfs": "Mount SSHFS",
+  "dashboardMenuStop": "Stop",
+  "dashboardMenuStart": "Start",
+  "dashboardMenuSuspend": "Suspend",
+  "dashboardMenuReset": "Reset",
+  "dashboardMenuResume": "Resume",
+  "dashboardMenuDoctor": "Doctor",
+  "dashboardOpeningSftp": "Opening SFTP…",
+  "dashboardOpeningSshfsMount": "Opening SSHFS mount…",
+  "dashboardStartingInstanceShort": "Starting instance…",
+  "dashboardStoppingInstanceShort": "Stopping instance…",
+  "dashboardSuspendingInstanceShort": "Suspending instance…",
+  "dashboardResumingInstanceShort": "Resuming instance…",
+  "dashboardResettingInstanceShort": "Resetting instance…",
+  "dashboardSelectInstanceHint": "Select an instance to view details",
+  "dashboardInstanceResourcesTitle": "Instance Resources",
+  "dashboardCpuLabel": "CPU",
+  "dashboardVcpusValue": "{count} vCPUs",
+  "@dashboardVcpusValue": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "dashboardRamLabel": "RAM",
+  "dashboardSizeGbValue": "{size} GB",
+  "@dashboardSizeGbValue": {
+    "placeholders": {
+      "size": {"type": "String"}
+    }
+  },
+  "dashboardDiskLabel": "Disk",
+  "dashboardOsLoginChip": "OS Login",
+  "dashboardActiveTunnelsTitle": "Active Tunnels",
+  "dashboardActionsTitle": "Actions",
+  "dashboardConnectRdpButton": "Connect RDP",
+  "dashboardConnectVncButton": "Connect VNC",
+  "dashboardConnectSshButton": "Connect SSH",
+  "dashboardLaunchingTerminal": "Launching Terminal…",
+  "dashboardSshError": "SSH Error: {error}",
+  "@dashboardSshError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dashboardOpenSftpButton": "Open SFTP",
+  "dashboardOpeningTunnelSftp": "Opening tunnel for SFTP…",
+  "dashboardSftpTunnelFailed": "Failed to create SSH tunnel for SFTP.\n\nPlease verify:\n• Instance is RUNNING\n• You have IAP tunnel permissions\n• Network connectivity is working\n• gcloud CLI is authenticated",
+  "dashboardStateError": "State error: {error}\nPlease restart the app.",
+  "@dashboardStateError": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dashboardSftpBrowserFailed": "Failed to open SFTP browser: {error}",
+  "@dashboardSftpBrowserFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dashboardUnexpectedError": "An unexpected error occurred.\nPlease check console logs and report this bug.",
+  "dashboardCustomTunnelButton": "Custom Tunnel",
+  "dashboardDatabaseButton": "Database",
+  "dashboardCreatingSshTunnelSshfs": "Creating SSH tunnel for SSHFS mount…",
+  "dashboardSshfsTunnelFailed": "Failed to create SSH tunnel for SSHFS mount.",
+  "dashboardDisconnectAllTunnelsButton": "Disconnect All Tunnels",
+  "dashboardTestIapConnectionButton": "Test IAP Connection",
+  "dashboardTestingIapConnection": "Testing IAP connection… This verifies if IAP is properly configured.",
+  "dashboardStartInstanceButton": "Start Instance",
+  "dashboardStartingInstanceProgress": "Starting instance… This may take a few minutes.",
+  "dashboardStartInstanceFailed": "Failed to start instance: {error}",
+  "@dashboardStartInstanceFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dashboardStopInstanceButton": "Stop Instance",
+  "dashboardStopInstanceConfirm": "Are you sure you want to stop {name}?\n\nThis will disconnect all active tunnels and shut down the instance.",
+  "@dashboardStopInstanceConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "dashboardStoppingInstanceProgress": "Stopping instance… This may take a few minutes.",
+  "dashboardStopInstanceFailed": "Failed to stop instance: {error}",
+  "@dashboardStopInstanceFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dashboardResetInstanceButton": "Reset Instance",
+  "dashboardResetInstanceConfirm": "Are you sure you want to reset {name}?\n\nThis will forcefully restart the instance and disconnect all active tunnels.",
+  "@dashboardResetInstanceConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "dashboardResettingInstanceProgress": "Resetting instance… This may take a few minutes.",
+  "dashboardResetInstanceFailed": "Failed to reset instance: {error}",
+  "@dashboardResetInstanceFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dashboardSuspendInstanceButton": "Suspend Instance",
+  "dashboardSuspendInstanceConfirm": "Are you sure you want to suspend {name}?\n\nThis will save the VM state to disk and disconnect all active tunnels. You can resume it later.",
+  "@dashboardSuspendInstanceConfirm": {
+    "placeholders": {
+      "name": {"type": "String"}
+    }
+  },
+  "dashboardSuspendingInstanceProgress": "Suspending instance… This may take a few minutes.",
+  "dashboardInstanceSuspendedSuccess": "Instance suspended successfully!",
+  "dashboardSuspendInstanceFailed": "Failed to suspend instance: {error}",
+  "@dashboardSuspendInstanceFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "dashboardResumeInstanceButton": "Resume Instance",
+  "dashboardResumingInstanceProgress": "Resuming instance… This may take a few minutes.",
+  "dashboardInstanceResumedSuccess": "Instance resumed successfully!",
+  "dashboardResumeInstanceFailed": "Failed to resume instance: {error}",
+  "@dashboardResumeInstanceFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "appCustomTunnelTitle": "Custom Tunnel Configuration",
+  "appCustomTunnelDescription": "Select a service preset or enter a custom port:",
+  "appCustomPortLabel": "Custom Port",
+  "appCustomPortHint": "Enter port (1-65535)",
+  "appSelectedPortLabel": "Selected port: {port}",
+  "@appSelectedPortLabel": {
+    "placeholders": {
+      "port": {"type": "int"}
+    }
+  },
+  "appConnectionSettingsTitle": "Connection Settings",
+  "appDomainOptionalLabel": "Domain (Optional)",
+  "appSaveCredentialsLabel": "Save Credentials",
+  "appFullscreenLabel": "Fullscreen",
+  "appWidthLabel": "Width",
+  "appHeightLabel": "Height",
+  "appVncConnectionSettingsTitle": "VNC Connection Settings",
+  "appPasswordOptionalLabel": "Password (Optional)",
+  "appVncPasswordHelper": "Leave empty if VNC server has no password",
+  "appDisplayOptionsLabel": "Display Options",
+  "appViewOnlyLabel": "View Only",
+  "appViewOnlyHelper": "Read-only mode (no keyboard/mouse input)",
+  "appQualityLabel": "Quality",
+  "appConnectionQualityLabel": "Connection Quality",
+  "appQualityAuto": "Auto (Recommended)",
+  "appQualityHigh": "High Quality",
+  "appQualityMedium": "Medium Quality",
+  "appQualityLow": "Low Quality (Faster)",
+  "dashboardTunnelUnhealthy": "Unhealthy",
+  "dashboardTunnelDegraded": "Degraded",
+  "dashboardTunnelPortLabel": "Tunnel → :{port}",
+  "@dashboardTunnelPortLabel": {
+    "placeholders": {
+      "port": {"type": "String"}
+    }
+  },
+  "dashboardDisconnectTunnelTooltip": "Disconnect this tunnel",
+  "dashboardUptimeLabel": "Uptime",
+  "dashboardLastCheckLabel": "Last Check",
+  "dashboardLatencyLabel": "Latency",
+  "dashboardAttemptLabel": "Attempt {current}/{max}",
+  "@dashboardAttemptLabel": {
+    "placeholders": {
+      "current": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "dashboardRetryConnectionButton": "Retry Connection",
+  "dashboardOnState": "ON",
+  "dashboardOffState": "OFF",
+  "dashboardAutoMonitoringLabel": "Auto-monitoring every 30s | Auto-reconnect: {state}",
+  "@dashboardAutoMonitoringLabel": {
+    "placeholders": {
+      "state": {"type": "String"}
+    }
+  },
+  "appNoProjectsFound": "No projects found.",
+  "appSelectProjectLabel": "Select Project",
+  "appErrorLoadingProjects": "Error loading projects: {error}",
+  "@appErrorLoadingProjects": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "appSelectProjectsButton": "Select Projects",
+  "appProjectsSelectedCount": "{count, plural, one{{count} Project} other{{count} Projects}} ({total} VMs)",
+  "@appProjectsSelectedCount": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "total": {"type": "int"}
+    }
+  },
+  "appProjectsErrorsTooltip": "{count} project(s) with errors",
+  "@appProjectsErrorsTooltip": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "appManageProjectsTitle": "Manage Projects",
+  "appRefreshAllProjectsTooltip": "Refresh all projects",
+  "appSearchProjectsHint": "Search projects…",
+  "appProjectsSelectedOfMax": "{count} of {max} projects selected",
+  "@appProjectsSelectedOfMax": {
+    "placeholders": {
+      "count": {"type": "int"},
+      "max": {"type": "int"}
+    }
+  },
+  "appTotalVmsLabel": "{total} total VMs",
+  "@appTotalVmsLabel": {
+    "placeholders": {
+      "total": {"type": "int"}
+    }
+  },
+  "appNoProjectsAvailable": "No projects available",
+  "appNoMatchingProjects": "No matching projects",
+  "appInstanceCountVms": "{count} VMs",
+  "@appInstanceCountVms": {
+    "placeholders": {
+      "count": {"type": "int"}
+    }
+  },
+  "appClearAllButton": "Clear All",
+  "appDoneButton": "Done",
+  "appClearButton": "Clear",
+  "appClearHistoryTitle": "Clear History",
+  "appClearHistoryConfirm": "Are you sure you want to clear all connection history?",
+  "appNoConnectionHistory": "No connection history",
+  "appNoConnectionHistoryHint": "Your recent connections will appear here",
+  "appConnectAgainTooltip": "Connect again",
+  "appVmNotFoundTooltip": "VM not found in current projects",
+  "appJustNow": "Just now",
+  "appMinutesAgo": "{minutes}m ago",
+  "@appMinutesAgo": {
+    "placeholders": {
+      "minutes": {"type": "int"}
+    }
+  },
+  "appHoursAgo": "{hours}h ago",
+  "@appHoursAgo": {
+    "placeholders": {
+      "hours": {"type": "int"}
+    }
+  },
+  "appDaysAgo": "{days}d ago",
+  "@appDaysAgo": {
+    "placeholders": {
+      "days": {"type": "int"}
+    }
+  }
+}

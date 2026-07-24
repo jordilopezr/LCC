@@ -1,0 +1,90 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+.worktrees/
+.env
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# VS Code
+.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+/build/
+
+# Symbolication / Obfuscation
+app.*.symbols
+app.*.map.json
+
+# Android Studio
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# Flutter Rust Bridge generated files (committed so devs can build sin codegen)
+# lib/src/bridge/
+# native/src/frb_generated.rs
+
+# Rust related
+target/
+native/target/
+**/*.rs.bk
+
+# Native build artifacts
+*.so
+*.dylib
+*.dll
+*.a
+*.lib
+
+# Flutter desktop build artifacts
+/linux/flutter/ephemeral/
+/macos/Flutter/ephemeral/
+/windows/flutter/ephemeral/
+/web/
+
+# Project notes and markdown files
+# Por defecto se ignoran los .md para evitar subir borradores, se aceptan los docs clave.
+*.md
+!README.md
+!NEXT_STEPS.md
+!CHANGELOG.md
+!docs/**/*.md
+
+# AI Agents & Tools
+/.claude
+.cursor/
+.cursorrules
+
+# Packaging & Build output (deb, rpm, appimage)
+*.deb
+*.rpm
+*.AppImage
+*.tar.gz
+*.zip
+/build_deb/
+/build_rpm/
+/build_appimage/
+/build_tarball/

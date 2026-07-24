@@ -1,0 +1,22 @@
+FROM almalinux:8
+ENV FLUTTER_VERSION="3.22.2"
+
+RUN dnf update -y && \
+    dnf groupinstall -y "Development Tools" && \
+    dnf install -y curl git unzip xz zip mesa-libGLU clang cmake ninja-build pkgconf-pkg-config gtk3-devel rpm-build && \
+    dnf clean all
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install flutter_rust_bridge_codegen
+RUN cargo install flutter_rust_bridge_codegen
+
+# Install Flutter
+RUN curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz | tar xJ -C /opt
+ENV PATH="/opt/flutter/bin:${PATH}"
+RUN git config --global --add safe.directory '*'
+RUN flutter config --no-analytics --enable-linux-desktop
+
+WORKDIR /workspace

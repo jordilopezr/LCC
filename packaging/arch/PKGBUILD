@@ -1,0 +1,49 @@
+# Maintainer: Jordi Lopez Reyes <aim@jordilopezr.com>
+pkgname=lightweight-cloud-connector-bin
+pkgver=26H1.U1
+pkgrel=1
+pkgdesc="Native Google Cloud IAP Connector for Linux (Free & Pro tiers)"
+arch=('x86_64')
+url="https://github.com/jordilopezr/linux_gcloud_connector"
+license=('MIT')
+depends=('gtk3' 'remmina' 'freerdp' 'krdc' 'tigervnc')
+provides=('lightweight-cloud-connector')
+conflicts=('lightweight-cloud-connector')
+
+# Aquí pondrás la URL de donde GitHub aloja tu archivo .tar.gz o .deb cuando crees la release
+source=("https://github.com/jordilopezr/linux_gcloud_connector/releases/download/v${pkgver}/lightweight-cloud-connector_${pkgver}_amd64.tar.gz")
+sha256sums=('SKIP') # En producción, reemplaza SKIP por el hash sha256 del tar.gz
+
+package() {
+    cd "${srcdir}/lightweight-cloud-connector"
+
+    # Instalar binarios y librerías
+    install -d "${pkgdir}/opt/lightweight-cloud-connector"
+    cp -r * "${pkgdir}/opt/lightweight-cloud-connector/"
+
+    # Crear enlace simbólico en /usr/bin
+    install -d "${pkgdir}/usr/bin"
+    ln -s "/opt/lightweight-cloud-connector/lightweight-cloud-connector" "${pkgdir}/usr/bin/lightweight-cloud-connector"
+
+    # Instalar archivo desktop
+    install -d "${pkgdir}/usr/share/applications"
+    # Creamos un .desktop adaptado para el sistema
+    cat <<EOF > "${pkgdir}/usr/share/applications/lightweight-cloud-connector.desktop"
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Lightweight Cloud Connector
+Comment=Native Google Cloud IAP Connector for Linux
+Exec=/usr/bin/lightweight-cloud-connector
+Icon=lightweight-cloud-connector
+Categories=Development;Network;Utility;
+Terminal=false
+StartupNotify=true
+EOF
+
+    # Instalar icono
+    install -d "${pkgdir}/usr/share/icons/hicolor/128x128/apps"
+    if [ -f "icon.png" ]; then
+        install -m644 "icon.png" "${pkgdir}/usr/share/icons/hicolor/128x128/apps/lightweight-cloud-connector.png"
+    fi
+}

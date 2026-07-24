@@ -1,0 +1,30 @@
+FROM ubuntu:20.04
+ENV DEBIAN_FRONTEND=noninteractive
+ENV FLUTTER_VERSION="3.22.2"
+# Allow appimagetool to run without FUSE inside the container
+ENV APPIMAGE_EXTRACT_AND_RUN=1
+
+RUN apt-get update && apt-get install -y \
+    curl git unzip xz-utils zip libglu1-mesa \
+    clang cmake ninja-build pkg-config libgtk-3-dev build-essential \
+    file desktop-file-utils \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Install flutter_rust_bridge_codegen
+RUN cargo install flutter_rust_bridge_codegen
+
+# Install Flutter
+RUN curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz | tar xJ -C /opt
+ENV PATH="/opt/flutter/bin:${PATH}"
+RUN git config --global --add safe.directory '*'
+RUN flutter config --no-analytics --enable-linux-desktop
+
+# Install AppImageTool for the AppImage generation
+RUN curl -L -o /usr/local/bin/appimagetool "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" \
+    && chmod +x /usr/local/bin/appimagetool
+
+WORKDIR /workspace
