@@ -198,6 +198,36 @@ void main() {
     expect(ws().groups, isEmpty);
   });
 
+  test('pinning the sole member of a group prunes that group', () {
+    final a = _vm('web');
+    final s1 = wn().openSsh(a);
+    final g = wn().newGroupFromSession(s1);
+    expect(ws().groups.map((x) => x.id), [g]);
+    wn().togglePin(s1); // pinning clears the group → it is now empty
+    expect(ws().groups, isEmpty);
+    expect(ws().sessions.single.pinned, true);
+  });
+
+  test('newGroupFromSession on a sole grouped member prunes the old group', () {
+    final a = _vm('web');
+    final s1 = wn().openSsh(a);
+    wn().newGroupFromSession(s1); // old group = {s1}
+    wn().newGroupFromSession(s1); // s1 leaves the old (now empty) group for a new one
+    expect(ws().groups.length, 1); // old group pruned, only the new one remains
+    expect(ws().sessions.single.groupId, ws().groups.single.id);
+  });
+
+  test('groupByVm prunes an old sole-member group of a moved session', () {
+    final a = _vm('web');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(a);
+    wn().newGroupFromSession(s1); // old group = {s1}
+    wn().groupByVm(a.uniqueKey); // regroups s1+s2 into a new group; old empties
+    expect(ws().groups.length, 1);
+    final g = ws().groups.single;
+    expect(ws().sessions.where((s) => s.groupId == g.id).length, 2);
+  });
+
   test('moving a session out of its sole-member group prunes that group', () {
     final a = _vm('web');
     final s1 = wn().openSsh(a);

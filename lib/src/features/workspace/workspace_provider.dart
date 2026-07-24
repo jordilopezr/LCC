@@ -166,7 +166,11 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
         else
           s,
     ];
-    state = state.copyWith(sessions: _canonicalOrder(list));
+    // Pinning clears the session's group, which may have emptied it.
+    state = state.copyWith(
+      sessions: _canonicalOrder(list),
+      groups: _prunedGroups(list, state.groups),
+    );
   }
 
   void closeOthers(String id) {
@@ -216,9 +220,10 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
       for (final s in state.sessions)
         if (s.id == id) s.copyWith(pinned: false, groupId: group.id) else s,
     ];
+    // Moving the session into a new group may have emptied its old one.
     state = state.copyWith(
       sessions: _canonicalOrder(list),
-      groups: [...state.groups, group],
+      groups: _prunedGroups(list, [...state.groups, group]),
     );
     return group.id;
   }
@@ -234,9 +239,10 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
       for (final s in state.sessions)
         if (memberIds.contains(s.id)) s.copyWith(groupId: group.id) else s,
     ];
+    // Members pulled into the new group may have emptied their old ones.
     state = state.copyWith(
       sessions: _canonicalOrder(list),
-      groups: [...state.groups, group],
+      groups: _prunedGroups(list, [...state.groups, group]),
     );
   }
 
