@@ -69,6 +69,7 @@ native/target/
 # Por defecto se ignoran los .md para evitar subir borradores, se aceptan los docs clave.
 *.md
 !README.md
+!README.es.md
 !NEXT_STEPS.md
 !CHANGELOG.md
 !docs/**/*.md
@@ -88,3 +89,6 @@ native/target/
 /build_rpm/
 /build_appimage/
 /build_tarball/
+
+# Agent workflow scratch (task briefs, reports, review diffs, progress ledger)
+/.superpowers/

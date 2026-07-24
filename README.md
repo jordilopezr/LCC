@@ -1,324 +1,326 @@
 # Lightweight Cloud Connector (LCC)
 
-**Lightweight Cloud Connector** es una aplicación de escritorio nativa multiplataforma diseñada para simplificar y asegurar la conexión a instancias de Google Cloud Platform (GCP) mediante **Identity-Aware Proxy (IAP)**.
+🇪🇸 [Leer en español](README.es.md)
 
-Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendimiento y seguridad óptimos. LCC es **100% gratuito y open source** (licencia MIT), con todas las funcionalidades disponibles sin restricciones.
+**Lightweight Cloud Connector** is a native, cross-platform desktop application designed to simplify and secure connections to Google Cloud Platform (GCP) instances via **Identity-Aware Proxy (IAP)**.
+
+Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal performance and security. LCC is **100% free and open source** (MIT license), with all features available without restrictions.
 
 ![Release](https://img.shields.io/badge/Release-26H2-brightgreen)
 ![Build](https://img.shields.io/badge/Build-20260715.1-blue)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20(pr%C3%B3ximamente)-blue)
+![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20(coming%20soon)-blue)
 ![License](https://img.shields.io/badge/License-MIT-purple)
 
-<img width="1332" height="819" alt="Panel principal de LCC" src="https://github.com/user-attachments/assets/76d627da-e9a8-45c5-ab79-965b6dd3440c" />
-<img width="1332" height="819" alt="Gestión de túneles en LCC" src="https://github.com/user-attachments/assets/9c2cb83f-d770-47b4-b0d5-be40897a2012" />
+<img width="1332" height="819" alt="LCC main panel" src="https://github.com/user-attachments/assets/76d627da-e9a8-45c5-ab79-965b6dd3440c" />
+<img width="1332" height="819" alt="Tunnel management in LCC" src="https://github.com/user-attachments/assets/9c2cb83f-d770-47b4-b0d5-be40897a2012" />
 
-## Características
+## Features
 
 ### VM Snapshot Manager
-*   **Listar snapshots:** visualiza todos los snapshots del proyecto con nombre, estado, tamaño de disco y almacenamiento.
-*   **Crear snapshot:** crea snapshots de cualquier disco de una VM con nombre personalizable.
-*   **Eliminar snapshot:** elimina snapshots individuales con confirmación.
-*   **Información de tamaño:** muestra `diskSizeGb` y `storageBytes` con formato legible (GB/MB).
-*   **Backend Rust:** operaciones CRUD de snapshots implementadas de forma nativa en Rust vía GCP REST API.
+*   **List snapshots:** view all project snapshots with name, status, disk size, and storage.
+*   **Create snapshot:** create snapshots of any VM disk with a custom name.
+*   **Delete snapshot:** remove individual snapshots with confirmation.
+*   **Size info:** displays `diskSizeGb` and `storageBytes` in human-readable format (GB/MB).
+*   **Rust backend:** snapshot CRUD operations implemented natively in Rust via the GCP REST API.
 
 ### Multi-Account Management
-*   **Múltiples cuentas GCP:** gestiona varias cuentas de Google Cloud desde una sola interfaz.
-*   **Cambio rápido:** cambia entre cuentas sin salir de la aplicación.
-*   **Autenticación independiente:** cada cuenta mantiene sus propias credenciales.
-*   **Lista de cuentas:** vista clara de todas las cuentas configuradas con estado de autenticación.
+*   **Multiple GCP accounts:** manage several Google Cloud accounts from a single interface.
+*   **Quick switching:** switch between accounts without leaving the application.
+*   **Independent authentication:** each account keeps its own credentials.
+*   **Account list:** clear view of all configured accounts with authentication status.
 
-### Tunnel Manager y Auto-Reconnect
-*   **Vista consolidada:** panel centralizado con todos los túneles activos de todas las VMs.
-*   **Auto-reconnect:** reconecta automáticamente túneles caídos sin intervención manual.
-*   **Gestión individual:** desconecta, reconecta o inspecciona cada túnel por separado.
-*   **Health monitoring:** estado de salud en tiempo real (proceso + puerto TCP) cada 30 segundos.
-*   **Alertas de caída:** notificaciones inmediatas cuando un túnel se cae inesperadamente.
+### Tunnel Manager and Auto-Reconnect
+*   **Consolidated view:** centralized panel with all active tunnels across all VMs.
+*   **Native tunnel:** IAP tunnels are established natively in Rust, without launching the `gcloud` binary, with automatic fallback to the `gcloud` engine if the native path fails.
+*   **Auto-reconnect:** automatically reconnects dropped tunnels without manual intervention.
+*   **Individual management:** disconnect, reconnect, or inspect each tunnel separately.
+*   **Health monitoring:** real-time health status (process + TCP port) every 30 seconds.
+*   **Drop alerts:** immediate notifications when a tunnel drops unexpectedly.
 
-### OS Login, VM Labels y Suspend/Resume
-*   **OS Login:** soporte para autenticación OS Login en lugar de metadata SSH keys.
-*   **VM Labels:** visualiza y filtra instancias por etiquetas GCP.
-*   **Suspend/Resume:** suspende y reanuda VMs (además de start/stop/reset).
+### OS Login, VM Labels, and Suspend/Resume
+*   **OS Login:** support for OS Login authentication instead of metadata SSH keys.
+*   **VM Labels:** view and filter instances by GCP labels.
+*   **Suspend/Resume:** suspend and resume VMs (in addition to start/stop/reset).
 
 ### Connectivity Doctor
-*   **10 checks automáticos:** diagnostica problemas de conectividad agrupados en 5 categorías.
-*   **Authentication:** verifica gcloud CLI, cuenta activa y credenciales ADC.
-*   **Project & Permissions:** verifica acceso al proyecto y APIs habilitadas (Compute, IAP).
-*   **IAP & Network:** verifica la API de IAP y reglas de firewall para `35.235.240.0/20`.
-*   **VM Status:** verifica estado de la VM y guest agent.
-*   **Local Environment:** detecta clientes remotos instalados (SSH, RDP, VNC).
-*   **Fix suggestions:** sugerencias con comandos copiables para resolver cada problema.
-*   **Auto-fix:** acciones automáticas como re-autenticación o inicio de VM (con confirmación).
-*   **Export report:** genera un reporte Markdown con datos sensibles redactados automáticamente.
-*   **Re-run:** ejecuta los checks de nuevo después de aplicar fixes.
+*   **10 automatic checks:** diagnoses connectivity issues grouped into 5 categories.
+*   **Authentication:** verifies gcloud CLI, active account, and ADC credentials.
+*   **Project & Permissions:** verifies project access and enabled APIs (Compute, IAP).
+*   **IAP & Network:** verifies the IAP API and firewall rules for `35.235.240.0/20`.
+*   **VM Status:** verifies VM status and guest agent.
+*   **Local Environment:** detects installed remote clients (SSH, RDP, VNC).
+*   **Fix suggestions:** suggestions with copyable commands to resolve each issue.
+*   **Auto-fix:** automatic actions such as re-authentication or starting a VM (with confirmation).
+*   **Export report:** generates a Markdown report with sensitive data automatically redacted.
+*   **Re-run:** re-runs the checks after applying fixes.
 
-### Soporte Multi-Cliente RDP
-*   **4 clientes soportados:** Remmina, FreeRDP (xfreerdp), KRDC, GNOME Connections.
-*   **Fallback automático:** si el cliente preferido no está disponible, intenta otros automáticamente.
-*   **Configuración persistente:** selecciona tu cliente RDP favorito en Settings.
-*   **Detección automática:** identifica qué clientes están instalados en el sistema.
-*   **Soporte completo de características:** fullscreen, resolución personalizada, credenciales, ignorar certificados.
-*   **Remmina config files:** soporte para archivos `.remmina` con permisos seguros (0600).
+### Multi-Client RDP Support
+*   **4 supported clients:** Remmina, FreeRDP (xfreerdp), KRDC, GNOME Connections.
+*   **Automatic fallback:** if the preferred client isn't available, others are tried automatically.
+*   **Persistent configuration:** select your favorite RDP client in Settings.
+*   **Automatic detection:** identifies which clients are installed on the system.
+*   **Full feature support:** fullscreen, custom resolution, credentials, ignore certificates.
+*   **Remmina config files:** support for `.remmina` files with secure permissions (0600).
 
-### Soporte Multi-Cliente VNC
-*   **4 clientes soportados:** Remmina, TigerVNC (vncviewer), KRDC, Vinagre.
-*   **Fallback automático:** fallback inteligente si el cliente preferido no está disponible.
-*   **Configuración flexible:** calidad (High/Medium/Low/Auto), fullscreen, view-only, resolución personalizada.
-*   **Detección automática:** identifica qué clientes VNC están instalados (nativo + Flatpak).
-*   **Config files seguros:** archivos de contraseña con permisos 0600 y limpieza automática.
-*   **Gestión de puertos:** conversión automática entre display number (:0, :1) y puerto (5900, 5901).
+### Multi-Client VNC Support
+*   **4 supported clients:** Remmina, TigerVNC (vncviewer), KRDC, Vinagre.
+*   **Automatic fallback:** smart fallback if the preferred client isn't available.
+*   **Flexible configuration:** quality (High/Medium/Low/Auto), fullscreen, view-only, custom resolution.
+*   **Automatic detection:** identifies which VNC clients are installed (native + Flatpak).
+*   **Secure config files:** password files with 0600 permissions and automatic cleanup.
+*   **Port management:** automatic conversion between display number (:0, :1) and port (5900, 5901).
 
 ### SFTP File Transfer Browser
-*   **Navegador de archivos:** interfaz gráfica completa para explorar archivos remotos vía SFTP.
-*   **Upload:** sube archivos locales a la instancia remota con progreso visual.
-*   **Download:** descarga archivos desde la instancia a la máquina local.
-*   **Gestión de directorios:** crea carpetas y elimina archivos o directorios remotos.
-*   **Transferencia segura:** conexiones SFTP sobre túneles SSH IAP (puerto 22).
-*   **Auto-tunnel:** crea automáticamente el túnel SSH si no existe al abrir el navegador.
-*   **Formato de tamaños:** formateo automático (B, KB, MB, GB).
+*   **File browser:** full graphical interface to explore remote files via SFTP.
+*   **Upload:** upload local files to the remote instance with visual progress.
+*   **Download:** download files from the instance to the local machine.
+*   **Directory management:** create folders and delete remote files or directories.
+*   **Secure transfer:** SFTP connections over IAP SSH tunnels (port 22).
+*   **Auto-tunnel:** automatically creates the SSH tunnel if it doesn't exist when opening the browser.
+*   **Size formatting:** automatic formatting (B, KB, MB, GB).
 
-### Port Forwarding Genérico y Multi-Tunnel
-*   **Soporte universal:** conecta a cualquier servicio TCP vía IAP (PostgreSQL, MySQL, HTTP, Redis, MongoDB, etc.).
-*   **Túneles simultáneos:** múltiples túneles por VM.
-*   **Custom tunnel dialog:** 8 presets de servicios comunes más entrada de puerto personalizado.
-*   **Gestión individual:** desconecta túneles específicos sin afectar a los demás.
+### Generic Port Forwarding and Multi-Tunnel
+*   **Universal support:** connect to any TCP service via IAP (PostgreSQL, MySQL, HTTP, Redis, MongoDB, etc.).
+*   **Simultaneous tunnels:** multiple tunnels per VM.
+*   **Custom tunnel dialog:** 8 presets for common services plus custom port entry.
+*   **Individual management:** disconnect specific tunnels without affecting the others.
 
-### Notificaciones Desktop
-*   **Notificaciones nativas** para eventos importantes.
-*   **Cambios de estado de VM:** alertas automáticas cuando las VMs cambian entre RUNNING y STOPPED.
-*   **Alertas de túneles IAP:** notificación inmediata cuando un túnel se cae inesperadamente.
-*   **Operaciones de ciclo de vida:** notificaciones de éxito o fallo en start/stop/reset.
+### Desktop Notifications
+*   **Native notifications** for important events.
+*   **VM status changes:** automatic alerts when VMs switch between RUNNING and STOPPED.
+*   **IAP tunnel alerts:** immediate notification when a tunnel drops unexpectedly.
+*   **Lifecycle operations:** success or failure notifications for start/stop/reset.
 
-### Configuración Personalizable
-*   **Settings dialog:** panel de configuración completo y organizado.
-*   **Intervalos de auto-refresh:** 10s, 30s, 60s, 120s, 300s, o personalizado 5–600s.
-*   **Tema:** Light / Dark / System.
-*   **Idioma:** español e inglés. Por defecto sigue el idioma del sistema; se puede forzar desde Settings y el cambio se aplica al instante, sin reiniciar.
-*   **Persistencia:** todas las configuraciones se guardan entre sesiones.
+### Customizable Configuration
+*   **Settings dialog:** complete, organized configuration panel.
+*   **Auto-refresh intervals:** 10s, 30s, 60s, 120s, 300s, or custom 5–600s.
+*   **Theme:** Light / Dark / System.
+*   **Language:** Spanish and English. Follows the system language by default; can be forced from Settings and applies instantly, without restarting.
+*   **Persistence:** all settings are saved between sessions.
 
-### Multi-idioma (i18n)
-*   **Español e inglés:** interfaz completa traducida (~666 claves, paridad verificada entre ambos idiomas).
-*   **Detección automática:** usa el idioma del sistema operativo por defecto.
-*   **Cambio en caliente:** el selector de Settings aplica el idioma sin reiniciar la aplicación.
-*   **Base estándar:** `gen-l10n` de Flutter con diccionarios `.arb`, lo que facilita añadir más idiomas.
-*   **Nota:** los mensajes de error generados en Rust y las notificaciones de escritorio siguen en inglés (pendiente para una versión futura).
+### Multi-language Support (i18n)
+*   **Spanish and English:** fully translated interface (~666 keys, verified parity between both languages).
+*   **Automatic detection:** uses the operating system's language by default.
+*   **Hot swap:** the Settings selector applies the language without restarting the application.
+*   **Standard base:** Flutter's `gen-l10n` with `.arb` dictionaries, making it easy to add more languages.
+*   **Note:** IAP tunnel errors use typed codes and are translated (EN/ES). Other error messages generated in Rust (`doctor`, `sftp`, `snapshots`, `gcloud`) and desktop notifications remain in English (pending for a future release).
 
-### Integración con Google Cloud Client Libraries
-*   **Dual API:** alterna entre gcloud CLI y Google Cloud Client Libraries (REST API).
-*   **Rendimiento:** las Client Libraries son 1.3–1.5x más rápidas que la CLI.
-*   **Cambio en caliente:** toggle en el AppBar para cambiar entre métodos en tiempo real.
+### Google Cloud Client Libraries Integration
+*   **Dual API:** switch between gcloud CLI and Google Cloud Client Libraries (REST API).
+*   **Performance:** Client Libraries are 1.3–1.5x faster than the CLI.
+*   **Hot swap:** toggle in the AppBar to switch between methods in real time.
 
-### Gestión del Ciclo de Vida de VMs
+### VM Lifecycle Management
 *   **Start / Stop / Reset / Suspend / Resume.**
-*   **Indicadores de estado:** botones habilitados o deshabilitados según el estado actual de la VM.
+*   **Status indicators:** buttons enabled or disabled based on the VM's current state.
 
-### Observabilidad y Monitoreo
-*   **Logging estructurado:** sistema persistente con rotación automática (10 MB, 5 archivos).
-*   **Export logs:** botón en la UI para exportar logs consolidados.
-*   **Dashboard de métricas:** uptime, última verificación y estado de salud en tiempo real.
+### Observability and Monitoring
+*   **Structured logging:** persistent system with automatic rotation (10 MB, 5 files).
+*   **Export logs:** UI button to export consolidated logs.
+*   **Metrics dashboard:** uptime, last check, and real-time health status.
 
-### Seguridad y Fiabilidad
-*   **Validación de entradas:** protección contra inyección de comandos mediante validación regex.
-*   **Timeouts:** todos los comandos gcloud tienen timeout de 10 s.
-*   **Monitoreo de salud:** verificación automática de túneles cada 30 segundos (proceso + puerto TCP).
-*   **Permisos seguros:** archivos `.remmina` y de contraseña VNC creados con modo 0600.
+### Security and Reliability
+*   **Input validation:** protection against command injection via regex validation.
+*   **Timeouts:** all gcloud commands have a 10 s timeout.
+*   **Health monitoring:** automatic tunnel verification every 30 seconds (process + TCP port).
+*   **Secure permissions:** `.remmina` and VNC password files created with mode 0600.
 
 ---
 
-## Repositorio y Contacto
+## Repository and Contact
 
-*   **Código fuente:** [https://github.com/jordilopezr/LCC](https://github.com/jordilopezr/LCC)
-*   **Desarrollador:** Jordi Lopez Reyes
+*   **Source code:** [https://github.com/jordilopezr/LCC](https://github.com/jordilopezr/LCC)
+*   **Developer:** Jordi Lopez Reyes
 *   **Email:** [aim@jordilopezr.com](mailto:aim@jordilopezr.com)
 
-## Apoya el Desarrollo
+## Support the Project
 
-Si encuentras útil esta herramienta y quieres apoyar su desarrollo continuo, puedes hacerlo en [buymeacoffee.com/jordimlopezr](https://buymeacoffee.com/jordimlopezr).
+If you find this tool useful and want to support its ongoing development, you can do so at [buymeacoffee.com/jordimlopezr](https://buymeacoffee.com/jordimlopezr).
 
 ---
 
-## Requisitos del Sistema
+## System Requirements
 
-1.  **Google Cloud SDK (`gcloud`):** instalado y en el PATH.
-2.  **Cliente RDP** (al menos uno, para conexiones RDP):
-    - **Remmina** (recomendado) — nativo o Flatpak
-    - **FreeRDP** (`xfreerdp`) — basado en CLI, ampliamente disponible
-    - **KRDC** — cliente predeterminado de KDE
-    - **GNOME Connections** — cliente moderno de GNOME
-3.  **Cliente VNC** (al menos uno, para conexiones VNC):
-    - **Remmina** (recomendado) — soporta VNC y RDP
-    - **TigerVNC** (`vncviewer`) — cliente ligero y rápido
-    - **KRDC** — cliente KDE con soporte VNC/RDP
-    - **Vinagre** — cliente GNOME clásico para VNC
-4.  **Librerías del sistema (Linux):** `libsecret-1-dev`, `libjsoncpp-dev` (para almacenamiento seguro).
-5.  **SSH keys configuradas:** para autenticación SFTP (ver sección de configuración SSH).
-6.  **Application Default Credentials:** para usar Client Libraries (opcional, requiere `gcloud auth application-default login`).
+1.  **Google Cloud SDK (`gcloud`):** installed and on the PATH.
+2.  **RDP client** (at least one, for RDP connections):
+    - **Remmina** (recommended) — native or Flatpak
+    - **FreeRDP** (`xfreerdp`) — CLI-based, widely available
+    - **KRDC** — KDE's default client
+    - **GNOME Connections** — modern GNOME client
+3.  **VNC client** (at least one, for VNC connections):
+    - **Remmina** (recommended) — supports VNC and RDP
+    - **TigerVNC** (`vncviewer`) — lightweight, fast client
+    - **KRDC** — KDE client with VNC/RDP support
+    - **Vinagre** — classic GNOME client for VNC
+4.  **System libraries (Linux):** `libsecret-1-dev`, `libjsoncpp-dev` (for secure storage).
+5.  **SSH keys configured:** for SFTP authentication (see SSH setup section).
+6.  **Application Default Credentials:** to use Client Libraries (optional, requires `gcloud auth application-default login`).
 
-## Compilación e Instalación
+## Building and Installation
 
-### 1. Clonar
+### 1. Clone
 ```bash
 git clone https://github.com/jordilopezr/LCC.git
 cd LCC
 ```
 
-### 2. Preparar entorno
+### 2. Prepare environment
 ```bash
-# Opción A: script automatizado (Debian/Ubuntu/Fedora)
+# Option A: automated script (Debian/Ubuntu/Fedora)
 scripts/setup_environment.sh
 
-# Opción B: manual (Debian/Ubuntu)
+# Option B: manual (Debian/Ubuntu)
 sudo apt-get install libsecret-1-dev libjsoncpp-dev
 flutter pub get
 cargo install flutter_rust_bridge_codegen
 ```
 
-### 3. Generar bridge
+### 3. Generate bridge
 ```bash
 flutter_rust_bridge_codegen generate --rust-input crate::api --rust-root native --dart-output lib/src/bridge/api.dart
 ```
 
-### 4. Ejecutar
+### 4. Run
 ```bash
 # Linux
 flutter run -d linux
 
-# macOS (próximamente)
+# macOS (coming soon)
 flutter run -d macos
 ```
 
-> **Windows:** LCC no soporta Windows como plataforma anfitriona y no está previsto que lo haga.
-> Para conectarte a VMs de GCP vía IAP desde Windows, recomendamos
-> [IAP Desktop](https://github.com/GoogleCloudPlatform/iap-desktop) de Google Cloud.
-> (LCC sí gestiona **VMs Windows** como destino: RDP y auto-credenciales.)
+> **Windows:** LCC does not support Windows as a host platform, and there are no plans to add it.
+> To connect to GCP VMs via IAP from Windows, we recommend
+> [IAP Desktop](https://github.com/GoogleCloudPlatform/iap-desktop) by Google Cloud.
+> (LCC does manage **Windows VMs** as targets: RDP and auto-credentials.)
 
-### 5. (Opcional) Habilitar Client Libraries
+### 5. (Optional) Enable Client Libraries
 ```bash
-# Configurar Application Default Credentials
+# Configure Application Default Credentials
 gcloud auth application-default login
-# Dentro de la app, usa el toggle en el AppBar para cambiar entre CLI y Client Libraries
+# Inside the app, use the AppBar toggle to switch between CLI and Client Libraries
 ```
 
-### 6. Configurar SSH para SFTP
+### 6. Configure SSH for SFTP
 ```bash
-# Generar clave SSH (si no tienes una)
+# Generate an SSH key (if you don't have one)
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
 
-# Agregar clave al ssh-agent
+# Add the key to ssh-agent
 eval "$(ssh-agent -s)"
 ssh-add ~/.ssh/id_ed25519
 
-# Agregar clave pública a metadatos de GCP
+# Add the public key to GCP project metadata
 gcloud compute project-info add-metadata \
   --metadata-from-file ssh-keys=<(echo "$(whoami):$(cat ~/.ssh/id_ed25519.pub)")
 ```
 
-**Nota:** las claves SSH se propagan automáticamente a todas las instancias del proyecto. Puede tardar 1–2 minutos en instancias nuevas.
+**Note:** SSH keys are automatically propagated to all project instances. It may take 1–2 minutes on new instances.
 
-## Empaquetado
+## Packaging
 
-Los scripts de empaquetado están en `scripts/`; los artefactos se generan en `build_output/`:
+Packaging scripts live in `scripts/`; artifacts are generated in `build_output/`:
 
 ```bash
-scripts/package_deb.sh            # Paquete .deb (Debian/Ubuntu)
-scripts/package_rpm.sh            # Paquete .rpm (Fedora/RHEL)
+scripts/package_deb.sh            # .deb package (Debian/Ubuntu)
+scripts/package_rpm.sh            # .rpm package (Fedora/RHEL)
 scripts/package_appimage.sh       # AppImage
-scripts/package_tarball.sh        # Tarball genérico
-scripts/build_all_containers.sh   # Builds reproducibles en contenedores podman (Ubuntu + AlmaLinux)
+scripts/package_tarball.sh        # Generic tarball
+scripts/build_all_containers.sh   # Reproducible builds in podman containers (Ubuntu + AlmaLinux)
 ```
 
-También hay un `PKGBUILD` para Arch Linux en `packaging/arch/`.
+There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
 
-## Comparativa de Rendimiento
+## Performance Comparison
 
-| Operación | gcloud CLI | Client Libraries | Mejora |
-|-----------|------------|------------------|--------|
-| List Projects | ~200 ms | ~150 ms | 1.3x más rápido |
-| List Instances | ~300 ms | ~220 ms | 1.4x más rápido |
-| Start/Stop/Reset | ~2–5 s | ~1.5–4 s | 1.2x más rápido |
+| Operation | gcloud CLI | Client Libraries | Improvement |
+|-----------|------------|------------------|-------------|
+| List Projects | ~200 ms | ~150 ms | 1.3x faster |
+| List Instances | ~300 ms | ~220 ms | 1.4x faster |
+| Start/Stop/Reset | ~2–5 s | ~1.5–4 s | 1.2x faster |
 
-*Benchmarks medidos en un sistema con conexión estable y autenticación previa.*
+*Benchmarks measured on a system with a stable connection and prior authentication.*
 
 ## Roadmap
 
-### Próximo
-- [ ] Soporte macOS (Intel/Apple Silicon)
-- [ ] Caching de recursos (proyectos e instancias, TTL 5 min)
-- [ ] Navegador de Google Cloud Storage (GCS)
-- [ ] Integración con Secret Manager (solo lectura)
-- [ ] Dashboard de Cloud Monitoring API
-- [ ] i18n restante: mapeo de errores de Rust y notificaciones de escritorio (hoy en inglés)
+### Next
+- [ ] macOS support (Intel/Apple Silicon)
+- [ ] Resource caching (projects and instances, 5 min TTL)
+- [ ] Google Cloud Storage (GCS) browser
+- [ ] Secret Manager integration (read-only)
+- [ ] Cloud Monitoring API dashboard
+- [ ] Remaining i18n: Rust error mapping and desktop notifications (currently English only)
 
-### Incluido en 26H2
-- [x] Rebrand a **Lightweight Cloud Connector** — arquitectura preparada para Linux y macOS
-- [x] Aplicación 100% gratuita y open source: eliminado el modelo de licencias Free/Pro
+### Included in 26H2
+- [x] Rebrand to **Lightweight Cloud Connector** — architecture ready for Linux and macOS
+- [x] 100% free and open source app: removed the Free/Pro license model
 - [x] VM Snapshot Manager
 - [x] OS Login, VM Labels, Suspend/Resume
-- [x] Tunnel Manager y Auto-Reconnect
+- [x] Tunnel Manager and Auto-Reconnect
 - [x] Multi-Account Management
 - [x] Connectivity Doctor (10 checks, auto-fix, export report)
 - [x] SSHFS Mount Support
 - [x] Windows Auto-Credentials
-- [x] SQL Clients Integration (6 clientes)
+- [x] SQL Clients Integration (6 clients)
 - [x] Serial Console, VM Diagnostics, Audit Logs
-- [x] VNC y RDP multi-cliente con fallback automático
-- [x] Notificaciones desktop y Settings
-- [x] Google Cloud Client Libraries, VM Lifecycle y auto-refresh
+- [x] Multi-client VNC and RDP with automatic fallback
+- [x] Desktop notifications and Settings
+- [x] Google Cloud Client Libraries, VM Lifecycle, and auto-refresh
 - [x] SFTP File Browser
-- [x] Multi-tunnel y port forwarding
-- [x] Builds en contenedores podman y scripts de empaquetado (deb, rpm, AppImage, tarball, Arch)
-- [x] Soporte multi-idioma (i18n): interfaz completa en español e inglés
+- [x] Multi-tunnel and port forwarding
+- [x] Podman container builds and packaging scripts (deb, rpm, AppImage, tarball, Arch)
+- [x] Multi-language support (i18n): full interface in Spanish and English
 
 ## Changelog
 
-### 26H2 — build 20260715.1 — Release actual
+### 26H2 — build 20260715.1 — Current release
 
 **Rebrand: Lightweight Cloud Connector**
-- Renombrado de "Linux Cloud Connector" a "Lightweight Cloud Connector" (LCC)
-- Arquitectura preparada para Linux y macOS
-- Nueva identidad visual con icono de app multiplataforma
+- Renamed from "Linux Cloud Connector" to "Lightweight Cloud Connector" (LCC)
+- Architecture ready for Linux and macOS
+- New visual identity with a cross-platform app icon
 
-**Modelo de distribución**
-- LCC pasa a ser 100% gratuito y open source: eliminado por completo el modelo de licencias Free/Pro
+**Distribution model**
+- LCC becomes 100% free and open source: the Free/Pro license model has been completely removed
 
 **VM Snapshot Manager**
-- Lista, crea y elimina snapshots de VM
-- Backend Rust para operaciones CRUD vía GCP REST API
+- List, create, and delete VM snapshots
+- Rust backend for CRUD operations via the GCP REST API
 
-**OS Login, VM Labels y Suspend/Resume**
-- Soporte OS Login para autenticación en instancias
-- Visualización y filtrado por VM Labels
-- Acción Suspend/Resume de VMs
+**OS Login, VM Labels, and Suspend/Resume**
+- OS Login support for instance authentication
+- View and filter by VM Labels
+- Suspend/Resume VM action
 
-**Tunnel Manager y Auto-Reconnect**
-- Panel centralizado de gestión de túneles
-- Auto-reconnect: reconexión automática de túneles caídos
+**Tunnel Manager and Auto-Reconnect**
+- Centralized tunnel management panel
+- Auto-reconnect: automatic reconnection of dropped tunnels
 
 **Multi-Account Management**
-- Soporte para múltiples cuentas GCP simultáneas
-- Cambio de cuenta sin reiniciar la aplicación
+- Support for multiple simultaneous GCP accounts
+- Switch accounts without restarting the application
 
 **Connectivity Doctor**
-- 10 checks de diagnóstico en 5 categorías (Auth, Permisos, IAP, VM, Local)
-- Auto-fix y exportación de reporte Markdown con datos redactados
+- 10 diagnostic checks across 5 categories (Auth, Permissions, IAP, VM, Local)
+- Auto-fix and Markdown report export with redacted sensitive data
 
-**RDP y VNC multi-cliente**
-- RDP: Remmina, FreeRDP, KRDC, GNOME Connections — fallback automático
-- VNC: Remmina, TigerVNC, KRDC, Vinagre — fallback automático
+**Multi-client RDP and VNC**
+- RDP: Remmina, FreeRDP, KRDC, GNOME Connections — automatic fallback
+- VNC: Remmina, TigerVNC, KRDC, Vinagre — automatic fallback
 
-**Empaquetado y distribución**
-- Scripts consolidados en `scripts/` (deb, rpm, AppImage, tarball)
-- Builds reproducibles en contenedores podman (Ubuntu y AlmaLinux)
-- Compatibilidad con Fedora y PKGBUILD para Arch Linux
+**Packaging and distribution**
+- Scripts consolidated in `scripts/` (deb, rpm, AppImage, tarball)
+- Reproducible builds in podman containers (Ubuntu and AlmaLinux)
+- Fedora compatibility and PKGBUILD for Arch Linux
 
-**Funcionalidades base**
-- SFTP File Browser: upload/download/delete vía túnel SSH IAP
-- Multi-tunnel y port forwarding universal (PostgreSQL, MySQL, HTTP, Redis, etc.)
-- Notificaciones desktop para eventos de VMs y túneles
-- Settings: tema, intervalo de refresh, cliente RDP/VNC preferido
-- Dual API: gcloud CLI o Google Cloud Client Libraries (REST)
+**Core functionality**
+- SFTP File Browser: upload/download/delete over IAP SSH tunnel
+- Multi-tunnel and universal port forwarding (PostgreSQL, MySQL, HTTP, Redis, etc.)
+- Desktop notifications for VM and tunnel events
+- Settings: theme, refresh interval, preferred RDP/VNC client
+- Dual API: gcloud CLI or Google Cloud Client Libraries (REST)
 - VM lifecycle: start / stop / reset / suspend / resume
 - SSHFS Mount, SQL Clients, Windows Auto-Credentials, Serial Console
 
 ---
-© 2026 Jordi Lopez Reyes. Distribuido bajo licencia MIT.
-La documentacion y la traduccion de textos ha sido realizada utilizando Claude 
+© 2026 Jordi Lopez Reyes. Distributed under the MIT license.
