@@ -500,7 +500,7 @@ class _TabGroup extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 3),
+      margin: const EdgeInsets.symmetric(horizontal: 3),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
@@ -515,11 +515,13 @@ class _TabGroup extends StatelessWidget {
           child: Container(
             key: const ValueKey('group-header'),
             padding: const EdgeInsets.symmetric(horizontal: 8),
-            height: 26,
             decoration: BoxDecoration(
                 color: color, borderRadius: BorderRadius.circular(6)),
             alignment: Alignment.center,
+            constraints: const BoxConstraints(maxWidth: 140),
             child: Text(group.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                     color: scheme.onPrimary, fontWeight: FontWeight.w600, fontSize: 12)),
           ),
