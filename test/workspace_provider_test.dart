@@ -197,4 +197,15 @@ void main() {
     wn().close(s1);
     expect(ws().groups, isEmpty);
   });
+
+  test('moving a session out of its sole-member group prunes that group', () {
+    final a = _vm('web');
+    final s1 = wn().openSsh(a);
+    final s2 = wn().openSsh(a);
+    final gA = wn().newGroupFromSession(s1); // group A = {s1}
+    final gB = wn().newGroupFromSession(s2); // group B = {s2}
+    wn().addToGroup(s1, gB); // s1 leaves A (now empty) for B
+    expect(ws().groups.map((g) => g.id), [gB]); // A pruned, B remains
+    expect(ws().sessions.where((s) => s.groupId == gB).length, 2);
+  });
 }

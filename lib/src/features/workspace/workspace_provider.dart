@@ -242,7 +242,11 @@ class WorkspaceNotifier extends Notifier<WorkspaceState> {
       for (final s in state.sessions)
         if (s.id == sessionId) s.copyWith(pinned: false, groupId: groupId) else s,
     ];
-    state = state.copyWith(sessions: _canonicalOrder(list));
+    // Moving the session out of its previous group may have emptied it.
+    state = state.copyWith(
+      sessions: _canonicalOrder(list),
+      groups: _prunedGroups(list, state.groups),
+    );
   }
 
   void removeFromGroup(String sessionId) {
