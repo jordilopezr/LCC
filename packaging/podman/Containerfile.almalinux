@@ -1,17 +1,20 @@
 FROM almalinux:8
-ENV FLUTTER_VERSION="3.22.2"
+ENV FLUTTER_VERSION="3.41.1"
 
 RUN dnf update -y && \
+    dnf install -y epel-release && \
+    dnf install -y dnf-plugins-core && \
+    dnf config-manager --set-enabled powertools && \
     dnf groupinstall -y "Development Tools" && \
-    dnf install -y curl git unzip xz zip mesa-libGLU clang cmake ninja-build pkgconf-pkg-config gtk3-devel rpm-build && \
+    dnf install -y curl git unzip xz zip mesa-libGLU clang cmake ninja-build pkgconf-pkg-config gtk3-devel rpm-build openssl-devel libsecret-devel jsoncpp-devel lld && \
     dnf clean all
 
 # Install Rust
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ENV PATH="/root/.cargo/bin:${PATH}"
 
-# Install flutter_rust_bridge_codegen
-RUN cargo install flutter_rust_bridge_codegen
+# Install flutter_rust_bridge_codegen (pinned to match native/Cargo.toml)
+RUN cargo install flutter_rust_bridge_codegen --version 2.11.1
 
 # Install Flutter
 RUN curl -L https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz | tar xJ -C /opt

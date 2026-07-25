@@ -3,7 +3,7 @@
 # Configuración
 APP_NAME="lightweight-cloud-connector"
 BINARY_NAME="lightweight_cloud_connector"
-VERSION="26H1.U1"
+VERSION="26H2"
 ARCH="x86_64"
 MAINTAINER="Jordi Lopez Reyes <aim@jordilopezr.com>"
 DESCRIPTION="Native Google Cloud IAP Connector for Linux"
