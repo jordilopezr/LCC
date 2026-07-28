@@ -872,6 +872,11 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String commonUpdateLabel(String number) {
+    return 'Update $number';
+  }
+
+  @override
   String get manualInstanceTitle => 'Add Instance Manually';
 
   @override

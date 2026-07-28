@@ -250,6 +250,7 @@
   "settingsVncDescVinagre": "Visor VNC de GNOME",
   "commonEditionLabel": "Edición {version}",
   "commonBuildLabel": "Compilación {build}",
+  "commonUpdateLabel": "Actualización {number}",
   "manualInstanceTitle": "Añadir instancia manualmente",
   "manualInstanceDescription": "Añada una instancia cuando disponga de permiso de visualización pero no de permiso de lista.",
   "manualInstanceProjectIdLabel": "ID del proyecto",
