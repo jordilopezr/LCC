@@ -4,6 +4,12 @@
 APP_NAME="lightweight-cloud-connector"
 BINARY_NAME="lightweight_cloud_connector"
 VERSION="${VERSION:-26H2}"
+# RPM's Version: field forbids '-' (it separates version from release). Map any
+# '-' (e.g. a pre-release suffix like 26H2u1-rc1) to '~', which RPM allows and
+# orders as a pre-release. Route '~' through a variable so it is not
+# tilde-expanded. Other formats (deb/AppImage/tarball) keep '-'.
+_rpm_tilde='~'
+VERSION="${VERSION//-/${_rpm_tilde}}"
 RELEASE="1"
 ARCH="x86_64"
 MAINTAINER="Jordi Lopez Reyes <aim@jordilopezr.com>"
