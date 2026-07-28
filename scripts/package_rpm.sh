@@ -3,7 +3,7 @@
 # Configuración
 APP_NAME="lightweight-cloud-connector"
 BINARY_NAME="lightweight_cloud_connector"
-VERSION="26H2"
+VERSION="${VERSION:-26H2}"
 RELEASE="1"
 ARCH="x86_64"
 MAINTAINER="Jordi Lopez Reyes <aim@jordilopezr.com>"

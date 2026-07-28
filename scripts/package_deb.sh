@@ -3,7 +3,7 @@
 # Configuración
 APP_NAME="lightweight-cloud-connector" # Debian prefiere guiones
 BINARY_NAME="lightweight_cloud_connector"
-VERSION="26H2"
+VERSION="${VERSION:-26H2}"
 ARCH="amd64"
 MAINTAINER="Jordi Lopez Reyes <aim@jordilopezr.com>"
 DESCRIPTION="Native Google Cloud IAP Connector for Linux"
