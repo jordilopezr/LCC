@@ -4,7 +4,7 @@
 APP_NAME="lightweight-cloud-connector"
 # Nombre del ejecutable que produce el build de Flutter (ver linux/CMakeLists.txt)
 BINARY_NAME="lightweight_cloud_connector"
-VERSION="26H2"
+VERSION="${VERSION:-26H2}"
 ARCH="amd64"
 
 # Cambiar al directorio raíz del proyecto

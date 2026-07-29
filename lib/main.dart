@@ -25,6 +25,7 @@ import 'src/features/snapshot_manager_dialog.dart';
 import 'src/features/snapshot_provider.dart';
 import 'src/services/storage_service.dart';
 import 'src/services/notification_service.dart';
+import 'src/version.dart';
 
 /// Helper: Get all active tunnels for a given instance
 List<MapEntry<String, TunnelState>> getTunnelsForInstance(
@@ -781,10 +782,16 @@ class DashboardScreen extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            _editionChip(l10n.commonEditionLabel('26H2')),
+                            _editionChip(l10n.commonEditionLabel(kEdition)),
                             const SizedBox(width: 8),
+                            if (kUpdate > 0) ...[
+                              _editionChip(
+                                l10n.commonUpdateLabel(kUpdate.toString()),
+                              ),
+                              const SizedBox(width: 8),
+                            ],
                             Text(
-                              l10n.commonBuildLabel('20260715.1'),
+                              l10n.commonBuildLabel(kBuild),
                               style: TextStyle(
                                 fontSize: 11,
                                 color: Colors.grey.shade600,
@@ -855,7 +862,7 @@ class DashboardScreen extends ConsumerWidget {
                 // ── What's new ──────────────────────────────────────────
                 const SizedBox(height: 16),
                 Text(
-                  l10n.appWhatsNewTitle('26H2'),
+                  l10n.appWhatsNewTitle(kEdition),
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 13,

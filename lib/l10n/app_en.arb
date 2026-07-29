@@ -477,6 +477,14 @@
       }
     }
   },
+  "commonUpdateLabel": "Update {number}",
+  "@commonUpdateLabel": {
+    "placeholders": {
+      "number": {
+        "type": "String"
+      }
+    }
+  },
   "manualInstanceTitle": "Add Instance Manually",
   "manualInstanceDescription": "Add an instance when you have view permission but not list permission.",
   "manualInstanceProjectIdLabel": "Project ID",

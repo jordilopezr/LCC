@@ -7,6 +7,7 @@ import 'gcloud_provider.dart';
 import 'settings_provider.dart';
 import '../bridge/api.dart/rdp_client.dart';
 import '../bridge/api.dart/vnc_client.dart';
+import '../version.dart';
 
 /// Settings dialog for configuring app preferences
 class SettingsDialog extends ConsumerStatefulWidget {
@@ -315,9 +316,14 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            _buildEditionChip(l10n.commonEditionLabel('26H2')),
+                            _buildEditionChip(l10n.commonEditionLabel(kEdition)),
                             const SizedBox(width: 8),
-                            Text(l10n.commonBuildLabel('20260715.1'),
+                            if (kUpdate > 0) ...[
+                              _buildEditionChip(
+                                  l10n.commonUpdateLabel(kUpdate.toString())),
+                              const SizedBox(width: 8),
+                            ],
+                            Text(l10n.commonBuildLabel(kBuild),
                                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontFamily: 'monospace')),
                           ],
                         ),

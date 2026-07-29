@@ -1,0 +1,185 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version string for artifact names (e.g. 26H2). Dry run: builds + attests, no release.'
+        required: false
+        default: '26H2'
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  build:
+    name: Build (${{ matrix.image }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu
+            scripts: 'package_deb.sh package_appimage.sh package_tarball.sh'
+          - image: almalinux
+            scripts: 'package_rpm.sh'
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version comes from an externally-settable source (tag name or dispatch
+      # input). Route it through env (never inline ${{ }} in the script) and
+      # validate to a safe charset so it can never carry shell metacharacters
+      # into later run: steps. A git tag may legally contain $(...) / backticks.
+      - name: Derive version
+        id: ver
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VERSION_INPUT: ${{ github.event.inputs.version }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            V="$VERSION_INPUT"
+          else
+            V="${GITHUB_REF_NAME#v}"
+          fi
+          if ! printf '%s' "$V" | grep -qE '^[A-Za-z0-9._-]+$'; then
+            echo "::error::Invalid version '$V' (allowed characters: A-Z a-z 0-9 . _ -)"
+            exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Building version: $V"
+
+      - name: Build container image
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          podman build -t "lcc-builder-$IMAGE" \
+            -f "packaging/podman/Containerfile.$IMAGE" \
+            packaging/podman
+
+      - name: Run packaging scripts
+        env:
+          IMAGE: ${{ matrix.image }}
+          SCRIPTS: ${{ matrix.scripts }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          podman run --rm \
+            -e VERSION="$VERSION" \
+            -e SCRIPTS="$SCRIPTS" \
+            -v "$PWD:/workspace/src" \
+            -w /workspace/src \
+            "lcc-builder-$IMAGE" \
+            bash -euo pipefail -c '
+              for s in $SCRIPTS; do
+                echo "=== Running scripts/$s ==="
+                ./scripts/$s
+              done
+            '
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          shopt -s nullglob
+          for f in *.deb *.rpm *.AppImage *.tar.gz; do
+            cp "$f" out/
+          done
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-${{ matrix.image }}
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Attest & release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version
+        id: ver
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VERSION_INPUT: ${{ github.event.inputs.version }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            V="$VERSION_INPUT"
+          else
+            V="${GITHUB_REF_NAME#v}"
+          fi
+          if ! printf '%s' "$V" | grep -qE '^[A-Za-z0-9._-]+$'; then
+            echo "::error::Invalid version '$V' (allowed characters: A-Z a-z 0-9 . _ -)"
+            exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SPDX SBOM (source dependency graph)
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: artifacts-*
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          ( cd dist && sha256sum * ) > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: 'dist/*'
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: 'dist/*'
+          sbom-path: sbom.spdx.json
+
+      - name: Create draft release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          cat > release-notes.md <<'NOTES'
+          ## Verifying this release
+
+          Every artifact carries a keyless build-provenance attestation and an
+          SPDX SBOM attestation (Sigstore-backed, no signing key). Verify a
+          download before installing:
+
+          ```bash
+          # Build provenance (who / what commit / which workflow built it)
+          gh attestation verify --repo jordilopezr/LCC <artifact>
+
+          # SBOM (dependency graph that went into the build)
+          gh attestation verify --repo jordilopezr/LCC \
+            --predicate-type https://spdx.dev/Document/v2.3 <artifact>
+
+          # Offline integrity
+          sha256sum -c SHA256SUMS
+          ```
+          NOTES
+          gh release create "$TAG" \
+            --draft \
+            --title "LCC $VERSION" \
+            --notes-file release-notes.md \
+            dist/* SHA256SUMS sbom.spdx.json

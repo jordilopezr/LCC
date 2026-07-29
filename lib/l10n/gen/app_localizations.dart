@@ -1598,6 +1598,12 @@ abstract class AppLocalizations {
   /// **'Build {build}'**
   String commonBuildLabel(String build);
 
+  /// No description provided for @commonUpdateLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Update {number}'**
+  String commonUpdateLabel(String number);
+
   /// No description provided for @manualInstanceTitle.
   ///
   /// In en, this message translates to:
