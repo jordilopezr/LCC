@@ -95,6 +95,21 @@ Description: $DESCRIPTION
  Incluye soporte para RDP (Remmina) y SSH.
 EOF
 
+# 7b. Script postinst: refrescar la base de datos de aplicaciones y la caché de
+# iconos tras instalar (paridad con el %post del RPM). Sin esto, algunos
+# entornos de escritorio no registran/actualizan la entrada de menú hasta
+# reiniciar la sesión.
+cat <<'EOF' > $BUILD_DIR/DEBIAN/postinst
+#!/bin/sh
+set -e
+if [ "$1" = "configure" ]; then
+    update-desktop-database -q /usr/share/applications 2>/dev/null || true
+    gtk-update-icon-cache -q -t -f /usr/share/icons/hicolor 2>/dev/null || true
+fi
+exit 0
+EOF
+chmod 0755 $BUILD_DIR/DEBIAN/postinst
+
 # 8. Construir el .deb
 echo "🔨 Construyendo paquete .deb..."
 dpkg-deb --root-owner-group --build $BUILD_DIR "${APP_NAME}_${VERSION}_${ARCH}.deb"
