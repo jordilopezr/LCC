@@ -18,8 +18,10 @@ echo "🚀 Iniciando empaquetado para $APP_NAME v$VERSION..."
 echo "📦 Compilando Flutter Release..."
 flutter clean
 flutter pub get
-# Asegurar que el bridge code existe
-flutter_rust_bridge_codegen generate --rust-input crate::api --rust-root native --dart-output lib/src/bridge/api.dart --no-auto-upgrade-dependency
+# NOTA: el bridge de flutter_rust_bridge está commiteado (native/src/frb_generated.rs
+# + lib/src/bridge/api.dart/) y se regenera en DESARROLLO, no al empaquetar.
+# Regenerarlo aquí desincronizaba el bridge del libnative.so compilado
+# (content-hash mismatch → la app fallaba en RustLib.init y no arrancaba).
 # Compilar
 flutter build linux --release
 
