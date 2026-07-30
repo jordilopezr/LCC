@@ -114,6 +114,12 @@ BuildArch:      $ARCH
 # Disable RPATH check because Flutter plugins contain ephemeral paths
 %define __brp_check_rpaths %{nil}
 
+# The app bundles its own private .so under /usr/lib/<app>/lib/ (libapp,
+# libnative, libflutter_linux_gtk and the *_plugin libs). Stop RPM from
+# auto-generating external Requires for them (they are self-contained, not
+# system packages) so the .rpm installs on clean systems like Fedora.
+%global __requires_exclude ^lib(app|native|flutter_linux_gtk|.*_plugin)[.]so
+
 Requires:       $DEPENDENCIES
 
 %description
