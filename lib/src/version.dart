@@ -16,4 +16,4 @@ const String kEdition = '26H2';
 const int kUpdate = 1;
 
 /// Build stamp (YYYYMMDD.n).
-const String kBuild = '20260728.2';
+const String kBuild = '20260730.1';
