@@ -1,10 +1,10 @@
-FROM almalinux:8
+FROM almalinux:9
 ENV FLUTTER_VERSION="3.41.1"
 
 RUN dnf update -y && \
     dnf install -y epel-release && \
     dnf install -y dnf-plugins-core && \
-    dnf config-manager --set-enabled powertools && \
+    dnf config-manager --set-enabled crb && \
     dnf groupinstall -y "Development Tools" && \
     dnf install -y curl git unzip xz zip mesa-libGLU clang cmake ninja-build pkgconf-pkg-config gtk3-devel rpm-build openssl-devel libsecret-devel jsoncpp-devel lld && \
     dnf clean all

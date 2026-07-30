@@ -7,7 +7,7 @@ VERSION="${VERSION:-26H2}"
 ARCH="amd64"
 MAINTAINER="Jordi Lopez Reyes <aim@jordilopezr.com>"
 DESCRIPTION="Native Google Cloud IAP Connector for Linux"
-DEPENDENCIES="libgtk-3-0, liblzma5, remmina" # Remmina es vital
+DEPENDENCIES="libgtk-3-0, liblzma5, libsecret-1-0, remmina" # Remmina es vital; libsecret para flutter_secure_storage
 
 # Cambiar al directorio raíz del proyecto
 cd "$(dirname "$0")/.."

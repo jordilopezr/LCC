@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 ENV DEBIAN_FRONTEND=noninteractive
 ENV FLUTTER_VERSION="3.41.1"
 # Allow appimagetool to run without FUSE inside the container

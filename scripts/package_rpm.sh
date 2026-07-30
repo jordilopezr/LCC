@@ -14,7 +14,7 @@ RELEASE="1"
 ARCH="x86_64"
 MAINTAINER="Jordi Lopez Reyes <aim@jordilopezr.com>"
 DESCRIPTION="Native Google Cloud IAP Connector for Linux"
-DEPENDENCIES="gtk3, xz-libs, remmina"
+DEPENDENCIES="gtk3, xz-libs, libsecret, remmina"
 
 # Cambiar al directorio raíz del proyecto
 cd "$(dirname "$0")/.."
