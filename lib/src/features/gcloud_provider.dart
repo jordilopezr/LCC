@@ -72,7 +72,7 @@ class AccountState {
 /// Classify a raw GCP exception into a semantic [GcpErrorType]. The widget
 /// layer maps this to a localized message; this function stays free of
 /// user-facing text.
-GcpErrorType _classifyGcpError(dynamic e) {
+GcpErrorType classifyGcpError(dynamic e) {
   final msg = e.toString();
   if (msg.contains('PERMISSION_DENIED') || msg.contains('403')) {
     return GcpErrorType.permissionDenied;
@@ -88,6 +88,12 @@ GcpErrorType _classifyGcpError(dynamic e) {
   }
   if (msg.contains('network') || msg.contains('timeout') || msg.contains('connect')) {
     return GcpErrorType.network;
+  }
+  if (msg.contains('requires reauthentication') ||
+      msg.contains('session has expired') ||
+      msg.contains('invalid_rapt') ||
+      msg.contains('No active GCP account')) {
+    return GcpErrorType.unauthenticated;
   }
   return GcpErrorType.unknown;
 }
@@ -128,7 +134,7 @@ class AccountNotifier extends Notifier<AccountState> {
       state = AccountState(
         isLoading: false,
         error: e.toString(),
-        errorType: _classifyGcpError(e),
+        errorType: classifyGcpError(e),
       );
     }
   }
@@ -184,7 +190,7 @@ class AccountNotifier extends Notifier<AccountState> {
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
-        errorType: _classifyGcpError(e),
+        errorType: classifyGcpError(e),
       );
     }
   }

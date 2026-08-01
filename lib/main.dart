@@ -23,6 +23,7 @@ import 'src/features/account_management_dialog.dart';
 import 'src/features/tunnel_manager_dialog.dart';
 import 'src/features/snapshot_manager_dialog.dart';
 import 'src/features/snapshot_provider.dart';
+import 'src/features/gcp_session_banner.dart';
 import 'src/services/storage_service.dart';
 import 'src/services/notification_service.dart';
 import 'src/version.dart';
@@ -312,7 +313,11 @@ class DashboardScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: statusAsync.when(
+      body: Column(
+        children: [
+          const GcpSessionBanner(),
+          Expanded(
+            child: statusAsync.when(
         data: (status) {
           if (status['installed'] != true) {
             return Center(
@@ -443,7 +448,10 @@ class DashboardScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text(l10n.commonErrorPrefix('$err'))),
-      ),
+            ), // statusAsync.when
+          ),   // Expanded
+        ],
+      ),       // Column (body)
     );
   }
 

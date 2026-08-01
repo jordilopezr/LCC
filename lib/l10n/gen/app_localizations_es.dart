@@ -2412,4 +2412,20 @@ class AppLocalizationsEs extends AppLocalizations {
   String appDaysAgo(int days) {
     return 'hace $days d';
   }
+
+  @override
+  String get sessionExpiredBanner => 'Tu sesión de Google Cloud ha expirado.';
+
+  @override
+  String get sessionExpiredReauth => 'Reautenticar';
+
+  @override
+  String get sessionExpiredReauthenticating => 'Autenticando…';
+
+  @override
+  String get sessionExpiredReauthOk => 'Reautenticado. Actualizando…';
+
+  @override
+  String get sessionExpiredReauthFailed =>
+      'La reautenticación falló o se canceló.';
 }

@@ -674,5 +674,10 @@
   "appJustNow": "Ahora mismo",
   "appMinutesAgo": "hace {minutes} min",
   "appHoursAgo": "hace {hours} h",
-  "appDaysAgo": "hace {days} d"
+  "appDaysAgo": "hace {days} d",
+  "sessionExpiredBanner": "Tu sesión de Google Cloud ha expirado.",
+  "sessionExpiredReauth": "Reautenticar",
+  "sessionExpiredReauthenticating": "Autenticando…",
+  "sessionExpiredReauthOk": "Reautenticado. Actualizando…",
+  "sessionExpiredReauthFailed": "La reautenticación falló o se canceló."
 }

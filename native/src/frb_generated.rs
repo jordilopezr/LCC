@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1712903052;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -818228699;
 
 // Section: executor
 
@@ -2284,6 +2284,41 @@ fn wire__crate__api__open_sshfs_mount_in_file_manager_impl(
                         )?;
                         Ok(output_ok)
                     })(),
+                )
+            }
+        },
+    )
+}
+fn wire__crate__api__reauthenticate_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_async::<flutter_rust_bridge::for_generated::SseCodec, _, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "reauthenticate",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            deserializer.end();
+            move |context| async move {
+                transform_result_sse::<_, flutter_rust_bridge::for_generated::anyhow::Error>(
+                    (move || async move {
+                        let output_ok = crate::api::reauthenticate().await?;
+                        Ok(output_ok)
+                    })()
+                    .await,
                 )
             }
         },
@@ -4775,37 +4810,38 @@ fn pde_ffi_dispatcher_primary_impl(
             rust_vec_len,
             data_len,
         ),
-        62 => wire__crate__api__refresh_sshfs_mount_status_impl(port, ptr, rust_vec_len, data_len),
-        63 => wire__crate__api__remove_gcloud_account_impl(port, ptr, rust_vec_len, data_len),
-        64 => wire__crate__api__remove_rdp_config_file_impl(port, ptr, rust_vec_len, data_len),
-        65 => wire__crate__api__reset_instance_impl(port, ptr, rust_vec_len, data_len),
-        66 => wire__crate__api__reset_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
-        67 => wire__crate__api__reset_windows_password_impl(port, ptr, rust_vec_len, data_len),
-        68 => wire__crate__api__resume_instance_impl(port, ptr, rust_vec_len, data_len),
-        69 => wire__crate__api__resume_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
-        70 => wire__crate__api__run_doctor_impl(port, ptr, rust_vec_len, data_len),
-        71 => wire__crate__api__sftp_delete_impl(port, ptr, rust_vec_len, data_len),
-        72 => wire__crate__api__sftp_download_impl(port, ptr, rust_vec_len, data_len),
-        73 => wire__crate__api__sftp_list_dir_impl(port, ptr, rust_vec_len, data_len),
-        74 => wire__crate__api__sftp_mkdir_impl(port, ptr, rust_vec_len, data_len),
-        75 => wire__crate__api__sftp_upload_impl(port, ptr, rust_vec_len, data_len),
-        76 => wire__crate__api__sshfs_mount_impl(port, ptr, rust_vec_len, data_len),
-        77 => wire__crate__api__sshfs_unmount_impl(port, ptr, rust_vec_len, data_len),
-        78 => wire__crate__api__sshfs_unmount_all_impl(port, ptr, rust_vec_len, data_len),
-        79 => wire__crate__api__sshfs_unmount_by_id_impl(port, ptr, rust_vec_len, data_len),
-        80 => wire__crate__api__start_connection_impl(port, ptr, rust_vec_len, data_len),
-        81 => wire__crate__api__start_instance_impl(port, ptr, rust_vec_len, data_len),
-        82 => wire__crate__api__start_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
-        83 => wire__crate__api__stop_connection_impl(port, ptr, rust_vec_len, data_len),
-        84 => wire__crate__api__stop_instance_impl(port, ptr, rust_vec_len, data_len),
-        85 => wire__crate__api__stop_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
-        86 => wire__crate__api__suspend_instance_impl(port, ptr, rust_vec_len, data_len),
-        87 => wire__crate__api__suspend_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
-        88 => wire__crate__api__switch_gcloud_account_impl(port, ptr, rust_vec_len, data_len),
-        89 => wire__crate__api__test_gcp_authentication_impl(port, ptr, rust_vec_len, data_len),
-        90 => wire__crate__api__validate_sshfs_local_path_impl(port, ptr, rust_vec_len, data_len),
-        91 => wire__crate__api__validate_sshfs_remote_path_impl(port, ptr, rust_vec_len, data_len),
-        92 => wire__crate__api__verify_sshfs_mount_active_impl(port, ptr, rust_vec_len, data_len),
+        62 => wire__crate__api__reauthenticate_impl(port, ptr, rust_vec_len, data_len),
+        63 => wire__crate__api__refresh_sshfs_mount_status_impl(port, ptr, rust_vec_len, data_len),
+        64 => wire__crate__api__remove_gcloud_account_impl(port, ptr, rust_vec_len, data_len),
+        65 => wire__crate__api__remove_rdp_config_file_impl(port, ptr, rust_vec_len, data_len),
+        66 => wire__crate__api__reset_instance_impl(port, ptr, rust_vec_len, data_len),
+        67 => wire__crate__api__reset_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
+        68 => wire__crate__api__reset_windows_password_impl(port, ptr, rust_vec_len, data_len),
+        69 => wire__crate__api__resume_instance_impl(port, ptr, rust_vec_len, data_len),
+        70 => wire__crate__api__resume_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
+        71 => wire__crate__api__run_doctor_impl(port, ptr, rust_vec_len, data_len),
+        72 => wire__crate__api__sftp_delete_impl(port, ptr, rust_vec_len, data_len),
+        73 => wire__crate__api__sftp_download_impl(port, ptr, rust_vec_len, data_len),
+        74 => wire__crate__api__sftp_list_dir_impl(port, ptr, rust_vec_len, data_len),
+        75 => wire__crate__api__sftp_mkdir_impl(port, ptr, rust_vec_len, data_len),
+        76 => wire__crate__api__sftp_upload_impl(port, ptr, rust_vec_len, data_len),
+        77 => wire__crate__api__sshfs_mount_impl(port, ptr, rust_vec_len, data_len),
+        78 => wire__crate__api__sshfs_unmount_impl(port, ptr, rust_vec_len, data_len),
+        79 => wire__crate__api__sshfs_unmount_all_impl(port, ptr, rust_vec_len, data_len),
+        80 => wire__crate__api__sshfs_unmount_by_id_impl(port, ptr, rust_vec_len, data_len),
+        81 => wire__crate__api__start_connection_impl(port, ptr, rust_vec_len, data_len),
+        82 => wire__crate__api__start_instance_impl(port, ptr, rust_vec_len, data_len),
+        83 => wire__crate__api__start_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
+        84 => wire__crate__api__stop_connection_impl(port, ptr, rust_vec_len, data_len),
+        85 => wire__crate__api__stop_instance_impl(port, ptr, rust_vec_len, data_len),
+        86 => wire__crate__api__stop_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
+        87 => wire__crate__api__suspend_instance_impl(port, ptr, rust_vec_len, data_len),
+        88 => wire__crate__api__suspend_instance_client_lib_impl(port, ptr, rust_vec_len, data_len),
+        89 => wire__crate__api__switch_gcloud_account_impl(port, ptr, rust_vec_len, data_len),
+        90 => wire__crate__api__test_gcp_authentication_impl(port, ptr, rust_vec_len, data_len),
+        91 => wire__crate__api__validate_sshfs_local_path_impl(port, ptr, rust_vec_len, data_len),
+        92 => wire__crate__api__validate_sshfs_remote_path_impl(port, ptr, rust_vec_len, data_len),
+        93 => wire__crate__api__verify_sshfs_mount_active_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }

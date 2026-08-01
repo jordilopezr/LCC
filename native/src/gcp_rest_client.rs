@@ -114,6 +114,16 @@ fn parse_cli_access_token(stdout: &str) -> Option<String> {
     Some(token.to_string())
 }
 
+/// After the gcloud CLI token path failed, decide whether a failed ADC
+/// fallback should surface as a re-authentication prompt. True only when the
+/// ADC credentials file is missing/unreadable — the user is still listed as
+/// active by gcloud but has no usable token, so they must re-login. Other ADC
+/// failures (a non-200 token exchange already carries the reauth wording; a
+/// network/timeout error is transient) keep their own message.
+fn adc_failure_needs_reauth(adc_err: &str) -> bool {
+    adc_err.contains("Failed to read credentials")
+}
+
 impl GcpAuthClient {
     /// Get or initialize cached auth client (singleton pattern)
     /// This method ensures we only initialize authentication once,
@@ -147,9 +157,21 @@ impl GcpAuthClient {
 
         let token = match self.token_from_gcloud_cli().await {
             Ok(token) => token,
-            Err(e) => {
-                debug!("gcloud CLI token unavailable, falling back to ADC: {}", e);
-                self.token_from_adc_refresh().await?
+            Err(cli_err) => {
+                debug!("gcloud CLI token unavailable, falling back to ADC: {}", cli_err);
+                match self.token_from_adc_refresh().await {
+                    Ok(token) => token,
+                    Err(adc_err) => {
+                        debug!("ADC fallback also failed: {}", adc_err);
+                        if adc_failure_needs_reauth(&adc_err.to_string()) {
+                            return Err(anyhow!(
+                                "Authentication failed: your Google Cloud session has expired or requires reauthentication. \
+                                 Run: gcloud auth login (and if it persists: gcloud auth application-default login)"
+                            ));
+                        }
+                        return Err(adc_err);
+                    }
+                }
             }
         };
 
@@ -1116,6 +1138,13 @@ mod tests {
     fn test_parse_cli_access_token_rejects_multiline_garbage() {
         // e.g. warnings o texto de error mezclado en stdout
         assert!(parse_cli_access_token("WARNING: foo\nya29.token").is_none());
+    }
+
+    #[test]
+    fn adc_missing_file_surfaces_reauth() {
+        assert!(adc_failure_needs_reauth("Failed to read credentials: No such file or directory (os error 2)"));
+        assert!(!adc_failure_needs_reauth("Token request failed: connection refused"));
+        assert!(!adc_failure_needs_reauth("Authentication failed: your Google Cloud session has expired or requires reauthentication."));
     }
 
     #[test]

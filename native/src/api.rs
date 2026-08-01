@@ -793,6 +793,13 @@ pub async fn execute_doctor_fix(
     crate::doctor::execute_fix(fix_action_id, project_id, zone, instance_name).await
 }
 
+/// Re-run `gcloud auth login` (opens the browser) to refresh an expired
+/// session. Surfaced by the in-app "Re-authenticate" banner. Reuses the same
+/// login path the Doctor uses (`execute_login`); adds no new gcloud logic.
+pub async fn reauthenticate() -> anyhow::Result<()> {
+    crate::gcloud::execute_login()
+}
+
 // Sprint 10.5: License Verification removed
 
 // ============================================================================

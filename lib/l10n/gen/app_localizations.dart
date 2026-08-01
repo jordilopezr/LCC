@@ -4135,6 +4135,36 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{days}d ago'**
   String appDaysAgo(int days);
+
+  /// No description provided for @sessionExpiredBanner.
+  ///
+  /// In en, this message translates to:
+  /// **'Your Google Cloud session has expired.'**
+  String get sessionExpiredBanner;
+
+  /// No description provided for @sessionExpiredReauth.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-authenticate'**
+  String get sessionExpiredReauth;
+
+  /// No description provided for @sessionExpiredReauthenticating.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticating…'**
+  String get sessionExpiredReauthenticating;
+
+  /// No description provided for @sessionExpiredReauthOk.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-authenticated. Refreshing…'**
+  String get sessionExpiredReauthOk;
+
+  /// No description provided for @sessionExpiredReauthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-authentication failed or was cancelled.'**
+  String get sessionExpiredReauthFailed;
 }
 
 class _AppLocalizationsDelegate

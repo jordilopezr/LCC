@@ -2377,4 +2377,20 @@ class AppLocalizationsEn extends AppLocalizations {
   String appDaysAgo(int days) {
     return '${days}d ago';
   }
+
+  @override
+  String get sessionExpiredBanner => 'Your Google Cloud session has expired.';
+
+  @override
+  String get sessionExpiredReauth => 'Re-authenticate';
+
+  @override
+  String get sessionExpiredReauthenticating => 'Authenticating…';
+
+  @override
+  String get sessionExpiredReauthOk => 'Re-authenticated. Refreshing…';
+
+  @override
+  String get sessionExpiredReauthFailed =>
+      'Re-authentication failed or was cancelled.';
 }

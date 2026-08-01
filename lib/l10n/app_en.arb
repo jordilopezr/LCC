@@ -1355,5 +1355,10 @@
     "placeholders": {
       "days": {"type": "int"}
     }
-  }
+  },
+  "sessionExpiredBanner": "Your Google Cloud session has expired.",
+  "sessionExpiredReauth": "Re-authenticate",
+  "sessionExpiredReauthenticating": "Authenticating…",
+  "sessionExpiredReauthOk": "Re-authenticated. Refreshing…",
+  "sessionExpiredReauthFailed": "Re-authentication failed or was cancelled."
 }

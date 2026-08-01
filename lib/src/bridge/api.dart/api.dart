@@ -847,6 +847,11 @@ Future<String> executeDoctorFix({
   instanceName: instanceName,
 );
 
+/// Re-run `gcloud auth login` (opens the browser) to refresh an expired
+/// session. Surfaced by the in-app "Re-authenticate" banner. Reuses the same
+/// login path the Doctor uses (`execute_login`); adds no new gcloud logic.
+Future<void> reauthenticate() => RustLib.instance.api.crateApiReauthenticate();
+
 /// Get the boot disk name for a VM instance by querying gcloud.
 Future<String> getBootDiskName({
   required String projectId,
