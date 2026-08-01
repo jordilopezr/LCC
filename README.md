@@ -7,7 +7,7 @@
 Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal performance and security. LCC is **100% free and open source** (MIT license), with all features available without restrictions.
 
 ![Release](https://img.shields.io/badge/Release-26H2-brightgreen)
-![Build](https://img.shields.io/badge/Build-20260715.1-blue)
+![Build](https://img.shields.io/badge/Build-20260731.1-blue)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20(coming%20soon)-blue)
 ![License](https://img.shields.io/badge/License-MIT-purple)
 
@@ -245,11 +245,23 @@ There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
 
 ### Next
 - [ ] macOS support (Intel/Apple Silicon)
-- [ ] Resource caching (projects and instances, 5 min TTL)
 - [ ] Google Cloud Storage (GCS) browser
 - [ ] Secret Manager integration (read-only)
 - [ ] Cloud Monitoring API dashboard
 - [ ] Remaining i18n: Rust error mapping and desktop notifications (currently English only)
+
+### Coming next (in branches)
+_Developed and reviewed, not yet merged into a published release:_
+- [ ] Security hardening: resolve `gcloud` to a validated absolute path (anti PATH-hijack); stop persisting VNC passwords to disk; idle IAP-tunnel reaper; `SECURITY.md` + threat model
+- [ ] Tabbed workspace: tabs that survive sidebar changes, embedded SSH terminal, SFTP panel, and a browser-style tab strip (overflow, pinned tabs, groups, drag reorder)
+- [ ] SFTP dual-pane browser (WinSCP-style) with a cancelable transfer queue
+- [ ] Parallel SFTP transfers
+- [ ] Native Rust IAP tunnel engine (opt-in)
+
+### Included in 26H2 Update 1 (build 20260731.1)
+- [x] Signed releases with an SBOM and build provenance (keyless Sigstore attestations) via GitHub Actions
+- [x] Cross-distro packaging: installs and runs on modern Fedora and Debian (OpenSSL 3 build bases, declared runtime dependencies)
+- [x] In-app re-login: detects an expired GCP session and offers a one-tap re-authenticate banner
 
 ### Included in 26H2
 - [x] Rebrand to **Lightweight Cloud Connector** — architecture ready for Linux and macOS
@@ -273,7 +285,25 @@ There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
 
 ## Changelog
 
-### 26H2 — build 20260715.1 — Current release
+### 26H2 Update 1 — build 20260731.1 — Current release
+
+**Signed releases + SBOM (supply-chain integrity)**
+- A tag-triggered GitHub Actions workflow builds the Linux artifacts (deb, rpm, AppImage, tarball) and attaches keyless build-provenance and an SPDX SBOM attestation plus SHA256 checksums, published as a draft GitHub Release
+- Verify a download with `gh attestation verify` (see `docs/RELEASES.md`)
+
+**Packaging & distribution**
+- CI-built packages now launch: fixed an app-startup crash where the packaged Dart/Rust bridge went out of sync (a content-hash mismatch) — the committed bridge is now built as-is instead of regenerated at package time
+- Packages build on OpenSSL 3 bases (ubuntu:22.04 / almalinux:9) and declare their runtime dependencies (e.g. `libsecret`), so the app installs and runs on modern Fedora and Debian instead of failing to load a library
+- The `.deb` now ships a `postinst` that refreshes the desktop and icon databases, so the menu entry registers correctly on install
+
+**In-app GCP re-login**
+- When the gcloud/ADC session expires and project/instance listing fails, a non-modal banner offers a one-tap "Re-authenticate" that reuses `gcloud auth login` and refreshes the list on success
+- Also covers accounts authenticated only via `gcloud auth login` (no ADC configured), which previously surfaced an unrecognized error
+
+**Version display**
+- The public edition/update/build is centralized in a single source (`lib/src/version.dart`) and shown as "Edition 26H2 · Update 1 · Build 20260731.1"
+
+### 26H2 — build 20260715.1
 
 **Rebrand: Lightweight Cloud Connector**
 - Renamed from "Linux Cloud Connector" to "Lightweight Cloud Connector" (LCC)

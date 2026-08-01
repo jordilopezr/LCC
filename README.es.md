@@ -7,7 +7,7 @@
 Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendimiento y seguridad óptimos. LCC es **100% gratuito y open source** (licencia MIT), con todas las funcionalidades disponibles sin restricciones.
 
 ![Release](https://img.shields.io/badge/Release-26H2-brightgreen)
-![Build](https://img.shields.io/badge/Build-20260715.1-blue)
+![Build](https://img.shields.io/badge/Build-20260731.1-blue)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20(pr%C3%B3ximamente)-blue)
 ![License](https://img.shields.io/badge/License-MIT-purple)
 
@@ -245,11 +245,23 @@ También hay un `PKGBUILD` para Arch Linux en `packaging/arch/`.
 
 ### Próximo
 - [ ] Soporte macOS (Intel/Apple Silicon)
-- [ ] Caching de recursos (proyectos e instancias, TTL 5 min)
 - [ ] Navegador de Google Cloud Storage (GCS)
 - [ ] Integración con Secret Manager (solo lectura)
 - [ ] Dashboard de Cloud Monitoring API
 - [ ] i18n restante: mapeo de errores de Rust y notificaciones de escritorio (hoy en inglés)
+
+### Próximamente (en ramas)
+_Desarrollado y revisado, aún sin mergear a una release publicada:_
+- [ ] Endurecimiento de seguridad: resolver `gcloud` a una ruta absoluta validada (anti PATH-hijack); no persistir contraseñas VNC en disco; reaper de túneles IAP inactivos; `SECURITY.md` + threat model
+- [ ] Workspace por pestañas: pestañas que sobreviven al cambio de barra lateral, terminal SSH embebida, panel SFTP y tab strip estilo navegador (overflow, pestañas ancladas, grupos, reordenar arrastrando)
+- [ ] Navegador SFTP de doble panel (estilo WinSCP) con cola de transferencias cancelable
+- [ ] Transferencias SFTP en paralelo
+- [ ] Motor de túnel IAP nativo en Rust (opt-in)
+
+### Incluido en 26H2 Update 1 (build 20260731.1)
+- [x] Releases firmadas con SBOM y procedencia de build (attestations keyless de Sigstore) vía GitHub Actions
+- [x] Empaquetado cross-distro: instala y arranca en Fedora y Debian modernos (bases OpenSSL 3, dependencias de runtime declaradas)
+- [x] Re-login in-app: detecta la sesión GCP caducada y ofrece un banner de reautenticación de un toque
 
 ### Incluido en 26H2
 - [x] Rebrand a **Lightweight Cloud Connector** — arquitectura preparada para Linux y macOS
@@ -273,7 +285,25 @@ También hay un `PKGBUILD` para Arch Linux en `packaging/arch/`.
 
 ## Changelog
 
-### 26H2 — build 20260715.1 — Release actual
+### 26H2 Update 1 — build 20260731.1 — Release actual
+
+**Releases firmadas + SBOM (integridad de la cadena de suministro)**
+- Un workflow de GitHub Actions disparado por tag construye los artefactos Linux (deb, rpm, AppImage, tarball) y les adjunta procedencia de build keyless y una attestation de SBOM SPDX más checksums SHA256, publicados en un GitHub Release en borrador
+- Verifica una descarga con `gh attestation verify` (ver `docs/RELEASES.md`)
+
+**Empaquetado y distribución**
+- Los paquetes de CI ahora arrancan: corregido un crash de inicio donde el bridge Dart/Rust del paquete quedaba desincronizado (content-hash mismatch) — ahora se construye el bridge commiteado tal cual en vez de regenerarlo al empaquetar
+- Los paquetes se construyen en bases OpenSSL 3 (ubuntu:22.04 / almalinux:9) y declaran sus dependencias de runtime (p. ej. `libsecret`), así la app instala y arranca en Fedora y Debian modernos en vez de fallar al cargar una librería
+- El `.deb` ahora incluye un `postinst` que refresca las bases de datos de menús e iconos, para que la entrada del menú se registre bien al instalar
+
+**Re-login GCP in-app**
+- Cuando la sesión de gcloud/ADC caduca y falla el listado de proyectos/instancias, un banner no-modal ofrece un "Reautenticar" de un toque que reutiliza `gcloud auth login` y refresca la lista al éxito
+- También cubre cuentas autenticadas solo con `gcloud auth login` (sin ADC configurado), que antes producían un error no reconocido
+
+**Visualización de versión**
+- La edición/update/build pública se centraliza en una única fuente (`lib/src/version.dart`) y se muestra como "Edición 26H2 · Update 1 · Build 20260731.1"
+
+### 26H2 — build 20260715.1
 
 **Rebrand: Lightweight Cloud Connector**
 - Renombrado de "Linux Cloud Connector" a "Lightweight Cloud Connector" (LCC)
