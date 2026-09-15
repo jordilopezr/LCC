@@ -109,8 +109,12 @@ fn create_remmina_config(
     let file_path = config_dir.join(format!("iap_{}.remmina", safe_name));
 
     let ignore_cert = if settings.ignore_certificate { "1" } else { "0" };
+    // colordepth=32 forces the classic True Color (32bpp) pipeline instead of
+    // leaving Remmina on its GFX/AVC444 default. Without it, older Windows hosts
+    // reached over RDP often render with degraded colors, so we pin 32bpp as a
+    // sane default for the profiles LCC generates.
     let mut content = format!(
-        "[remmina]\nname={} (IAP)\nprotocol=RDP\nserver=127.0.0.1:{}\nignore-certificate={}\nenable-autostart=1\n",
+        "[remmina]\nname={} (IAP)\nprotocol=RDP\nserver=127.0.0.1:{}\nignore-certificate={}\nenable-autostart=1\ncolordepth=32\n",
         safe_name, port, ignore_cert
     );
 
