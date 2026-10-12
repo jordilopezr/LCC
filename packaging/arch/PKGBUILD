@@ -1,9 +1,10 @@
 # Maintainer: Jordi Lopez Reyes <aim@jordilopezr.com>
 pkgname=lightweight-cloud-connector-bin
-pkgver=26H2.U2
-# Nombre de la release en GitHub (tag v26H2u2, assets *_26H2u2_*). pkgver usa
-# la forma con punto; el tag y los ficheros, la de los scripts de release.
-_relver=26H2u2
+pkgver=27H1.preview.20261012.50
+# Nombre de la release en GitHub (tag v27H1-preview.20261012.50, assets
+# *_27H1-preview.20261012.50_*). pkgver no admite guiones, así que usa puntos;
+# el tag y los ficheros, la forma de los scripts de release.
+_relver=27H1-preview.20261012.50
 pkgrel=1
 pkgdesc="Native Google Cloud IAP Connector for Linux"
 arch=('x86_64')
