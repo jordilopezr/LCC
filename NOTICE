@@ -37,8 +37,9 @@ PREVIOUS RELEASES
 
 Releases up to and including 26H2 Update 1 (tag v26H2u1) were distributed
 under the MIT License; copies obtained under those terms remain under them.
-Starting with 26H2 Update 2 (tag v26H2u2), the code is distributed under the
-GNU GPL version 3 or later, with the additional terms above.
+Starting with 27H1, beginning with the 27H1 Preview (tag
+v27H1-preview.20261012.50), the code is distributed under the GNU GPL version 3
+or later, with the additional terms above. 26H2 Update 2 was never released.
 
 
 THIRD-PARTY COMPONENTS
