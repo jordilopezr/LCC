@@ -1,4 +1,5 @@
 use super::utils::*;
+use crate::child_reaper::SpawnReaped;
 use super::VncSettings;
 use std::process::{Command, Stdio};
 use anyhow::{Result, anyhow};
@@ -58,7 +59,7 @@ fn try_native_launch(address: &str, settings: &VncSettings) -> Result<()> {
 
     cmd.stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()?;
+        .spawn_reaped()?;
 
     tracing::info!("Native Vinagre VNC launched");
     Ok(())
@@ -88,7 +89,7 @@ fn try_flatpak_launch(address: &str, settings: &VncSettings) -> Result<()> {
         .args(&args)
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()?;
+        .spawn_reaped()?;
 
     tracing::info!("Flatpak Vinagre VNC launched");
     Ok(())

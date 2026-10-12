@@ -3,8 +3,10 @@ import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
+import 'app_error.dart';
 import 'gcloud_provider.dart';
 import 'settings_provider.dart';
+import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/rdp_client.dart';
 import '../bridge/api.dart/vnc_client.dart';
 import '../version.dart';
@@ -92,6 +94,25 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   ),
                 ]);
               }),
+              const Divider(height: 32),
+
+              // ===== AUTH ENGINE SECTION =====
+              _EngineSelector(
+                slot: 'auth',
+                title: l10n.settingsAuthEngineTitle,
+                nativeLabel: l10n.settingsAuthEngineNative,
+                nativeSubtitle: l10n.settingsAuthEngineNativeSubtitle,
+                gcloudLabel: l10n.settingsAuthEngineGcloud,
+                gcloudSubtitle: l10n.settingsAuthEngineGcloudSubtitle,
+                onChanged: () {
+                  // Without this the UI keeps showing the previous engine's
+                  // accounts and projects until something else invalidates.
+                  ref.invalidate(gcloudStatusProvider);
+                  ref.invalidate(accountProvider);
+                  ref.invalidate(projectsProvider);
+                  ref.invalidate(instancesProvider);
+                },
+              ),
               const Divider(height: 32),
 
               // ===== AUTO-REFRESH SECTION =====
@@ -314,15 +335,19 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                       children: [
                         Text(l10n.appTitle, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                         const SizedBox(height: 4),
-                        Row(
+                        // Wrap (not Row) so the edition/update chips and build
+                        // stamp flow to a second line instead of overflowing —
+                        // Spanish labels ("Actualización", "Compilación") are
+                        // long enough to overrun the narrow About column.
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
                             _buildEditionChip(l10n.commonEditionLabel(kEdition)),
-                            const SizedBox(width: 8),
-                            if (kUpdate > 0) ...[
+                            if (kUpdate > 0)
                               _buildEditionChip(
                                   l10n.commonUpdateLabel(kUpdate.toString())),
-                              const SizedBox(width: 8),
-                            ],
                             Text(l10n.commonBuildLabel(kBuild),
                                 style: TextStyle(fontSize: 11, color: Colors.grey.shade600, fontFamily: 'monospace')),
                           ],
@@ -366,6 +391,39 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 isThreeLine: true,
                 onTap: () => Process.run('xdg-open', ['https://buymeacoffee.com/jordimlopezr']),
                 mouseCursor: SystemMouseCursors.click,
+              ),
+
+              // ===== ADVANCED SECTION =====
+              const Divider(height: 32),
+              ExpansionTile(
+                title: Text(
+                  l10n.settingsAdvancedTitle,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(l10n.settingsAdvancedSubtitle),
+                initiallyExpanded: false,
+                childrenPadding: const EdgeInsets.only(top: 8, bottom: 8),
+                children: [
+                  _EngineSelector(
+                    slot: 'tunnel',
+                    title: l10n.settingsTunnelEngineTitle,
+                    nativeLabel: l10n.settingsTunnelEngineNative,
+                    nativeSubtitle: l10n.settingsTunnelEngineNativeSubtitle,
+                    gcloudLabel: l10n.settingsTunnelEngineGcloud,
+                    gcloudSubtitle: l10n.settingsTunnelEngineGcloudSubtitle,
+                    footnote: l10n.settingsEngineAppliesToNewOnly,
+                  ),
+                  const SizedBox(height: 16),
+                  _EngineSelector(
+                    slot: 'ssh_forward',
+                    title: l10n.settingsSshForwardEngineTitle,
+                    nativeLabel: l10n.settingsSshForwardEngineNative,
+                    nativeSubtitle: l10n.settingsSshForwardEngineNativeSubtitle,
+                    gcloudLabel: l10n.settingsSshForwardEngineGcloud,
+                    gcloudSubtitle: l10n.settingsSshForwardEngineGcloudSubtitle,
+                    footnote: l10n.settingsEngineAppliesToNewOnly,
+                  ),
+                ],
               ),
             ],
           ),
@@ -590,7 +648,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Text(l10n.settingsErrorDetectingRdp('$err'), style: const TextStyle(fontSize: 12)),
+      error: (err, stack) => Text(
+        l10n.settingsErrorDetectingRdp(localizedError(l10n, err, standalone: false)),
+        style: const TextStyle(fontSize: 12),
+      ),
     );
   }
 
@@ -690,7 +751,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         );
       },
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Text(l10n.settingsErrorDetectingVnc('$err'), style: const TextStyle(fontSize: 12)),
+      error: (err, stack) => Text(
+        l10n.settingsErrorDetectingVnc(localizedError(l10n, err, standalone: false)),
+        style: const TextStyle(fontSize: 12),
+      ),
     );
   }
 
@@ -727,7 +791,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       ),
       error: (err, stack) => Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(l10n.settingsErrorCheckingDeps('$err'), style: const TextStyle(fontSize: 12)),
+        child: Text(
+          l10n.settingsErrorCheckingDeps(localizedError(l10n, err, standalone: false)),
+          style: const TextStyle(fontSize: 12),
+        ),
       ),
     );
   }
@@ -786,8 +853,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         return l10n.settingsRdpDescKrdc;
       case RdpClientType.gnomeConnections:
         return l10n.settingsRdpDescGnome;
-      case RdpClientType.mstsc:
-        return l10n.settingsRdpDescMstsc;
     }
   }
 
@@ -814,8 +879,6 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         return Icons.computer;
       case RdpClientType.gnomeConnections:
         return Icons.devices;
-      case RdpClientType.mstsc:
-        return Icons.window;
     }
   }
 
@@ -830,6 +893,198 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
       case VncClientType.vinagre:
         return Icons.remove_red_eye;
     }
+  }
+}
+
+/// What an engine selector shows: the choice it writes, plus the engine the
+/// environment is forcing over it, if any.
+class _EngineChoice {
+  const _EngineChoice({required this.selected, required this.envOverride, this.envVar});
+
+  /// The stored choice — what the radio buttons reflect and what they write.
+  final String selected;
+
+  /// The engine the slot's environment variable is forcing, or null when the
+  /// environment is not overriding and `selected` is therefore also what is
+  /// in force.
+  final String? envOverride;
+
+  /// The name of the environment variable doing the forcing, e.g.
+  /// `LCC_TUNNEL_ENGINE`. Only fetched — and only non-null — when
+  /// `envOverride` is non-null; the notice that reads it is not shown
+  /// otherwise.
+  final String? envVar;
+}
+
+/// A sentence-friendly name for an engine, for use inside the override notice.
+String _engineDisplayName(AppLocalizations l10n, String engine) =>
+    engine == 'gcloud'
+        ? l10n.settingsAuthEngineNameGcloud
+        : l10n.settingsAuthEngineNameNative;
+
+/// One engine selector: the environment-override notice, the two radios, and
+/// the error handling. Three of these exist; the logic lives here once.
+class _EngineSelector extends StatefulWidget {
+  const _EngineSelector({
+    required this.slot,
+    required this.title,
+    required this.nativeLabel,
+    required this.nativeSubtitle,
+    required this.gcloudLabel,
+    required this.gcloudSubtitle,
+    this.footnote,
+    this.onChanged,
+  });
+
+  final String slot;
+  final String title;
+  final String nativeLabel;
+  final String nativeSubtitle;
+  final String gcloudLabel;
+  final String gcloudSubtitle;
+
+  /// Shown under the radios when the choice has a caveat worth stating.
+  final String? footnote;
+
+  /// Ran after a successful change. Only the auth slot needs one: it decides
+  /// which accounts and projects the rest of the UI is showing.
+  final VoidCallback? onChanged;
+
+  @override
+  State<_EngineSelector> createState() => _EngineSelectorState();
+}
+
+class _EngineSelectorState extends State<_EngineSelector> {
+  late Future<_EngineChoice> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
+
+  Future<_EngineChoice> _load() async {
+    // The stored choice is what the selector shows, because it is what the
+    // selector writes. `envOverride` is what the app is *actually* using when
+    // the slot's environment variable outranks it — non-null only then.
+    final envOverride = await engineOverride(slot: widget.slot);
+    // The variable name is only meaningful — and only fetched — when there is
+    // an override notice to put it in.
+    final envVar =
+        envOverride == null ? null : await engineEnvVar(slot: widget.slot);
+    final selected =
+        await storedEngine(slot: widget.slot) ?? await engineFor(slot: widget.slot);
+    return _EngineChoice(selected: selected, envOverride: envOverride, envVar: envVar);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.title,
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        FutureBuilder<_EngineChoice>(
+          future: _future,
+          builder: (context, snapshot) {
+            final choice = snapshot.data;
+            if (choice == null) {
+              return const Padding(
+                padding: EdgeInsets.all(16),
+                child: LinearProgressIndicator(),
+              );
+            }
+            final selected = choice.selected;
+            Future<void> choose(String? value) async {
+              if (value == null || value == selected) return;
+              try {
+                await setEngine(slot: widget.slot, engine: value);
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(l10n.settingsAuthEngineChangeFailed(
+                          localizedError(l10n, e, standalone: false))),
+                    ),
+                  );
+                }
+                return;
+              }
+              widget.onChanged?.call();
+              if (mounted) {
+                setState(() {
+                  _future = Future.value(
+                    _EngineChoice(
+                      selected: value,
+                      envOverride: choice.envOverride,
+                      envVar: choice.envVar,
+                    ),
+                  );
+                });
+              }
+            }
+            return Column(children: [
+              // The environment outranks the stored file by design — it
+              // is the diagnostic escape hatch the hostile-environment QA
+              // runs with. What must not happen is the radio moving with
+              // nothing changing and nobody saying so.
+              if (choice.envOverride != null)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.warning_amber, size: 18, color: Colors.orange.shade800),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          l10n.settingsEngineEnvOverride(
+                            choice.envVar!,
+                            _engineDisplayName(l10n, choice.envOverride!),
+                          ),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              RadioListTile<String>(
+                value: 'native',
+                groupValue: selected,
+                onChanged: choose,
+                title: Text(widget.nativeLabel),
+                subtitle: Text(widget.nativeSubtitle),
+              ),
+              RadioListTile<String>(
+                value: 'gcloud',
+                groupValue: selected,
+                onChanged: choose,
+                title: Text(widget.gcloudLabel),
+                subtitle: Text(widget.gcloudSubtitle),
+              ),
+              if (widget.footnote != null)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16, right: 16, top: 4),
+                  child: Text(
+                    widget.footnote!,
+                    style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  ),
+                ),
+            ]);
+          },
+        ),
+      ],
+    );
   }
 }
 

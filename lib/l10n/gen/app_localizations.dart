@@ -296,42 +296,6 @@ abstract class AppLocalizations {
   /// **'This is the active account. All tunnels will be disconnected.'**
   String get accountActiveAccountWarning;
 
-  /// No description provided for @commonGcpErrorPermissionDenied.
-  ///
-  /// In en, this message translates to:
-  /// **'Access denied. Check your GCP permissions.'**
-  String get commonGcpErrorPermissionDenied;
-
-  /// No description provided for @commonGcpErrorNotFound.
-  ///
-  /// In en, this message translates to:
-  /// **'Resource not found.'**
-  String get commonGcpErrorNotFound;
-
-  /// No description provided for @commonGcpErrorUnauthenticated.
-  ///
-  /// In en, this message translates to:
-  /// **'Authentication required. Please re-login.'**
-  String get commonGcpErrorUnauthenticated;
-
-  /// No description provided for @commonGcpErrorQuotaExceeded.
-  ///
-  /// In en, this message translates to:
-  /// **'GCP quota exceeded.'**
-  String get commonGcpErrorQuotaExceeded;
-
-  /// No description provided for @commonGcpErrorNetwork.
-  ///
-  /// In en, this message translates to:
-  /// **'Network error. Check your connection.'**
-  String get commonGcpErrorNetwork;
-
-  /// No description provided for @commonGcpErrorUnknown.
-  ///
-  /// In en, this message translates to:
-  /// **'An error occurred. Please check your configuration.'**
-  String get commonGcpErrorUnknown;
-
   /// No description provided for @accountRemovedSnackbar.
   ///
   /// In en, this message translates to:
@@ -595,6 +559,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Fix'**
   String get doctorFix;
+
+  /// Opens the Cloud Console route a remedy offers as its gcloud-free alternative.
+  ///
+  /// In en, this message translates to:
+  /// **'Open in Cloud Console'**
+  String get doctorOpenInConsole;
+
+  /// Copies the Cloud Console URL of a remedy to the clipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy link'**
+  String get doctorCopyConsoleLink;
+
+  /// No description provided for @doctorConsoleLinkCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Cloud Console link copied to clipboard'**
+  String get doctorConsoleLinkCopied;
 
   /// No description provided for @dbConnectionTitle.
   ///
@@ -1172,6 +1154,138 @@ abstract class AppLocalizations {
   /// **'Appearance'**
   String get settingsAppearanceTitle;
 
+  /// No description provided for @settingsAuthEngineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign-in method'**
+  String get settingsAuthEngineTitle;
+
+  /// No description provided for @settingsAuthEngineNative.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC signs in (recommended)'**
+  String get settingsAuthEngineNative;
+
+  /// No description provided for @settingsAuthEngineNativeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC opens your browser and keeps its own session. No gcloud needed.'**
+  String get settingsAuthEngineNativeSubtitle;
+
+  /// No description provided for @settingsAuthEngineGcloud.
+  ///
+  /// In en, this message translates to:
+  /// **'Use the gcloud CLI'**
+  String get settingsAuthEngineGcloud;
+
+  /// No description provided for @settingsAuthEngineGcloudSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC uses the session gcloud already has. You keep it signed in yourself with \'gcloud auth login\'.'**
+  String get settingsAuthEngineGcloudSubtitle;
+
+  /// No description provided for @settingsAuthEngineChangeFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not change the sign-in method: {error}'**
+  String settingsAuthEngineChangeFailed(String error);
+
+  /// No description provided for @settingsAuthEngineNameNative.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC\'s own sign-in'**
+  String get settingsAuthEngineNameNative;
+
+  /// No description provided for @settingsAuthEngineNameGcloud.
+  ///
+  /// In en, this message translates to:
+  /// **'the gcloud CLI'**
+  String get settingsAuthEngineNameGcloud;
+
+  /// No description provided for @settingsEngineEnvOverride.
+  ///
+  /// In en, this message translates to:
+  /// **'The {variable} environment variable is forcing {engine}, so that is what LCC is using right now. Your choice below is saved, but it will not take effect until that variable is unset.'**
+  String settingsEngineEnvOverride(String variable, String engine);
+
+  /// No description provided for @settingsAdvancedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Advanced'**
+  String get settingsAdvancedTitle;
+
+  /// No description provided for @settingsAdvancedSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostic settings. The native engines are recommended; change these only to work around a problem.'**
+  String get settingsAdvancedSubtitle;
+
+  /// No description provided for @settingsTunnelEngineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'IAP tunnel engine'**
+  String get settingsTunnelEngineTitle;
+
+  /// No description provided for @settingsTunnelEngineNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Native (recommended)'**
+  String get settingsTunnelEngineNative;
+
+  /// No description provided for @settingsTunnelEngineNativeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC opens the IAP tunnel itself, with no gcloud process.'**
+  String get settingsTunnelEngineNativeSubtitle;
+
+  /// No description provided for @settingsTunnelEngineGcloud.
+  ///
+  /// In en, this message translates to:
+  /// **'gcloud CLI'**
+  String get settingsTunnelEngineGcloud;
+
+  /// No description provided for @settingsTunnelEngineGcloudSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses \'gcloud compute start-iap-tunnel\'. Requires gcloud installed.'**
+  String get settingsTunnelEngineGcloudSubtitle;
+
+  /// No description provided for @settingsSshForwardEngineTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH port forward engine'**
+  String get settingsSshForwardEngineTitle;
+
+  /// No description provided for @settingsSshForwardEngineNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Native (recommended)'**
+  String get settingsSshForwardEngineNative;
+
+  /// No description provided for @settingsSshForwardEngineNativeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC forwards the port itself, with no ssh process.'**
+  String get settingsSshForwardEngineNativeSubtitle;
+
+  /// No description provided for @settingsSshForwardEngineGcloud.
+  ///
+  /// In en, this message translates to:
+  /// **'gcloud CLI'**
+  String get settingsSshForwardEngineGcloud;
+
+  /// No description provided for @settingsSshForwardEngineGcloudSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Uses gcloud and the system ssh. Requires gcloud installed.'**
+  String get settingsSshForwardEngineGcloudSubtitle;
+
+  /// No description provided for @settingsEngineAppliesToNewOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Tunnels already open keep the engine they were opened with. This applies to the next one.'**
+  String get settingsEngineAppliesToNewOnly;
+
   /// No description provided for @settingsAutoRefreshTitle.
   ///
   /// In en, this message translates to:
@@ -1555,12 +1669,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Modern GNOME remote desktop app'**
   String get settingsRdpDescGnome;
-
-  /// No description provided for @settingsRdpDescMstsc.
-  ///
-  /// In en, this message translates to:
-  /// **'Windows native remote desktop client'**
-  String get settingsRdpDescMstsc;
 
   /// No description provided for @settingsVncDescRemmina.
   ///
@@ -2792,12 +2900,6 @@ abstract class AppLocalizations {
   /// **'Uploading folder {folderName}…'**
   String sftpUploadingFolder(String folderName);
 
-  /// No description provided for @sftpUploadingFolderProgress.
-  ///
-  /// In en, this message translates to:
-  /// **'Uploading {current}/{total}: {fileName}…'**
-  String sftpUploadingFolderProgress(int current, int total, String fileName);
-
   /// No description provided for @sftpErrorUploadFolder.
   ///
   /// In en, this message translates to:
@@ -3074,6 +3176,36 @@ abstract class AppLocalizations {
   /// **'Check Again'**
   String get dashboardCheckAgainButton;
 
+  /// No description provided for @dashboardKeyringTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Can\'t read your sign-in from the system keyring'**
+  String get dashboardKeyringTitle;
+
+  /// No description provided for @dashboardKeyringUnreachableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC could not reach the system keyring. This usually means no Secret Service (GNOME Keyring or KWallet) is running.'**
+  String get dashboardKeyringUnreachableBody;
+
+  /// No description provided for @dashboardKeyringRefusedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The system keyring did not grant access: it is locked, or the unlock was cancelled.'**
+  String get dashboardKeyringRefusedBody;
+
+  /// No description provided for @dashboardKeyringPendingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for you to unlock the system keyring. If a dialog is asking for your password (it may be behind this window), answer it and then press Check Again.'**
+  String get dashboardKeyringPendingBody;
+
+  /// No description provided for @dashboardKeyringSessionKept.
+  ///
+  /// In en, this message translates to:
+  /// **'Your sign-in is still saved; you do not need to sign in again.'**
+  String get dashboardKeyringSessionKept;
+
   /// No description provided for @dashboardLaunchingBrowserLogin.
   ///
   /// In en, this message translates to:
@@ -3308,6 +3440,84 @@ abstract class AppLocalizations {
   /// **'All'**
   String get dashboardFilterAll;
 
+  /// No description provided for @dashboardFilterRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'Running'**
+  String get dashboardFilterRunning;
+
+  /// No description provided for @dashboardFilterStopped.
+  ///
+  /// In en, this message translates to:
+  /// **'Stopped'**
+  String get dashboardFilterStopped;
+
+  /// No description provided for @dashboardFilterSuspended.
+  ///
+  /// In en, this message translates to:
+  /// **'Suspended'**
+  String get dashboardFilterSuspended;
+
+  /// No description provided for @appErrorNotAuthenticated.
+  ///
+  /// In en, this message translates to:
+  /// **'Your session expired. Sign in again.'**
+  String get appErrorNotAuthenticated;
+
+  /// No description provided for @appErrorPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'You don\'t have permission for this operation.'**
+  String get appErrorPermissionDenied;
+
+  /// No description provided for @appErrorNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The requested resource was not found.'**
+  String get appErrorNotFound;
+
+  /// No description provided for @appErrorNetwork.
+  ///
+  /// In en, this message translates to:
+  /// **'Network error. Check your connection and try again.'**
+  String get appErrorNetwork;
+
+  /// No description provided for @appErrorQuotaExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Quota exceeded. Try again later or request more quota.'**
+  String get appErrorQuotaExceeded;
+
+  /// No description provided for @appErrorGcloudNotInstalled.
+  ///
+  /// In en, this message translates to:
+  /// **'The gcloud CLI is not installed or was not found.'**
+  String get appErrorGcloudNotInstalled;
+
+  /// No description provided for @appErrorAlreadyExists.
+  ///
+  /// In en, this message translates to:
+  /// **'That resource already exists.'**
+  String get appErrorAlreadyExists;
+
+  /// No description provided for @appErrorInvalidInput.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid input.'**
+  String get appErrorInvalidInput;
+
+  /// No description provided for @appErrorCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation cancelled.'**
+  String get appErrorCancelled;
+
+  /// No description provided for @appErrorGeneric.
+  ///
+  /// In en, this message translates to:
+  /// **'Operation failed: {detail}'**
+  String appErrorGeneric(String detail);
+
   /// No description provided for @dashboardAllProjectsHint.
   ///
   /// In en, this message translates to:
@@ -3535,6 +3745,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Actions'**
   String get dashboardActionsTitle;
+
+  /// No description provided for @dashboardActionsGroupAccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Access & connections'**
+  String get dashboardActionsGroupAccess;
+
+  /// No description provided for @dashboardActionsGroupPower.
+  ///
+  /// In en, this message translates to:
+  /// **'Power & state'**
+  String get dashboardActionsGroupPower;
+
+  /// No description provided for @dashboardActionsGroupTools.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools'**
+  String get dashboardActionsGroupTools;
 
   /// No description provided for @dashboardConnectRdpButton.
   ///
@@ -3794,6 +4022,96 @@ abstract class AppLocalizations {
   /// **'Selected port: {port}'**
   String appSelectedPortLabel(int port);
 
+  /// No description provided for @customTunnelReady.
+  ///
+  /// In en, this message translates to:
+  /// **'Tunnel ready at {address}'**
+  String customTunnelReady(String address);
+
+  /// No description provided for @customTunnelReusedPort.
+  ///
+  /// In en, this message translates to:
+  /// **'Reused an existing tunnel on {address}; the requested port {requested} wasn\'t applied.'**
+  String customTunnelReusedPort(String address, int requested);
+
+  /// No description provided for @customTunnelAddressCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Address copied'**
+  String get customTunnelAddressCopied;
+
+  /// No description provided for @customTunnelFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t create the tunnel'**
+  String get customTunnelFailedTitle;
+
+  /// No description provided for @customTunnelLocalhostHint.
+  ///
+  /// In en, this message translates to:
+  /// **'The service may be listening only on 127.0.0.1; IAP can\'t reach localhost-only services. Bind it to 0.0.0.0 or use SSH forwarding.'**
+  String get customTunnelLocalhostHint;
+
+  /// No description provided for @customTunnelRunDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Run Doctor'**
+  String get customTunnelRunDoctor;
+
+  /// No description provided for @customTunnelModeDirect.
+  ///
+  /// In en, this message translates to:
+  /// **'Direct (IAP)'**
+  String get customTunnelModeDirect;
+
+  /// No description provided for @customTunnelModeSshForward.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH forward'**
+  String get customTunnelModeSshForward;
+
+  /// No description provided for @customTunnelSshForwardHint.
+  ///
+  /// In en, this message translates to:
+  /// **'For services listening only on 127.0.0.1 on the VM (IAP can\'t reach them).'**
+  String get customTunnelSshForwardHint;
+
+  /// No description provided for @customTunnelLocalPortLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Local port (optional)'**
+  String get customTunnelLocalPortLabel;
+
+  /// No description provided for @customTunnelLocalPortHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Empty = auto-assigned'**
+  String get customTunnelLocalPortHint;
+
+  /// No description provided for @tunnelKindSshForward.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH forward'**
+  String get tunnelKindSshForward;
+
+  /// No description provided for @tunnelEngineNative.
+  ///
+  /// In en, this message translates to:
+  /// **'Native'**
+  String get tunnelEngineNative;
+
+  /// No description provided for @tunnelEngineGcloud.
+  ///
+  /// In en, this message translates to:
+  /// **'gcloud'**
+  String get tunnelEngineGcloud;
+
+  /// No description provided for @tunnelEngineTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Engine used for this connection'**
+  String get tunnelEngineTooltip;
+
   /// No description provided for @appConnectionSettingsTitle.
   ///
   /// In en, this message translates to:
@@ -3841,6 +4159,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Password (Optional)'**
   String get appPasswordOptionalLabel;
+
+  /// No description provided for @appVncDisplayLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Display'**
+  String get appVncDisplayLabel;
+
+  /// No description provided for @appVncDisplayHelper.
+  ///
+  /// In en, this message translates to:
+  /// **'Display :{display} → port {port}'**
+  String appVncDisplayHelper(int display, int port);
+
+  /// No description provided for @appVncDisplayInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter the display ({example}), not the port ({port}).'**
+  String appVncDisplayInvalid(int example, int port);
 
   /// No description provided for @appVncPasswordHelper.
   ///
@@ -4163,8 +4499,588 @@ abstract class AppLocalizations {
   /// No description provided for @sessionExpiredReauthFailed.
   ///
   /// In en, this message translates to:
-  /// **'Re-authentication failed or was cancelled.'**
-  String get sessionExpiredReauthFailed;
+  /// **'Re-authentication failed: {error}'**
+  String sessionExpiredReauthFailed(String error);
+
+  /// No description provided for @tunnelErrorNotAuthenticated.
+  ///
+  /// In en, this message translates to:
+  /// **'Not signed in to Google Cloud. Run \'gcloud auth login\'.'**
+  String get tunnelErrorNotAuthenticated;
+
+  /// No description provided for @tunnelErrorPermissionDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'Permission denied. The account needs the IAP-secured Tunnel User role.'**
+  String get tunnelErrorPermissionDenied;
+
+  /// No description provided for @tunnelErrorInstanceNotFound.
+  ///
+  /// In en, this message translates to:
+  /// **'The instance no longer exists in this project and zone.'**
+  String get tunnelErrorInstanceNotFound;
+
+  /// No description provided for @tunnelErrorInstanceNotRunning.
+  ///
+  /// In en, this message translates to:
+  /// **'The instance is not running.'**
+  String get tunnelErrorInstanceNotRunning;
+
+  /// No description provided for @tunnelErrorFirewallBlocked.
+  ///
+  /// In en, this message translates to:
+  /// **'A firewall rule is blocking IAP. Allow ingress from 35.235.240.0/20.'**
+  String get tunnelErrorFirewallBlocked;
+
+  /// No description provided for @tunnelErrorRelayUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach the IAP relay. Check the network or proxy settings.'**
+  String get tunnelErrorRelayUnreachable;
+
+  /// No description provided for @tunnelErrorProtocolError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unexpected response from the IAP relay.'**
+  String get tunnelErrorProtocolError;
+
+  /// No description provided for @tunnelErrorBackendUnreachable.
+  ///
+  /// In en, this message translates to:
+  /// **'The IAP relay could not reach port {port} on the VM. Check that a firewall rule allows ingress from 35.235.240.0/20 to that port, and that a service is listening on it.'**
+  String tunnelErrorBackendUnreachable(String port);
+
+  /// No description provided for @tunnelErrorLocalPortUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'No local port available for the tunnel.'**
+  String get tunnelErrorLocalPortUnavailable;
+
+  /// No description provided for @tunnelErrorLocalPortInUse.
+  ///
+  /// In en, this message translates to:
+  /// **'Local port {port} is already in use on this machine. Close whatever is holding it, or let the app choose a port.'**
+  String tunnelErrorLocalPortInUse(String port);
+
+  /// No description provided for @tunnelErrorSessionLost.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection to the VM dropped, so this forward stopped working. Connect again to restore it.'**
+  String get tunnelErrorSessionLost;
+
+  /// No description provided for @tunnelErrorUnknown.
+  ///
+  /// In en, this message translates to:
+  /// **'The tunnel could not be established.'**
+  String get tunnelErrorUnknown;
+
+  /// No description provided for @sftpFolderProgressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'{percent}% — {done}/{total} MB, {filesDone}/{filesTotal} files'**
+  String sftpFolderProgressLabel(
+    int percent,
+    int done,
+    int total,
+    int filesDone,
+    int filesTotal,
+  );
+
+  /// No description provided for @workspaceTerminalConnecting.
+  ///
+  /// In en, this message translates to:
+  /// **'Connecting…'**
+  String get workspaceTerminalConnecting;
+
+  /// No description provided for @workspaceTerminalDisconnected.
+  ///
+  /// In en, this message translates to:
+  /// **'Session ended.'**
+  String get workspaceTerminalDisconnected;
+
+  /// No description provided for @workspaceTerminalAbandoned.
+  ///
+  /// In en, this message translates to:
+  /// **'The connection was cancelled before it could be set up. Close this tab and open it again to retry.'**
+  String get workspaceTerminalAbandoned;
+
+  /// No description provided for @workspaceReconnect.
+  ///
+  /// In en, this message translates to:
+  /// **'Reconnect'**
+  String get workspaceReconnect;
+
+  /// No description provided for @workspaceTerminalError.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not open the SSH session: {detail}'**
+  String workspaceTerminalError(String detail);
+
+  /// No description provided for @workspaceNoTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'Select a VM to get started'**
+  String get workspaceNoTabs;
+
+  /// No description provided for @workspaceCloseTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tab'**
+  String get workspaceCloseTab;
+
+  /// No description provided for @workspaceTabOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Overview'**
+  String get workspaceTabOverview;
+
+  /// No description provided for @workspaceTabSsh.
+  ///
+  /// In en, this message translates to:
+  /// **'SSH'**
+  String get workspaceTabSsh;
+
+  /// No description provided for @workspaceTabSftp.
+  ///
+  /// In en, this message translates to:
+  /// **'SFTP'**
+  String get workspaceTabSftp;
+
+  /// No description provided for @workspaceTabDoctor.
+  ///
+  /// In en, this message translates to:
+  /// **'Doctor'**
+  String get workspaceTabDoctor;
+
+  /// No description provided for @workspaceTabDiagnostics.
+  ///
+  /// In en, this message translates to:
+  /// **'Diagnostics'**
+  String get workspaceTabDiagnostics;
+
+  /// No description provided for @workspaceCloseTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Close app?'**
+  String get workspaceCloseTitle;
+
+  /// No description provided for @workspaceCloseWithSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'You have {count} active session(s). Close anyway?'**
+  String workspaceCloseWithSessions(int count);
+
+  /// No description provided for @workspaceCloseWithTunnels.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} tunnel(s) are active and will be closed when the app exits. Close anyway?'**
+  String workspaceCloseWithTunnels(int count);
+
+  /// No description provided for @workspaceCloseWithSessionsAndTunnels.
+  ///
+  /// In en, this message translates to:
+  /// **'You have {sessions} active session(s) and {tunnels} active tunnel(s). Close anyway?'**
+  String workspaceCloseWithSessionsAndTunnels(int sessions, int tunnels);
+
+  /// No description provided for @workspaceCloseAnyway.
+  ///
+  /// In en, this message translates to:
+  /// **'Close anyway'**
+  String get workspaceCloseAnyway;
+
+  /// No description provided for @workspaceScrollTabsLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll tabs left'**
+  String get workspaceScrollTabsLeft;
+
+  /// No description provided for @workspaceScrollTabsRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Scroll tabs right'**
+  String get workspaceScrollTabsRight;
+
+  /// No description provided for @workspaceAllTabs.
+  ///
+  /// In en, this message translates to:
+  /// **'All tabs'**
+  String get workspaceAllTabs;
+
+  /// No description provided for @workspacePinTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Pin tab'**
+  String get workspacePinTab;
+
+  /// No description provided for @workspaceUnpinTab.
+  ///
+  /// In en, this message translates to:
+  /// **'Unpin tab'**
+  String get workspaceUnpinTab;
+
+  /// No description provided for @workspaceCloseOthers.
+  ///
+  /// In en, this message translates to:
+  /// **'Close others'**
+  String get workspaceCloseOthers;
+
+  /// No description provided for @workspaceCloseToRight.
+  ///
+  /// In en, this message translates to:
+  /// **'Close tabs to the right'**
+  String get workspaceCloseToRight;
+
+  /// No description provided for @workspaceNewGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'New group from this tab'**
+  String get workspaceNewGroup;
+
+  /// No description provided for @workspaceAddToGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to group'**
+  String get workspaceAddToGroup;
+
+  /// No description provided for @workspaceGroupByVm.
+  ///
+  /// In en, this message translates to:
+  /// **'Group all tabs of this VM'**
+  String get workspaceGroupByVm;
+
+  /// No description provided for @workspaceRenameGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group…'**
+  String get workspaceRenameGroup;
+
+  /// No description provided for @workspaceUngroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Ungroup'**
+  String get workspaceUngroup;
+
+  /// No description provided for @workspaceCloseGroup.
+  ///
+  /// In en, this message translates to:
+  /// **'Close group'**
+  String get workspaceCloseGroup;
+
+  /// No description provided for @workspaceRenameGroupTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Rename group'**
+  String get workspaceRenameGroupTitle;
+
+  /// No description provided for @sftpViewDual.
+  ///
+  /// In en, this message translates to:
+  /// **'Dual'**
+  String get sftpViewDual;
+
+  /// No description provided for @sftpViewClassic.
+  ///
+  /// In en, this message translates to:
+  /// **'Classic'**
+  String get sftpViewClassic;
+
+  /// No description provided for @sftpQueueTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Transfer queue'**
+  String get sftpQueueTitle;
+
+  /// No description provided for @sftpQueueClearCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear completed'**
+  String get sftpQueueClearCompleted;
+
+  /// No description provided for @sftpQueueWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'waiting'**
+  String get sftpQueueWaiting;
+
+  /// No description provided for @sftpQueueDone.
+  ///
+  /// In en, this message translates to:
+  /// **'done'**
+  String get sftpQueueDone;
+
+  /// No description provided for @sftpQueueFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'error'**
+  String get sftpQueueFailed;
+
+  /// No description provided for @sftpQueueCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel transfer'**
+  String get sftpQueueCancel;
+
+  /// No description provided for @sftpQueueRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry'**
+  String get sftpQueueRetry;
+
+  /// No description provided for @sftpConflictTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Some files already exist'**
+  String get sftpConflictTitle;
+
+  /// No description provided for @sftpConflictBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} file(s) already exist in the destination. What do you want to do?'**
+  String sftpConflictBody(int count);
+
+  /// No description provided for @sftpConflictOverwrite.
+  ///
+  /// In en, this message translates to:
+  /// **'Overwrite all'**
+  String get sftpConflictOverwrite;
+
+  /// No description provided for @sftpConflictSkip.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip existing'**
+  String get sftpConflictSkip;
+
+  /// No description provided for @sftpQueueCancelled.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancelled'**
+  String get sftpQueueCancelled;
+
+  /// No description provided for @notifVmStateChangeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'VM State Changed: {instanceName}'**
+  String notifVmStateChangeTitle(String instanceName);
+
+  /// No description provided for @notifVmStateChangeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{oldState} → {newState}\n{project}/{zone}'**
+  String notifVmStateChangeBody(
+    String oldState,
+    String newState,
+    String project,
+    String zone,
+  );
+
+  /// No description provided for @notifTunnelFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'IAP Tunnel Failed: {instanceName}'**
+  String notifTunnelFailedTitle(String instanceName);
+
+  /// No description provided for @notifTunnelFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Port {port} disconnected\n{project}/{zone}'**
+  String notifTunnelFailedBody(int port, String project, String zone);
+
+  /// No description provided for @notifLifecycleSuccessTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'✓ {operation} completed: {instanceName}'**
+  String notifLifecycleSuccessTitle(String operation, String instanceName);
+
+  /// No description provided for @notifLifecycleSuccessBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{project}/{zone}'**
+  String notifLifecycleSuccessBody(String project, String zone);
+
+  /// No description provided for @notifLifecycleFailedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'✗ {operation} failed: {instanceName}'**
+  String notifLifecycleFailedTitle(String operation, String instanceName);
+
+  /// No description provided for @notifLifecycleFailedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{error}\n{project}/{zone}'**
+  String notifLifecycleFailedBody(String error, String project, String zone);
+
+  /// No description provided for @notifUnknownError.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown error'**
+  String get notifUnknownError;
+
+  /// No description provided for @notifTunnelReconnectingTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tunnel Reconnecting: {instanceName}'**
+  String notifTunnelReconnectingTitle(String instanceName);
+
+  /// No description provided for @notifTunnelReconnectingBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Port {port} - Attempt {attempt}/{maxAttempts}\n{project}'**
+  String notifTunnelReconnectingBody(
+    int port,
+    int attempt,
+    int maxAttempts,
+    String project,
+  );
+
+  /// No description provided for @notifTunnelReconnectedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tunnel Reconnected: {instanceName}'**
+  String notifTunnelReconnectedTitle(String instanceName);
+
+  /// No description provided for @notifTunnelReconnectedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Port {port} successfully restored\n{project}'**
+  String notifTunnelReconnectedBody(int port, String project);
+
+  /// No description provided for @notifTunnelGaveUpTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tunnel Failed: {instanceName}'**
+  String notifTunnelGaveUpTitle(String instanceName);
+
+  /// No description provided for @notifTunnelGaveUpBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Port {port} - Gave up after {maxAttempts} attempts\n{project}'**
+  String notifTunnelGaveUpBody(int port, int maxAttempts, String project);
+
+  /// No description provided for @notifClientFallbackTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'{protocol} Client Fallback'**
+  String notifClientFallbackTitle(String protocol);
+
+  /// No description provided for @notifClientFallbackBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Your preferred client was unavailable. Using {clientName} instead.'**
+  String notifClientFallbackBody(String clientName);
+
+  /// No description provided for @sshConsentTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorise LCC on this project?'**
+  String get sshConsentTitle;
+
+  /// No description provided for @sshConsentBodyInstance.
+  ///
+  /// In en, this message translates to:
+  /// **'To open SSH, SFTP and port forwards without gcloud, LCC needs an SSH key authorised on the VMs of {project}. It will add its own key to each VM as you connect to it — never to the project, so no other VM is affected.'**
+  String sshConsentBodyInstance(String project);
+
+  /// No description provided for @sshConsentFingerprint.
+  ///
+  /// In en, this message translates to:
+  /// **'Key: {fingerprint}'**
+  String sshConsentFingerprint(String fingerprint);
+
+  /// No description provided for @sshConsentBodyOsLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'To open SSH, SFTP and port forwards without gcloud, LCC needs an SSH key authorised for your account. The VMs of {project} use OS Login, where keys belong to the Google account rather than to a VM: authorising this key will let it log in to every OS Login VM your account can reach, in this project and in any other.'**
+  String sshConsentBodyOsLogin(String project);
+
+  /// No description provided for @sshConsentRemovalInstance.
+  ///
+  /// In en, this message translates to:
+  /// **'You can remove it any time from the VM\'s metadata: look for the entry commented \'lightweight-cloud-connector\'.'**
+  String get sshConsentRemovalInstance;
+
+  /// No description provided for @sshConsentRemovalOsLogin.
+  ///
+  /// In en, this message translates to:
+  /// **'The key is stored on your account, not in any VM\'s metadata, so removing it from a VM will not work. Remove it from your account\'s OS Login keys instead (`gcloud compute os-login ssh-keys list` / `remove`); it is the one commented \'lightweight-cloud-connector\'.'**
+  String get sshConsentRemovalOsLogin;
+
+  /// No description provided for @sshConsentAllow.
+  ///
+  /// In en, this message translates to:
+  /// **'Authorise'**
+  String get sshConsentAllow;
+
+  /// No description provided for @sshConsentDeny.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get sshConsentDeny;
+
+  /// No description provided for @sshConsentDenied.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC is not authorised to add an SSH key to this project, so SSH, SFTP and port forwards are unavailable. Ask an administrator to authorise your key on the VM, or open the port to 35.235.240.0/20 in the firewall and use a direct (IAP) tunnel instead.'**
+  String get sshConsentDenied;
+
+  /// No description provided for @gcloudCommandTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Run this in a terminal'**
+  String get gcloudCommandTitle;
+
+  /// No description provided for @gcloudCommandCopy.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy command'**
+  String get gcloudCommandCopy;
+
+  /// No description provided for @gcloudCommandCopied.
+  ///
+  /// In en, this message translates to:
+  /// **'Command copied'**
+  String get gcloudCommandCopied;
+
+  /// No description provided for @gcloudCommandRefresh.
+  ///
+  /// In en, this message translates to:
+  /// **'I ran it — refresh'**
+  String get gcloudCommandRefresh;
+
+  /// No description provided for @gcloudCommandAddExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'With the gcloud sign-in method selected, LCC does not sign in for you: gcloud keeps its own session and you maintain it.'**
+  String get gcloudCommandAddExplanation;
+
+  /// No description provided for @gcloudCommandRemoveExplanation.
+  ///
+  /// In en, this message translates to:
+  /// **'With the gcloud sign-in method selected, LCC does not revoke gcloud\'s credentials. Revoking is done with gcloud itself.'**
+  String get gcloudCommandRemoveExplanation;
+
+  /// No description provided for @engineNoticeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC now signs in on its own'**
+  String get engineNoticeTitle;
+
+  /// No description provided for @engineNoticeBody.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC no longer needs the gcloud CLI to sign in: it opens your browser and keeps its own session. If you would rather keep using gcloud\'s session, choose it under Sign-in method in Settings — your gcloud accounts are still there.'**
+  String get engineNoticeBody;
+
+  /// No description provided for @engineNoticeGotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it'**
+  String get engineNoticeGotIt;
+
+  /// No description provided for @engineNoticeOpenSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Settings'**
+  String get engineNoticeOpenSettings;
 }
 
 class _AppLocalizationsDelegate

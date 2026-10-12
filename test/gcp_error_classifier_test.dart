@@ -1,37 +1,37 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:linux_cloud_connector/src/features/gcloud_provider.dart';
+import 'package:linux_cloud_connector/src/features/app_error.dart';
 
 void main() {
-  group('classifyGcpError', () {
-    test('session-expired reauth message -> unauthenticated', () {
+  group('classifyRustError', () {
+    test('session-expired reauth message -> notAuthenticated', () {
       final e = Exception(
           'Authentication failed: your Google Cloud session has expired or '
           'requires reauthentication. Run: gcloud auth login');
-      expect(classifyGcpError(e), GcpErrorType.unauthenticated);
+      expect(classifyRustError(e), AppErrorCode.notAuthenticated);
     });
 
-    test('invalid_rapt -> unauthenticated', () {
-      expect(classifyGcpError(Exception('reauth failed: invalid_rapt')),
-          GcpErrorType.unauthenticated);
+    test('invalid_rapt -> notAuthenticated', () {
+      expect(classifyRustError(Exception('reauth failed: invalid_rapt')),
+          AppErrorCode.notAuthenticated);
     });
 
-    test('No active GCP account -> unauthenticated', () {
-      expect(classifyGcpError(Exception('No active GCP account. Please run ...')),
-          GcpErrorType.unauthenticated);
+    test('No active GCP account -> notAuthenticated', () {
+      expect(classifyRustError(Exception('No active GCP account. Please run ...')),
+          AppErrorCode.notAuthenticated);
     });
 
-    test('UNAUTHENTICATED still classified -> unauthenticated', () {
-      expect(classifyGcpError(Exception('UNAUTHENTICATED')),
-          GcpErrorType.unauthenticated);
+    test('UNAUTHENTICATED still classified -> notAuthenticated', () {
+      expect(classifyRustError(Exception('UNAUTHENTICATED')),
+          AppErrorCode.notAuthenticated);
     });
 
     test('PERMISSION_DENIED -> permissionDenied', () {
-      expect(classifyGcpError(Exception('PERMISSION_DENIED')),
-          GcpErrorType.permissionDenied);
+      expect(classifyRustError(Exception('PERMISSION_DENIED')),
+          AppErrorCode.permissionDenied);
     });
 
     test('unrelated message -> unknown', () {
-      expect(classifyGcpError(Exception('disk full')), GcpErrorType.unknown);
+      expect(classifyRustError(Exception('disk full')), AppErrorCode.unknown);
     });
   });
 }

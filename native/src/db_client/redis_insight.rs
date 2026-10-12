@@ -1,5 +1,6 @@
 use super::utils::*;
 use super::{DbConnectionSettings, DatabaseType};
+use crate::child_reaper::SpawnReaped;
 use std::process::{Command, Stdio};
 use anyhow::{Result, anyhow};
 use tracing;
@@ -39,7 +40,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
         let native = Command::new(NATIVE_CMD)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if native.is_ok() {
             tracing::info!(
@@ -57,7 +58,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
         let native = Command::new(NATIVE_CMD_ALT)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if native.is_ok() {
             tracing::info!(
@@ -76,7 +77,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
             .args(["run", FLATPAK_ID])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if flatpak.is_ok() {
             tracing::info!(

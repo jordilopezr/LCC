@@ -3,20 +3,23 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import 'db_client.dart';
-import 'diagnostics.dart';
-import 'doctor.dart';
-import 'frb_generated.dart';
-import 'gcloud.dart';
-import 'gcp_rest_client.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/accounts.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/db_client.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/diagnostics.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/doctor.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/frb_generated.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/gcloud.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/gcp_rest_client.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
-import 'rdp_client.dart';
-import 'sftp.dart';
-import 'snapshots.dart';
-import 'sshfs_mount.dart';
-import 'tunnel.dart';
-import 'vnc_client.dart';
-import 'windows_credentials/storage.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/rdp_client.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/sftp.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/snapshots.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/ssh_access.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/sshfs_mount.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/vnc_client.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/windows_credentials/storage.dart';
+
+// These functions are ignored because they are not marked as `pub`: `engine_name`, `slot_from_key`, `start_failure`, `started_connection`, `tunnel_failure`
 
 Future<String> testGcpAuthentication() =>
     RustLib.instance.api.crateApiTestGcpAuthentication();
@@ -111,10 +114,7 @@ Future<bool> checkGcloudInstalled() =>
 Future<bool> checkGcloudAuth() =>
     RustLib.instance.api.crateApiCheckGcloudAuth();
 
-/// Get the email of the currently active GCP account
-///
-/// Uses `gcloud config get-value account` to retrieve the email address
-/// of the authenticated user. Returns the full email (e.g., "user@domain.com").
+/// Get the email of the currently active GCP account.
 Future<String> getGcloudAccountEmail() =>
     RustLib.instance.api.crateApiGetGcloudAccountEmail();
 
@@ -124,29 +124,36 @@ Future<List<GcpProject>> listProjects() =>
 Future<List<GcpInstance>> listInstances({required String projectId}) =>
     RustLib.instance.api.crateApiListInstances(projectId: projectId);
 
-Future<void> gcloudLogin() => RustLib.instance.api.crateApiGcloudLogin();
-
-Future<void> gcloudLogout() => RustLib.instance.api.crateApiGcloudLogout();
-
-/// List all authenticated gcloud accounts
+/// List all authenticated accounts
 Future<List<GcloudAccount>> listGcloudAccounts() =>
     RustLib.instance.api.crateApiListGcloudAccounts();
 
-/// Switch the active gcloud account
+/// Switch the active account
 Future<void> switchGcloudAccount({required String email}) =>
     RustLib.instance.api.crateApiSwitchGcloudAccount(email: email);
 
-/// Add a new gcloud account (opens browser)
+/// Add a new account (opens browser)
 Future<void> addGcloudAccount() =>
     RustLib.instance.api.crateApiAddGcloudAccount();
 
-/// Remove (revoke) a gcloud account
+/// Remove an account: revoked at Google, then forgotten locally
 Future<void> removeGcloudAccount({required String email}) =>
     RustLib.instance.api.crateApiRemoveGcloudAccount(email: email);
+
+/// Log out every stored account: revoked at Google, then forgotten locally.
+Future<void> logOutAll() => RustLib.instance.api.crateApiLogOutAll();
 
 /// List projects for a specific account (without changing global config)
 Future<List<GcpProject>> listProjectsForAccount({required String email}) =>
     RustLib.instance.api.crateApiListProjectsForAccount(email: email);
+
+/// Whether gcloud is present, and whether there is a usable session.
+///
+/// One call rather than two, because under the native engine "is there a
+/// session" must not be gated on gcloud being installed — and that decision
+/// belongs where the engine flag lives.
+Future<AuthStatus> checkAuthStatus() =>
+    RustLib.instance.api.crateApiCheckAuthStatus();
 
 Future<void> startInstance({
   required String projectId,
@@ -221,22 +228,53 @@ Future<void> launchSftp({required int port, String? username}) =>
 
 Future<String> greet() => RustLib.instance.api.crateApiGreet();
 
-Future<int> startConnection({
+Future<StartedConnection> startConnection({
   required String projectId,
   required String zone,
   required String instanceName,
   required int remotePort,
+  int? localPort,
 }) => RustLib.instance.api.crateApiStartConnection(
   projectId: projectId,
   zone: zone,
   instanceName: instanceName,
   remotePort: remotePort,
+  localPort: localPort,
 );
 
 Future<void> stopConnection({
   required String instanceName,
   required int remotePort,
 }) => RustLib.instance.api.crateApiStopConnection(
+  instanceName: instanceName,
+  remotePort: remotePort,
+);
+
+/// `identity_file` is the key file already proven to work for `username` on
+/// this VM, as reported by `probe_ssh_access`/`provision_ssh_access`. `None`
+/// means the SSH agent authenticated, and the candidate ladder is right.
+Future<StartedConnection> startSshForward({
+  required String projectId,
+  required String zone,
+  required String instanceName,
+  required int remotePort,
+  int? localPort,
+  required String username,
+  String? identityFile,
+}) => RustLib.instance.api.crateApiStartSshForward(
+  projectId: projectId,
+  zone: zone,
+  instanceName: instanceName,
+  remotePort: remotePort,
+  localPort: localPort,
+  username: username,
+  identityFile: identityFile,
+);
+
+Future<void> stopSshForward({
+  required String instanceName,
+  required int remotePort,
+}) => RustLib.instance.api.crateApiStopSshForward(
   instanceName: instanceName,
   remotePort: remotePort,
 );
@@ -263,9 +301,12 @@ Future<BigInt> measureConnectionLatency({
 Future<List<String>> cleanupDeadConnections() =>
     RustLib.instance.api.crateApiCleanupDeadConnections();
 
-/// Get status snapshot of all active tunnels for the global panel.
-Future<List<TunnelInfo>> getAllConnectionsStatus() =>
-    RustLib.instance.api.crateApiGetAllConnectionsStatus();
+/// Refresh a tunnel's idle timer by its local port. Used by UIs (e.g. the SFTP
+/// browser) that hold a tunnel open but may have no active TCP connection
+/// between stateless operations, so the idle reaper doesn't close it from
+/// under them.
+Future<void> touchTunnel({required int localPort}) =>
+    RustLib.instance.api.crateApiTouchTunnel(localPort: localPort);
 
 Future<RdpLaunchResult> launchRdp({
   required int port,
@@ -313,8 +354,15 @@ Future<VncLaunchResult> launchVnc({
 Future<List<VncClientType>> getAvailableVncClients() =>
     RustLib.instance.api.crateApiGetAvailableVncClients();
 
-Future<void> initLoggingSystem() =>
-    RustLib.instance.api.crateApiInitLoggingSystem();
+Future<void> initLoggingSystem({required String appVersion}) =>
+    RustLib.instance.api.crateApiInitLoggingSystem(appVersion: appVersion);
+
+/// Record a deliberate exit. `reason` names which path asked for it, so the
+/// three window-close branches stay distinguishable in the log.
+///
+/// Called on every clean exit precisely so that its absence means something.
+Future<void> logShutdown({required String reason}) =>
+    RustLib.instance.api.crateApiLogShutdown(reason: reason);
 
 Future<String> exportLogsToFile() =>
     RustLib.instance.api.crateApiExportLogsToFile();
@@ -326,11 +374,13 @@ Future<List<RemoteFileEntry>> sftpListDir({
   required String host,
   required int port,
   required String username,
+  String? identityFile,
   required String remotePath,
 }) => RustLib.instance.api.crateApiSftpListDir(
   host: host,
   port: port,
   username: username,
+  identityFile: identityFile,
   remotePath: remotePath,
 );
 
@@ -338,39 +388,111 @@ Future<BigInt> sftpDownload({
   required String host,
   required int port,
   required String username,
+  String? identityFile,
   required String remotePath,
   required String localPath,
+  required int transferId,
 }) => RustLib.instance.api.crateApiSftpDownload(
   host: host,
   port: port,
   username: username,
+  identityFile: identityFile,
   remotePath: remotePath,
   localPath: localPath,
+  transferId: transferId,
 );
 
 Future<BigInt> sftpUpload({
   required String host,
   required int port,
   required String username,
+  String? identityFile,
   required String localPath,
   required String remotePath,
 }) => RustLib.instance.api.crateApiSftpUpload(
   host: host,
   port: port,
   username: username,
+  identityFile: identityFile,
   localPath: localPath,
   remotePath: remotePath,
 );
+
+/// Streaming upload: emits byte-level progress so the UI can show a progress bar.
+Stream<SftpProgress> sftpUploadStreaming({
+  required String host,
+  required int port,
+  required String username,
+  String? identityFile,
+  required String localPath,
+  required String remotePath,
+  required int transferId,
+}) => RustLib.instance.api.crateApiSftpUploadStreaming(
+  host: host,
+  port: port,
+  username: username,
+  identityFile: identityFile,
+  localPath: localPath,
+  remotePath: remotePath,
+  transferId: transferId,
+);
+
+/// Parallel upload: K SSH connections write ranges; emits aggregate progress.
+Stream<SftpProgress> sftpUploadParallel({
+  required String host,
+  required int port,
+  required String username,
+  String? identityFile,
+  required String localPath,
+  required String remotePath,
+  int? concurrency,
+  required int transferId,
+}) => RustLib.instance.api.crateApiSftpUploadParallel(
+  host: host,
+  port: port,
+  username: username,
+  identityFile: identityFile,
+  localPath: localPath,
+  remotePath: remotePath,
+  concurrency: concurrency,
+  transferId: transferId,
+);
+
+/// Parallel download: K SSH connections read ranges; emits aggregate progress.
+Stream<SftpProgress> sftpDownloadParallel({
+  required String host,
+  required int port,
+  required String username,
+  String? identityFile,
+  required String remotePath,
+  required String localPath,
+  int? concurrency,
+  required int transferId,
+}) => RustLib.instance.api.crateApiSftpDownloadParallel(
+  host: host,
+  port: port,
+  username: username,
+  identityFile: identityFile,
+  remotePath: remotePath,
+  localPath: localPath,
+  concurrency: concurrency,
+  transferId: transferId,
+);
+
+Future<void> sftpCancelTransfer({required int transferId}) =>
+    RustLib.instance.api.crateApiSftpCancelTransfer(transferId: transferId);
 
 Future<void> sftpMkdir({
   required String host,
   required int port,
   required String username,
+  String? identityFile,
   required String remotePath,
 }) => RustLib.instance.api.crateApiSftpMkdir(
   host: host,
   port: port,
   username: username,
+  identityFile: identityFile,
   remotePath: remotePath,
 );
 
@@ -378,12 +500,14 @@ Future<void> sftpDelete({
   required String host,
   required int port,
   required String username,
+  String? identityFile,
   required String remotePath,
   required bool isDirectory,
 }) => RustLib.instance.api.crateApiSftpDelete(
   host: host,
   port: port,
   username: username,
+  identityFile: identityFile,
   remotePath: remotePath,
   isDirectory: isDirectory,
 );
@@ -847,9 +971,14 @@ Future<String> executeDoctorFix({
   instanceName: instanceName,
 );
 
-/// Re-run `gcloud auth login` (opens the browser) to refresh an expired
-/// session. Surfaced by the in-app "Re-authenticate" banner. Reuses the same
-/// login path the Doctor uses (`execute_login`); adds no new gcloud logic.
+/// Open the browser to refresh an expired session. Surfaced by the in-app
+/// "Re-authenticate" banner.
+///
+/// Which sign-in runs depends on the auth engine, so the choice lives in
+/// `accounts`, with the rest of the dispatch. This used to call
+/// `gcloud auth login` unconditionally, which writes gcloud's credentials and
+/// never the native token store: under the native engine the button could not
+/// do the one thing its label promises.
 Future<void> reauthenticate() => RustLib.instance.api.crateApiReauthenticate();
 
 /// Get the boot disk name for a VM instance by querying gcloud.
@@ -910,3 +1039,107 @@ Future<void> createDiskFromSnapshot({
   snapshotName: snapshotName,
   newDiskName: newDiskName,
 );
+
+/// The SSH username for this VM, resolved without probing or provisioning.
+///
+/// Cheap enough to fill a form field on dialog open — one REST call, no tunnel.
+Future<String> sshUsernameFor({
+  required String projectId,
+  required String zone,
+  required String instanceName,
+}) => RustLib.instance.api.crateApiSshUsernameFor(
+  projectId: projectId,
+  zone: zone,
+  instanceName: instanceName,
+);
+
+/// Whether SSH access to this VM already works, and as which user.
+Future<SshAccessState> probeSshAccess({
+  required String projectId,
+  required String zone,
+  required String instanceName,
+}) => RustLib.instance.api.crateApiProbeSshAccess(
+  projectId: projectId,
+  zone: zone,
+  instanceName: instanceName,
+);
+
+/// Authorise LCC's key on this VM. Only call after the user has consented.
+Future<SshCredential> provisionSshAccess({
+  required String projectId,
+  required String zone,
+  required String instanceName,
+}) => RustLib.instance.api.crateApiProvisionSshAccess(
+  projectId: projectId,
+  zone: zone,
+  instanceName: instanceName,
+);
+
+/// The engine actually in force for this slot, with the environment override
+/// already applied.
+Future<String> engineFor({required String slot}) =>
+    RustLib.instance.api.crateApiEngineFor(slot: slot);
+
+/// The user's explicit choice for this slot, or None when they have never
+/// made one.
+Future<String?> storedEngine({required String slot}) =>
+    RustLib.instance.api.crateApiStoredEngine(slot: slot);
+
+/// The engine this slot's environment variable is forcing, or None when the
+/// environment is not overriding.
+Future<String?> engineOverride({required String slot}) =>
+    RustLib.instance.api.crateApiEngineOverride(slot: slot);
+
+/// The environment variable that outranks the stored choice for this slot.
+Future<String> engineEnvVar({required String slot}) =>
+    RustLib.instance.api.crateApiEngineEnvVar(slot: slot);
+
+/// Persist the user's choice for one slot.
+Future<void> setEngine({required String slot, required String engine}) =>
+    RustLib.instance.api.crateApiSetEngine(slot: slot, engine: engine);
+
+/// A tunnel or forward that is up, and the engine holding it: "native" or
+/// "gcloud". The engine is the entry's own — including when an existing entry
+/// is reused — so the tunnel manager can say which engine to look at even
+/// after the selected engine has changed.
+class StartedConnection {
+  final int localPort;
+  final String engine;
+
+  const StartedConnection({required this.localPort, required this.engine});
+
+  @override
+  int get hashCode => localPort.hashCode ^ engine.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is StartedConnection &&
+          runtimeType == other.runtimeType &&
+          localPort == other.localPort &&
+          engine == other.engine;
+}
+
+/// Error crossing the bridge: a stable code plus untranslated diagnostic detail.
+class TunnelFailure implements FrbException {
+  final String code;
+  final String? detail;
+
+  /// The engine that failed ("native" or "gcloud"), or None when the start
+  /// failed before any engine ran.
+  final String? engine;
+
+  const TunnelFailure({required this.code, this.detail, this.engine});
+
+  @override
+  int get hashCode => code.hashCode ^ detail.hashCode ^ engine.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TunnelFailure &&
+          runtimeType == other.runtimeType &&
+          code == other.code &&
+          detail == other.detail &&
+          engine == other.engine;
+}

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
+import 'app_error.dart';
 import 'gcloud_provider.dart';
 import '../bridge/api.dart/gcloud.dart';
 import '../bridge/api.dart/api.dart';
@@ -914,7 +915,11 @@ class _ClientLibTestScreenState extends ConsumerState<ClientLibTestScreen>
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(l10n.commonErrorPrefix(e.toString())),
+                            content: Text(
+                              l10n.commonErrorPrefix(
+                                localizedError(l10n, e, standalone: false),
+                              ),
+                            ),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -952,7 +957,11 @@ class _ClientLibTestScreenState extends ConsumerState<ClientLibTestScreen>
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(l10n.commonErrorPrefix(e.toString())),
+                            content: Text(
+                              l10n.commonErrorPrefix(
+                                localizedError(l10n, e, standalone: false),
+                              ),
+                            ),
                             backgroundColor: Colors.red,
                           ),
                         );
@@ -990,7 +999,11 @@ class _ClientLibTestScreenState extends ConsumerState<ClientLibTestScreen>
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text(l10n.commonErrorPrefix(e.toString())),
+                            content: Text(
+                              l10n.commonErrorPrefix(
+                                localizedError(l10n, e, standalone: false),
+                              ),
+                            ),
                             backgroundColor: Colors.red,
                           ),
                         );

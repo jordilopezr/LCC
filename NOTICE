@@ -1,0 +1,50 @@
+Lightweight Cloud Connector (LCC)
+Copyright (C) 2025-2026 Jordi Lopez Reyes
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program (see the LICENSE file). If not, see <https://www.gnu.org/licenses/>.
+
+
+ADDITIONAL TERMS UNDER SECTION 7 OF THE GNU GPL VERSION 3
+---------------------------------------------------------
+
+Pursuant to section 7(e) of the GNU General Public License version 3, this
+license does not grant any rights under trademark law for use of the names
+"Lightweight Cloud Connector" and "LCC", or of the LCC logo and icons, except
+as required for reasonable and customary use in describing the origin of the
+work and reproducing the content of this NOTICE file.
+
+Modified versions that are distributed to others must not use those names,
+logo or icons in a way that suggests they are the original Lightweight Cloud
+Connector or are endorsed by its author. Such versions must be marked as
+modified and distributed under a different name.
+
+This additional term applies to every file in this repository that is covered
+by the GNU GPL, whether or not the file carries its own license header.
+
+
+PREVIOUS RELEASES
+-----------------
+
+Releases up to and including 26H2 Update 1 (tag v26H2u1) were distributed
+under the MIT License; copies obtained under those terms remain under them.
+Starting with 26H2 Update 2 (tag v26H2u2), the code is distributed under the
+GNU GPL version 3 or later, with the additional terms above.
+
+
+THIRD-PARTY COMPONENTS
+----------------------
+
+LCC depends on third-party Rust crates and Dart/Flutter packages distributed
+under their own licenses (MIT, Apache-2.0, BSD, ISC, Zlib, MPL-2.0 and similar,
+all compatible with the GNU GPL version 3). Their license notices are kept
+with each component and are not altered by this NOTICE.

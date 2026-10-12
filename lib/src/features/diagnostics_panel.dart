@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/diagnostics.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
+import 'app_error.dart';
 
 /// Parameters for the diagnostics panel
 class DiagnosticsParams {
@@ -21,17 +22,18 @@ class DiagnosticsParams {
   });
 }
 
-/// Main diagnostics panel dialog
-class DiagnosticsPanel extends ConsumerStatefulWidget {
+/// Diagnostics view: tab bar + tab content, embeddable in a dialog or a
+/// workspace tab.
+class DiagnosticsView extends ConsumerStatefulWidget {
   final DiagnosticsParams params;
 
-  const DiagnosticsPanel({super.key, required this.params});
+  const DiagnosticsView({super.key, required this.params});
 
   @override
-  ConsumerState<DiagnosticsPanel> createState() => _DiagnosticsPanelState();
+  ConsumerState<DiagnosticsView> createState() => _DiagnosticsViewState();
 }
 
-class _DiagnosticsPanelState extends ConsumerState<DiagnosticsPanel>
+class _DiagnosticsViewState extends ConsumerState<DiagnosticsView>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
@@ -50,76 +52,27 @@ class _DiagnosticsPanelState extends ConsumerState<DiagnosticsPanel>
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
-    return Dialog(
-      child: SizedBox(
-        width: 900,
-        height: 700,
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(12),
-                  topRight: Radius.circular(12),
-                ),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.build_circle_outlined, size: 28),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.diagTitle,
-                          style: Theme.of(context).textTheme.titleLarge,
-                        ),
-                        Text(
-                          l10n.diagSubtitle(
-                            widget.params.instanceName,
-                            widget.params.zone,
-                          ),
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
-            ),
-
-            // Tab bar
-            TabBar(
-              controller: _tabController,
-              tabs: [
-                Tab(icon: const Icon(Icons.terminal), text: l10n.diagTabSerialConsole),
-                Tab(icon: const Icon(Icons.info_outline), text: l10n.diagTabDiagnostics),
-                Tab(icon: const Icon(Icons.history), text: l10n.diagTabAuditLogs),
-              ],
-            ),
-
-            // Tab content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  SerialConsoleTab(params: widget.params),
-                  VmDiagnosticsTab(params: widget.params),
-                  AuditLogsTab(params: widget.params),
-                ],
-              ),
-            ),
+    return Column(
+      children: [
+        TabBar(
+          controller: _tabController,
+          tabs: [
+            Tab(icon: const Icon(Icons.terminal), text: l10n.diagTabSerialConsole),
+            Tab(icon: const Icon(Icons.info_outline), text: l10n.diagTabDiagnostics),
+            Tab(icon: const Icon(Icons.history), text: l10n.diagTabAuditLogs),
           ],
         ),
-      ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              SerialConsoleTab(params: widget.params),
+              VmDiagnosticsTab(params: widget.params),
+              AuditLogsTab(params: widget.params),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -249,7 +202,11 @@ class _SerialConsoleTabState extends ConsumerState<SerialConsoleTab> {
       if (mounted) {
         final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.diagExportFailed(e.toString()))),
+          SnackBar(
+            content: Text(
+              l10n.diagExportFailed(localizedError(l10n, e, standalone: false)),
+            ),
+          ),
         );
       }
     }
@@ -1172,6 +1129,64 @@ class _AuditLogsTabState extends ConsumerState<AuditLogsTab> {
     } catch (_) {
       return timestamp;
     }
+  }
+}
+
+/// Modal wrapper around [DiagnosticsView] for the ResourceTree right-click
+/// menu. The workspace uses [DiagnosticsView] directly.
+class DiagnosticsPanel extends StatelessWidget {
+  final DiagnosticsParams params;
+
+  const DiagnosticsPanel({super.key, required this.params});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return Dialog(
+      child: SizedBox(
+        width: 900,
+        height: 700,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.primaryContainer,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(12),
+                  topRight: Radius.circular(12),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.build_circle_outlined, size: 28),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.diagTitle,
+                            style: Theme.of(context).textTheme.titleLarge),
+                        Text(
+                          l10n.diagSubtitle(
+                              params.instanceName, params.zone),
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: DiagnosticsView(params: params)),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -1,5 +1,6 @@
 use super::utils::*;
 use super::{DbConnectionSettings, DatabaseType};
+use crate::child_reaper::SpawnReaped;
 use std::process::{Command, Stdio};
 use anyhow::{Result, anyhow};
 use tracing;
@@ -55,7 +56,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
             .arg(&uri)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if native.is_ok() {
             tracing::info!("Native Azure Data Studio launched successfully");
@@ -66,7 +67,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
         let native_plain = Command::new(NATIVE_CMD)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if native_plain.is_ok() {
             tracing::info!("Native Azure Data Studio launched (connection info: {}:{})", settings.host, settings.port);
@@ -83,7 +84,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
             .arg(&uri)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if flatpak.is_ok() {
             tracing::info!("Flatpak Azure Data Studio launched successfully");
@@ -95,7 +96,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
             .args(["run", FLATPAK_ID])
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if flatpak_plain.is_ok() {
             tracing::info!("Flatpak Azure Data Studio launched (connection info: {}:{})", settings.host, settings.port);

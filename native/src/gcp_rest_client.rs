@@ -10,8 +10,8 @@
 
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
-use std::path::PathBuf;
+use std::time::{Duration, Instant};
+use std::path::{Path, PathBuf};
 use std::env;
 use std::sync::Arc;
 use lazy_static::lazy_static;
@@ -19,7 +19,7 @@ use tracing::{info, debug, error};
 
 // Import redact utilities for secure logging
 use crate::redact::redact_sensitive;
-use crate::validation::validate_gcp_url;
+use crate::validation::{validate_gcp_url, validate_project_id, validate_zone, validate_instance_name};
 
 // ==========================================
 // AUTENTICACIÓN - Versión Simplificada con Cacheo
@@ -40,35 +40,54 @@ pub struct GcpAuthClient {
 lazy_static! {
     static ref CACHED_AUTH_CLIENT: Result<Arc<GcpAuthClient>> = {
         info!("🔐 Initializing GCP authentication client (first time only)");
-
-        // Synchronous initialization - just reads credentials path
-        let home = env::var("HOME")
-            .or_else(|_| env::var("USERPROFILE"))
-            .map_err(|_| anyhow!("Could not determine home directory"))?;
-
-        let creds_path = PathBuf::from(home)
-            .join(".config")
-            .join("gcloud")
-            .join("application_default_credentials.json");
-
-        if !creds_path.exists() {
-            return Err(anyhow!(
-                "Application Default Credentials not found.\n\n\
-                 Please run: gcloud auth application-default login\n\
-                 \n\
-                 This will create credentials at:\n\
-                 {}",
-                creds_path.display()
-            ));
-        }
-
-        debug!("✓ Found credentials at: {}", creds_path.display());
-
-        Ok(Arc::new(GcpAuthClient {
-            credentials_path: creds_path,
-            http_client: reqwest::Client::new(),
-        }))
+        let home = env::var("HOME").or_else(|_| env::var("USERPROFILE")).ok();
+        build_auth_client(home.as_deref()).map(Arc::new)
     };
+}
+
+/// Where gcloud keeps the Application Default Credentials for `home`.
+fn adc_credentials_path(home: &str) -> PathBuf {
+    PathBuf::from(home)
+        .join(".config")
+        .join("gcloud")
+        .join("application_default_credentials.json")
+}
+
+/// Build the process-wide auth client.
+///
+/// Deliberately free of any engine check. The client is cached for the whole
+/// life of the process, and since D5 the engine is switchable at runtime from
+/// Settings — so anything engine-dependent decided here would freeze on
+/// whichever engine happened to make the first REST call. Neither
+/// `credentials_path` nor the HTTP client depends on the engine; the one thing
+/// that did — the ADC-file gate — now lives in `adc_gate`, evaluated per call
+/// on the only path that reads that file.
+fn build_auth_client(home: Option<&str>) -> Result<GcpAuthClient> {
+    let home = home.ok_or_else(|| anyhow!("Could not determine home directory"))?;
+    Ok(GcpAuthClient {
+        credentials_path: adc_credentials_path(home),
+        http_client: reqwest::Client::new(),
+    })
+}
+
+/// The ADC file gate for the gcloud engine, word for word as it read when it
+/// guarded client construction: this message is the only thing that tells a
+/// gcloud-engine user which command to run. Its single caller is
+/// `token_from_adc_refresh`, reachable only from the gcloud branch of
+/// `get_access_token`, so it cannot fire under the native engine.
+fn adc_gate(creds_path: &Path) -> Result<()> {
+    if !creds_path.exists() {
+        return Err(anyhow!(
+            "Application Default Credentials not found.\n\n\
+             Please run: gcloud auth application-default login\n\
+             \n\
+             This will create credentials at:\n\
+             {}",
+            creds_path.display()
+        ));
+    }
+    debug!("✓ Found credentials at: {}", creds_path.display());
+    Ok(())
 }
 
 /// Access token cacheado en proceso.
@@ -81,11 +100,24 @@ lazy_static! {
 struct CachedToken {
     token: String,
     fetched_at: Instant,
+    /// Which engine's credentials minted this token.
+    engine: crate::oauth::AuthEngine,
 }
 
 impl CachedToken {
-    fn is_fresh(&self) -> bool {
-        self.fetched_at.elapsed() < TOKEN_CACHE_TTL
+    /// A cached token serves only the engine that produced it, and only
+    /// within the TTL.
+    ///
+    /// The engine tag is what makes a runtime engine change impossible to
+    /// serve stale. Since D5 the user switches engines from Settings, so a
+    /// token minted from the other engine's credentials would otherwise keep
+    /// being handed out for up to `TOKEN_CACHE_TTL` — Settings saying one
+    /// engine while projects and instances are still fetched with the other's
+    /// token. `api::set_auth_engine` also drops the entry outright, as every
+    /// other credential-changing operation does; this check is the guarantee
+    /// that does not depend on remembering to.
+    fn is_usable_for(&self, engine: crate::oauth::AuthEngine) -> bool {
+        self.engine == engine && self.fetched_at.elapsed() < TOKEN_CACHE_TTL
     }
 }
 
@@ -146,13 +178,28 @@ impl GcpAuthClient {
     /// falla con `invalid_rapt` en cuentas corporativas y queda solo como
     /// fallback cuando gcloud CLI no está disponible.
     pub async fn get_access_token(&self) -> Result<String> {
+        // Resuelto fuera del lock, y una vez por llamada: el motor puede
+        // cambiar en caliente desde Ajustes.
+        let engine = crate::oauth::auth_engine();
+
         // El lock se mantiene durante toda la obtención: sirve de caché y a la
         // vez serializa los procesos gcloud (fallan si corren en paralelo).
         let mut cache = TOKEN_CACHE.lock().await;
         if let Some(cached) = cache.as_ref() {
-            if cached.is_fresh() {
+            if cached.is_usable_for(engine) {
                 return Ok(cached.token.clone());
             }
+        }
+
+        if engine == crate::oauth::AuthEngine::Native {
+            debug!("Using native auth engine for token acquisition");
+            let token = self.token_from_native_session().await?;
+            *cache = Some(CachedToken {
+                token: token.clone(),
+                fetched_at: Instant::now(),
+                engine,
+            });
+            return Ok(token);
         }
 
         let token = match self.token_from_gcloud_cli().await {
@@ -178,15 +225,54 @@ impl GcpAuthClient {
         *cache = Some(CachedToken {
             token: token.clone(),
             fetched_at: Instant::now(),
+            engine,
         });
         Ok(token)
     }
 
+    /// Access token from LCC's own stored session (SG-D). No gcloud and no
+    /// fallback: a failure here is reported, never masked.
+    ///
+    /// Every `token_store` call goes through `oauth::store_call`, which wraps
+    /// it in `spawn_blocking` — the store is synchronous and its keyring
+    /// backend drives its own runtime, which panics if entered from a tokio
+    /// worker. This function runs on one.
+    async fn token_from_native_session(&self) -> Result<String> {
+        let active = crate::oauth::store_call(crate::token_store::active_account).await?;
+        let email = active.ok_or_else(|| {
+            anyhow!("No signed-in Google Cloud account. Sign in to continue.")
+        })?;
+
+        debug!("Refreshing native access token for {}", email);
+
+        let load_email = email.clone();
+        let refresh_token =
+            crate::oauth::store_call(move || crate::token_store::load_refresh_token(&load_email))
+                .await??;
+
+        match crate::oauth::refresh_access_token(&refresh_token).await? {
+            crate::oauth::RefreshOutcome::Token(t) => Ok(t.access_token),
+            // The trailing `(invalid_grant)` is the load-bearing part: it is
+            // the token `classifyRustError` (lib/src/features/app_error.dart)
+            // matches to raise the reauth banner. The prose around it is what
+            // the user reads; without the marker the error classifies as
+            // `unknown` and no banner appears. The browser is NOT opened here
+            // — see oauth::ensure_signed_in.
+            crate::oauth::RefreshOutcome::NeedsReauth => {
+                debug!("Refresh token rejected for {}; needs reauth", email);
+                Err(anyhow!(
+                    "Your Google Cloud session needs to be renewed: sign in again. (invalid_grant)"
+                ))
+            }
+        }
+    }
+
     /// Token vía `gcloud auth print-access-token` (cuenta activa + RAPT)
     async fn token_from_gcloud_cli(&self) -> Result<String> {
+        let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
         let output = tokio::time::timeout(
             std::time::Duration::from_secs(15),
-            tokio::process::Command::new("gcloud")
+            tokio::process::Command::new(gcloud_bin)
                 .args(["auth", "print-access-token"])
                 .output(),
         )
@@ -206,6 +292,10 @@ impl GcpAuthClient {
     /// Fallback: intercambio directo del refresh token de ADC
     async fn token_from_adc_refresh(&self) -> Result<String> {
         debug!("Getting access token from gcloud credentials");
+
+        // La verja del fichero ADC, evaluada por llamada: antes vivía en la
+        // construcción del cliente, que se cachea para todo el proceso.
+        adc_gate(&self.credentials_path)?;
 
         // Leer el archivo de credenciales
         let creds_json = std::fs::read_to_string(&self.credentials_path)
@@ -264,6 +354,14 @@ impl GcpAuthClient {
     }
 }
 
+/// Access token for the active account, for callers that just need to
+/// authenticate a request and don't otherwise hold a `GcpAuthClient` (e.g.
+/// `ssh_access`'s OS Login lookup). Thin wrapper over `GcpAuthClient::get_or_init`
+/// + `get_access_token`.
+pub(crate) async fn access_token() -> Result<String> {
+    GcpAuthClient::get_or_init()?.get_access_token().await
+}
+
 // ==========================================
 // RESOURCE MANAGER API - PROYECTOS
 // ==========================================
@@ -294,6 +392,10 @@ pub struct GcpInstanceClientLib {
     pub labels: Vec<(String, String)>,
     pub os_login_enabled: bool,
     pub is_windows: bool,
+    /// Addresses of the first network interface. `external_ip` is absent for a
+    /// VM with no public address — the normal case for IAP-only instances.
+    pub internal_ip: Option<String>,
+    pub external_ip: Option<String>,
 }
 
 /// Cliente para interactuar con Resource Manager API
@@ -329,77 +431,89 @@ impl ResourceManagerClient {
         info!("📁 Listing GCP projects via REST API");
         let start = Instant::now();
 
-        // Obtener access token
         let token = self.auth.get_access_token().await?;
+        let projects = fetch_projects(&self.http_client, &self.base_url, &token).await?;
 
-        // Usar el HTTP client cacheado
-        let client = &self.http_client;
-
-        // Request a la API
-        let url = format!("{}/projects", self.base_url);
-
-        debug!("Making request to: {}", url);
-
-        let response = client
-            .get(&url)
-            .bearer_auth(&token)
-            .header("Content-Type", "application/json")
-            .send()
-            .await
-            .map_err(|e| anyhow!("Failed to send request: {}", e))?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let error_text = response.text().await.unwrap_or_default();
-            // SECURITY: Redact sensitive data from error logs
-            error!("API request failed: {} - {}", status, redact_sensitive(&error_text));
-            return Err(anyhow!("API error {}: {}", status, redact_sensitive(&error_text)));
-        }
-
-        // Parse response
-        let response_text = response.text().await?;
-        debug!("Response received: {} bytes", response_text.len());
-
-        let response_json: serde_json::Value = serde_json::from_str(&response_text)
-            .map_err(|e| anyhow!("Failed to parse JSON: {}", e))?;
-
-        // Extraer proyectos del response (API v1 format)
-        let projects_array = response_json["projects"]
-            .as_array()
-            .ok_or_else(|| anyhow!("No projects array in response"))?;
-
-        let mut projects = Vec::new();
-
-        for project_obj in projects_array {
-            projects.push(GcpProject {
-                project_id: project_obj["projectId"]
-                    .as_str()
-                    .unwrap_or_default()
-                    .to_string(),
-                name: project_obj["name"]
-                    .as_str()
-                    .map(|s| s.to_string()),
-                project_number: project_obj["projectNumber"]
-                    .as_u64()
-                    .map(|n| n.to_string())
-                    .or_else(|| project_obj["projectNumber"].as_str().map(|s| s.to_string()))
-                    .unwrap_or_default(),
-                state: project_obj["lifecycleState"]
-                    .as_str()
-                    .unwrap_or("UNKNOWN")
-                    .to_string(),
-            });
-        }
-
-        let elapsed = start.elapsed();
         info!(
             "✓ Listed {} projects in {:?} (Client Library)",
             projects.len(),
-            elapsed
+            start.elapsed()
         );
-
         Ok(projects)
     }
+}
+
+/// Parse a Resource Manager v1 `projects.list` response.
+///
+/// Pure, so the shape handling (`projectNumber` arriving as a number or a
+/// string, a missing `lifecycleState`) is testable without a network call.
+fn parse_projects(response_json: &serde_json::Value) -> Result<Vec<GcpProject>> {
+    let projects_array = response_json["projects"]
+        .as_array()
+        .ok_or_else(|| anyhow!("No projects array in response"))?;
+
+    let mut projects = Vec::new();
+    for project_obj in projects_array {
+        projects.push(GcpProject {
+            project_id: project_obj["projectId"].as_str().unwrap_or_default().to_string(),
+            name: project_obj["name"].as_str().map(|s| s.to_string()),
+            project_number: project_obj["projectNumber"]
+                .as_u64()
+                .map(|n| n.to_string())
+                .or_else(|| project_obj["projectNumber"].as_str().map(|s| s.to_string()))
+                .unwrap_or_default(),
+            state: project_obj["lifecycleState"].as_str().unwrap_or("UNKNOWN").to_string(),
+        });
+    }
+    Ok(projects)
+}
+
+/// GET the project list from Resource Manager with an explicit bearer token.
+async fn fetch_projects(
+    client: &reqwest::Client,
+    base_url: &str,
+    token: &str,
+) -> Result<Vec<GcpProject>> {
+    let url = format!("{}/projects", base_url);
+    debug!("Making request to: {}", url);
+
+    let response = client
+        .get(&url)
+        .bearer_auth(token)
+        .header("Content-Type", "application/json")
+        .send()
+        .await
+        .map_err(|e| anyhow!("Failed to send request: {}", e))?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let error_text = response.text().await.unwrap_or_default();
+        // SECURITY: Redact sensitive data from error logs
+        error!("API request failed: {} - {}", status, redact_sensitive(&error_text));
+        return Err(anyhow!("API error {}: {}", status, redact_sensitive(&error_text)));
+    }
+
+    let response_text = response.text().await?;
+    debug!("Response received: {} bytes", response_text.len());
+    let response_json: serde_json::Value = serde_json::from_str(&response_text)
+        .map_err(|e| anyhow!("Failed to parse JSON: {}", e))?;
+    parse_projects(&response_json)
+}
+
+/// List projects for whoever owns `token`, with no reference to the active
+/// account's `GcpAuthClient` or `TOKEN_CACHE`.
+///
+/// The token is a parameter precisely so this cannot serve the active
+/// account's projects by accident: that would be a silent, plausible-looking
+/// wrong answer.
+pub(crate) async fn list_projects_with_token(token: &str) -> Result<Vec<GcpProject>> {
+    let base_url = "https://cloudresourcemanager.googleapis.com/v1";
+    validate_gcp_url(base_url)?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|e| anyhow!("Failed to build the HTTP client: {}", e))?;
+    fetch_projects(&client, base_url, token).await
 }
 
 // ==========================================
@@ -577,6 +691,58 @@ pub struct ComputeEngineClient {
     base_url: String,
 }
 
+/// The URL for one instance, with every path segment validated first.
+///
+/// Every instance URL in this client is built here, and this is the only place
+/// that validates. That is deliberate: the same defect — an unvalidated segment
+/// escaping its position and landing the request on a different endpoint — was
+/// fixed twice by adding a check to one call site, and came back both times,
+/// because writing the `format!` without a check stayed possible. Now there is
+/// no other way to compose the URL.
+/// The first network interface's addresses, as the Compute API reports them.
+///
+/// Both come out of a response LCC already fetches and already parses — they
+/// were simply being discarded. No extra call: `diagnostics.rs` does the same
+/// extraction against the same shape for its own panel.
+///
+/// Returns `(internal, external)`. Either can be absent and that is ordinary,
+/// not an error: a VM reachable only through IAP has no external address at
+/// all, which is the common case in this app.
+fn instance_ips(instance: &serde_json::Value) -> (Option<String>, Option<String>) {
+    let Some(nic) = instance["networkInterfaces"].as_array().and_then(|a| a.first()) else {
+        return (None, None);
+    };
+    let internal = nic["networkIP"].as_str().map(String::from);
+    // An accessConfigs entry exists whether or not an address was assigned, so
+    // the presence of the array proves nothing; only a natIP does.
+    let external = nic["accessConfigs"]
+        .as_array()
+        .and_then(|configs| configs.iter().find_map(|c| c["natIP"].as_str().map(String::from)));
+    (internal, external)
+}
+
+fn instance_url(
+    base_url: &str,
+    project: &str,
+    zone: &str,
+    instance: &str,
+    action: &str,
+) -> Result<String> {
+    validate_project_id(project)?;
+    validate_zone(zone)?;
+    validate_instance_name(instance)?;
+    Ok(format!(
+        "{}/projects/{}/zones/{}/instances/{}{}",
+        base_url, project, zone, instance, action
+    ))
+}
+
+/// The URL for a project-scoped collection, validated the same way.
+fn project_url(base_url: &str, project: &str, path: &str) -> Result<String> {
+    validate_project_id(project)?;
+    Ok(format!("{}/projects/{}/{}", base_url, project, path))
+}
+
 impl ComputeEngineClient {
     pub async fn new() -> Result<Self> {
         // Use cached auth client instead of creating a new one
@@ -603,16 +769,16 @@ impl ComputeEngineClient {
         info!("🖥️  Listing instances for project: {}", project);
         let start = Instant::now();
 
-        // Obtener access token
-        let token = self.auth.get_access_token().await?;
+        // Request a la API (aggregatedList para obtener de todas las zonas)
+        let url = project_url(&self.base_url, project, "aggregated/instances")?;
+
+        debug!("Making request to: {}", url);
 
         // Usar el HTTP client cacheado
         let client = &self.http_client;
 
-        // Request a la API (aggregatedList para obtener de todas las zonas)
-        let url = format!("{}/projects/{}/aggregated/instances", self.base_url, project);
-
-        debug!("Making request to: {}", url);
+        // Obtener access token
+        let token = self.auth.get_access_token().await?;
 
         let response = client
             .get(&url)
@@ -738,6 +904,8 @@ impl ComputeEngineClient {
                             })
                             .unwrap_or(false);
 
+                        let (internal_ip, external_ip) = instance_ips(instance_obj);
+
                         instances.push(GcpInstanceClientLib {
                             name,
                             status,
@@ -749,6 +917,8 @@ impl ComputeEngineClient {
                             labels,
                             os_login_enabled,
                             is_windows,
+                            internal_ip,
+                            external_ip,
                         });
                     }
                 }
@@ -776,15 +946,12 @@ impl ComputeEngineClient {
         info!("🔍 Getting instance: {}/{}/{}", project, zone, instance_name);
         let start = Instant::now();
 
-        let token = self.auth.get_access_token().await?;
-        let client = &self.http_client;
-
-        let url = format!(
-            "{}/projects/{}/zones/{}/instances/{}",
-            self.base_url, project, zone, instance_name
-        );
+        let url = instance_url(&self.base_url, project, zone, instance_name, "")?;
 
         debug!("Making request to: {}", url);
+
+        let client = &self.http_client;
+        let token = self.auth.get_access_token().await?;
 
         let response = client
             .get(&url)
@@ -892,6 +1059,8 @@ impl ComputeEngineClient {
             })
             .unwrap_or(false);
 
+        let (internal_ip, external_ip) = instance_ips(&instance_obj);
+
         Ok(GcpInstanceClientLib {
             name,
             status,
@@ -903,6 +1072,8 @@ impl ComputeEngineClient {
             labels,
             os_login_enabled,
             is_windows,
+            internal_ip,
+            external_ip,
         })
     }
 
@@ -918,13 +1089,10 @@ impl ComputeEngineClient {
     pub async fn start_instance(&self, project: &str, zone: &str, instance: &str) -> Result<()> {
         info!("▶️  Starting instance: {} in {}/{}", instance, project, zone);
 
-        let token = self.auth.get_access_token().await?;
-        let client = &self.http_client;
+        let url = instance_url(&self.base_url, project, zone, instance, "/start")?;
 
-        let url = format!(
-            "{}/projects/{}/zones/{}/instances/{}/start",
-            self.base_url, project, zone, instance
-        );
+        let client = &self.http_client;
+        let token = self.auth.get_access_token().await?;
 
         let response = client
             .post(&url)
@@ -950,13 +1118,10 @@ impl ComputeEngineClient {
     pub async fn stop_instance(&self, project: &str, zone: &str, instance: &str) -> Result<()> {
         info!("⏹️  Stopping instance: {} in {}/{}", instance, project, zone);
 
-        let token = self.auth.get_access_token().await?;
-        let client = &self.http_client;
+        let url = instance_url(&self.base_url, project, zone, instance, "/stop")?;
 
-        let url = format!(
-            "{}/projects/{}/zones/{}/instances/{}/stop",
-            self.base_url, project, zone, instance
-        );
+        let client = &self.http_client;
+        let token = self.auth.get_access_token().await?;
 
         let response = client
             .post(&url)
@@ -982,13 +1147,10 @@ impl ComputeEngineClient {
     pub async fn reset_instance(&self, project: &str, zone: &str, instance: &str) -> Result<()> {
         info!("🔄 Resetting instance: {} in {}/{}", instance, project, zone);
 
-        let token = self.auth.get_access_token().await?;
-        let client = &self.http_client;
+        let url = instance_url(&self.base_url, project, zone, instance, "/reset")?;
 
-        let url = format!(
-            "{}/projects/{}/zones/{}/instances/{}/reset",
-            self.base_url, project, zone, instance
-        );
+        let client = &self.http_client;
+        let token = self.auth.get_access_token().await?;
 
         let response = client
             .post(&url)
@@ -1014,13 +1176,10 @@ impl ComputeEngineClient {
     pub async fn suspend_instance(&self, project: &str, zone: &str, instance: &str) -> Result<()> {
         info!("⏸️  Suspending instance: {} in {}/{}", instance, project, zone);
 
-        let token = self.auth.get_access_token().await?;
-        let client = &self.http_client;
+        let url = instance_url(&self.base_url, project, zone, instance, "/suspend")?;
 
-        let url = format!(
-            "{}/projects/{}/zones/{}/instances/{}/suspend",
-            self.base_url, project, zone, instance
-        );
+        let client = &self.http_client;
+        let token = self.auth.get_access_token().await?;
 
         let response = client
             .post(&url)
@@ -1046,13 +1205,10 @@ impl ComputeEngineClient {
     pub async fn resume_instance(&self, project: &str, zone: &str, instance: &str) -> Result<()> {
         info!("▶️  Resuming instance: {} in {}/{}", instance, project, zone);
 
-        let token = self.auth.get_access_token().await?;
-        let client = &self.http_client;
+        let url = instance_url(&self.base_url, project, zone, instance, "/resume")?;
 
-        let url = format!(
-            "{}/projects/{}/zones/{}/instances/{}/resume",
-            self.base_url, project, zone, instance
-        );
+        let client = &self.http_client;
+        let token = self.auth.get_access_token().await?;
 
         let response = client
             .post(&url)
@@ -1120,7 +1276,100 @@ pub async fn get_instance_client_lib(project: &str, zone: &str, instance_name: &
 
 #[cfg(test)]
 mod tests {
+    use super::instance_ips;
+
+    /// The ordinary case in this app: a VM reachable only through IAP. It has
+    /// an internal address and no public one, and that is not a failure — the
+    /// UI simply has one address to show instead of two.
+    #[test]
+    fn an_iap_only_vm_reports_an_internal_address_and_no_external_one() {
+        let inst = serde_json::json!({
+            "networkInterfaces": [{ "networkIP": "10.128.0.5" }]
+        });
+        assert_eq!(instance_ips(&inst), (Some("10.128.0.5".to_string()), None));
+    }
+
+    #[test]
+    fn a_vm_with_a_public_address_reports_both() {
+        let inst = serde_json::json!({
+            "networkInterfaces": [{
+                "networkIP": "10.128.0.5",
+                "accessConfigs": [{ "type": "ONE_TO_ONE_NAT", "natIP": "34.1.2.3" }]
+            }]
+        });
+        assert_eq!(
+            instance_ips(&inst),
+            (Some("10.128.0.5".to_string()), Some("34.1.2.3".to_string()))
+        );
+    }
+
+    /// The trap: Compute returns an accessConfigs entry even when no address
+    /// was assigned. Treating the array's presence as "has a public IP" would
+    /// make the UI claim an address that does not exist.
+    #[test]
+    fn an_access_config_without_an_address_is_not_an_external_ip() {
+        let inst = serde_json::json!({
+            "networkInterfaces": [{
+                "networkIP": "10.128.0.5",
+                "accessConfigs": [{ "type": "ONE_TO_ONE_NAT", "name": "External NAT" }]
+            }]
+        });
+        assert_eq!(instance_ips(&inst), (Some("10.128.0.5".to_string()), None));
+    }
+
+    #[test]
+    fn an_instance_with_no_interfaces_reports_nothing_rather_than_failing() {
+        assert_eq!(instance_ips(&serde_json::json!({})), (None, None));
+        assert_eq!(
+            instance_ips(&serde_json::json!({ "networkInterfaces": [] })),
+            (None, None)
+        );
+    }
+
+    /// Several interfaces are legal; the first is the one the UI names, and
+    /// picking any other would silently show the wrong address.
+    #[test]
+    fn the_first_interface_is_the_one_reported() {
+        let inst = serde_json::json!({
+            "networkInterfaces": [
+                { "networkIP": "10.128.0.5" },
+                { "networkIP": "10.200.0.9", "accessConfigs": [{ "natIP": "34.9.9.9" }] }
+            ]
+        });
+        assert_eq!(instance_ips(&inst), (Some("10.128.0.5".to_string()), None));
+    }
+
     use super::*;
+
+    #[test]
+    fn parses_projects_including_both_project_number_shapes() {
+        // La API devuelve projectNumber unas veces como número y otras como
+        // cadena; ambas formas tienen que sobrevivir.
+        let json: serde_json::Value = serde_json::from_str(
+            r#"{"projects":[
+                {"projectId":"p-1","name":"Uno","projectNumber":12345,"lifecycleState":"ACTIVE"},
+                {"projectId":"p-2","projectNumber":"67890"}
+            ]}"#,
+        )
+        .unwrap();
+
+        let projects = super::parse_projects(&json).unwrap();
+
+        assert_eq!(projects.len(), 2);
+        assert_eq!(projects[0].project_id, "p-1");
+        assert_eq!(projects[0].name.as_deref(), Some("Uno"));
+        assert_eq!(projects[0].project_number, "12345");
+        assert_eq!(projects[0].state, "ACTIVE");
+        assert_eq!(projects[1].name, None);
+        assert_eq!(projects[1].project_number, "67890");
+        assert_eq!(projects[1].state, "UNKNOWN", "sin lifecycleState debe quedar UNKNOWN");
+    }
+
+    #[test]
+    fn a_response_without_a_projects_array_is_an_error() {
+        let json: serde_json::Value = serde_json::from_str(r#"{"unexpected":true}"#).unwrap();
+        assert!(super::parse_projects(&json).is_err());
+    }
 
     #[test]
     fn test_parse_cli_access_token_trims_newline() {
@@ -1152,23 +1401,102 @@ mod tests {
         let fresh = CachedToken {
             token: "t".to_string(),
             fetched_at: Instant::now(),
+            engine: crate::oauth::AuthEngine::Native,
         };
-        assert!(fresh.is_fresh());
+        assert!(fresh.is_usable_for(crate::oauth::AuthEngine::Native));
 
         let expired = CachedToken {
             token: "t".to_string(),
             fetched_at: Instant::now() - TOKEN_CACHE_TTL,
+            engine: crate::oauth::AuthEngine::Native,
         };
-        assert!(!expired.is_fresh());
+        assert!(!expired.is_usable_for(crate::oauth::AuthEngine::Native));
+    }
+
+    /// Hallazgo 1 de la revisión de D5. Cambiar de motor en Ajustes es el
+    /// mayor cambio de credencial que hay; un token todavía fresco del motor
+    /// anterior no puede servirse tras el cambio, o durante 5 minutos Ajustes
+    /// dice un motor y los proyectos y las VMs vienen del otro.
+    #[test]
+    fn a_token_cached_by_one_engine_is_never_served_to_the_other() {
+        let from_native = CachedToken {
+            token: "native-token".to_string(),
+            fetched_at: Instant::now(),
+            engine: crate::oauth::AuthEngine::Native,
+        };
+        assert!(
+            !from_native.is_usable_for(crate::oauth::AuthEngine::Gcloud),
+            "un token de la sesión nativa no puede servir bajo el motor gcloud"
+        );
+
+        let from_gcloud = CachedToken {
+            token: "gcloud-token".to_string(),
+            fetched_at: Instant::now(),
+            engine: crate::oauth::AuthEngine::Gcloud,
+        };
+        assert!(
+            !from_gcloud.is_usable_for(crate::oauth::AuthEngine::Native),
+            "un token de gcloud no puede servir bajo el motor nativo"
+        );
+        assert!(from_gcloud.is_usable_for(crate::oauth::AuthEngine::Gcloud));
+    }
+
+    /// Hallazgo 2. El cliente se cachea para todo el proceso, así que su
+    /// construcción no puede depender ni del motor ni del fichero ADC: si lo
+    /// hiciera, pasar de gcloud a nativo en una máquina sin ADC dejaría toda
+    /// llamada REST pidiendo un comando de gcloud hasta reiniciar.
+    #[test]
+    fn the_auth_client_is_built_without_looking_at_the_adc_file() {
+        let home = std::env::temp_dir().join("lcc-no-such-home-for-adc");
+        let home = home.to_string_lossy().to_string();
+
+        let client = build_auth_client(Some(&home))
+            .expect("construir el cliente no puede depender de que exista el ADC");
+
+        assert_eq!(client.credentials_path, adc_credentials_path(&home));
+        assert!(!client.credentials_path.exists(), "la premisa del test: no hay ADC");
+    }
+
+    #[test]
+    fn building_the_auth_client_without_a_home_is_an_error() {
+        assert!(build_auth_client(None).is_err());
+    }
+
+    /// La verja conserva palabra por palabra el mensaje que le dice al usuario
+    /// del motor gcloud qué comando ejecutar.
+    #[test]
+    fn the_adc_gate_names_the_command_and_the_path() {
+        let missing = std::env::temp_dir().join("lcc-missing-adc").join("adc.json");
+        let err = adc_gate(&missing).unwrap_err().to_string();
+
+        assert!(err.contains("Application Default Credentials not found"));
+        assert!(err.contains("gcloud auth application-default login"));
+        assert!(err.contains(&missing.display().to_string()), "la ruta esperada guía al usuario");
+    }
+
+    #[test]
+    fn the_adc_gate_lets_an_existing_file_through() {
+        let dir = std::env::temp_dir().join("lcc-adc-gate-test");
+        std::fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("application_default_credentials.json");
+        std::fs::write(&path, "{}").unwrap();
+
+        assert!(adc_gate(&path).is_ok());
+
+        let _ = std::fs::remove_file(&path);
     }
 
     #[tokio::test]
+    // Necesita credenciales GCP vivas: `cargo test -- --ignored`.
+    #[ignore]
     async fn test_auth_initialization() {
         let result = GcpAuthClient::get_or_init();
         assert!(result.is_ok(), "Authentication should succeed");
     }
 
     #[tokio::test]
+    // Necesita credenciales GCP vivas: `cargo test -- --ignored`.
+    #[ignore]
     async fn test_get_access_token() {
         let auth = GcpAuthClient::get_or_init().unwrap();
         let token = auth.get_access_token().await.unwrap();
@@ -1177,6 +1505,8 @@ mod tests {
     }
 
     #[tokio::test]
+    // Necesita credenciales GCP vivas: `cargo test -- --ignored`.
+    #[ignore]
     async fn test_list_projects() {
         let projects = list_projects_simple_async().await.unwrap();
 
@@ -1201,5 +1531,102 @@ mod tests {
         }
         assert!(result.is_ok(), "Benchmark should complete successfully");
         println!("{}", result.unwrap());
+    }
+
+    /// A malformed `project` cannot reach the request URL. Without the
+    /// validation in `ComputeEngineClient::start_instance`, a `/` or `..` in
+    /// `project` escapes the intended path segment and can turn an
+    /// instance-scoped start into a project-level request — the same shape
+    /// of bug as the earlier `publish_to_instance_metadata` finding (see
+    /// `ssh_access.rs`). Building the client needs no live credentials:
+    /// `ComputeEngineClient::new()` only resolves paths and builds an HTTP
+    /// client, it never touches the ADC file.
+    #[tokio::test]
+    async fn a_malformed_project_is_rejected_before_start_instance_builds_a_request() {
+        let client = ComputeEngineClient::new()
+            .await
+            .expect("building the client needs no live credentials");
+
+        let err = client
+            .start_instance("myproj/setCommonInstanceMetadata#", "us-central1-a", "vm1")
+            .await
+            .unwrap_err();
+
+        // We check the exact text `validate_project_id` produces, not a
+        // loose keyword like "project": that word also shows up if the
+        // request went out and Google's error echoed the URL back, which
+        // would make this test pass for the wrong reason.
+        let msg = err.to_string().to_lowercase();
+        assert!(
+            msg.contains("invalid project id"),
+            "expected the `validate_project_id` error, got: {}",
+            err
+        );
+    }
+
+    /// Ninguna llamada de instancia puede construir una peticion a partir de un
+    /// segmento sin validar.
+    ///
+    /// El mismo defecto se arreglo dos veces antes anadiendo la comprobacion a
+    /// un sitio de llamada, y volvio las dos veces, porque escribir el
+    /// `format!` sin ella seguia siendo posible. Este test recorre los seis
+    /// metodos: si alguien anade un septimo que se salte el constructor, aqui
+    /// no se entera nadie — pero el constructor es ahora la unica forma de
+    /// componer la URL, asi que saltarselo exige escribirla a mano.
+    #[tokio::test]
+    async fn no_instance_call_builds_a_request_from_an_unvalidated_segment() {
+        let client = ComputeEngineClient::new()
+            .await
+            .expect("building the client needs no live credentials");
+        let bad = "myproj/setCommonInstanceMetadata#";
+
+        fn rejected(err: anyhow::Error, what: &str) {
+            let msg = err.to_string().to_lowercase();
+            assert!(
+                msg.contains("invalid project id"),
+                "{}: se esperaba el error de validate_project_id, se obtuvo: {}",
+                what,
+                err
+            );
+        }
+
+        rejected(client.list_instances(bad).await.unwrap_err(), "list_instances");
+        rejected(
+            client.get_instance(bad, "us-central1-a", "vm1").await.unwrap_err(),
+            "get_instance",
+        );
+        rejected(client.start_instance(bad, "us-central1-a", "vm1").await.unwrap_err(), "start_instance");
+        rejected(client.stop_instance(bad, "us-central1-a", "vm1").await.unwrap_err(), "stop_instance");
+        rejected(client.reset_instance(bad, "us-central1-a", "vm1").await.unwrap_err(), "reset_instance");
+        rejected(client.suspend_instance(bad, "us-central1-a", "vm1").await.unwrap_err(), "suspend_instance");
+        rejected(client.resume_instance(bad, "us-central1-a", "vm1").await.unwrap_err(), "resume_instance");
+    }
+
+    /// La zona y el nombre tambien son segmentos de ruta, y tambien se escapan.
+    #[tokio::test]
+    async fn the_zone_and_the_instance_name_are_validated_too() {
+        let client = ComputeEngineClient::new()
+            .await
+            .expect("building the client needs no live credentials");
+
+        let err = client
+            .stop_instance("proj-ok-123456", "us-central1-a/../..", "vm1")
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("invalid zone"),
+            "se esperaba el error de validate_zone, se obtuvo: {}",
+            err
+        );
+
+        let err = client
+            .reset_instance("proj-ok-123456", "us-central1-a", "vm1/../other")
+            .await
+            .unwrap_err();
+        assert!(
+            err.to_string().to_lowercase().contains("invalid instance"),
+            "se esperaba el error de validate_instance_name, se obtuvo: {}",
+            err
+        );
     }
 }

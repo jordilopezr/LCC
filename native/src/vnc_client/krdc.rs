@@ -1,4 +1,5 @@
 use super::utils::*;
+use crate::child_reaper::SpawnReaped;
 use super::VncSettings;
 use std::process::{Command, Stdio};
 use anyhow::{Result, anyhow};
@@ -53,7 +54,7 @@ fn try_native_launch(uri: &str, settings: &VncSettings) -> Result<()> {
 
     cmd.stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()?;
+        .spawn_reaped()?;
 
     tracing::info!("Native KRDC VNC launched");
     Ok(())
@@ -74,7 +75,7 @@ fn try_flatpak_launch(uri: &str, settings: &VncSettings) -> Result<()> {
         .args(["run", "org.kde.krdc", uri])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()?;
+        .spawn_reaped()?;
 
     tracing::info!("Flatpak KRDC VNC launched");
     Ok(())

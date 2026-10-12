@@ -149,60 +149,14 @@ pub fn mount_sshfs(
 
     // Build sshfs command
     let source = format!("{}@localhost:{}", username, validated_remote);
-    let mut cmd = Command::new("sshfs");
-
-    cmd.arg(&source)
-        .arg(&validated_local);
-
-    // SSH options for IAP tunnel (localhost connection)
     let ssh_port = options.ssh_port.unwrap_or(tunnel_port);
-    cmd.arg("-p").arg(ssh_port.to_string());
-
-    // Security options for localhost/IAP tunnel
-    // StrictHostKeyChecking=no is safe here because we're connecting to localhost via IAP
-    cmd.arg("-o").arg("StrictHostKeyChecking=no");
-    cmd.arg("-o").arg("UserKnownHostsFile=/dev/null");
-    cmd.arg("-o").arg("LogLevel=ERROR");
-
-    // Identity file if specified
-    if let Some(ref identity) = options.identity_file {
-        cmd.arg("-o").arg(format!("IdentityFile={}", identity));
-    }
-
-    // Mount options
-    if options.read_only {
-        cmd.arg("-o").arg("ro");
-    }
-
-    if options.cache {
-        cmd.arg("-o").arg("cache=yes");
-        cmd.arg("-o").arg("kernel_cache");
-        cmd.arg("-o").arg("auto_cache");
-    } else {
-        cmd.arg("-o").arg("cache=no");
-    }
-
-    if options.compression {
-        cmd.arg("-o").arg("Compression=yes");
-    }
-
-    if options.reconnect {
-        cmd.arg("-o").arg("reconnect");
-        cmd.arg("-o").arg(format!("ServerAliveInterval={}", options.server_alive_interval));
-        cmd.arg("-o").arg("ServerAliveCountMax=3");
-    }
-
-    if options.allow_other {
-        cmd.arg("-o").arg("allow_other");
-    }
-
-    if options.follow_symlinks {
-        cmd.arg("-o").arg("follow_symlinks");
-    }
-
-    // Additional useful options
-    cmd.arg("-o").arg("default_permissions");
-    cmd.arg("-o").arg("idmap=user");
+    let mut cmd = Command::new("sshfs");
+    cmd.args(sshfs_args(
+        &source,
+        &validated_local.to_string_lossy(),
+        ssh_port,
+        &options,
+    ));
 
     tracing::info!(
         "Mounting SSHFS: {} -> {} (port {})",
@@ -479,9 +433,135 @@ pub fn open_mount_in_file_manager(mount_id: &str, file_manager: Option<&str>) ->
     }
 }
 
+/// The full `sshfs` argument list. Pure, so the option combinations can be
+/// asserted without mounting anything.
+fn sshfs_args(
+    source: &str,
+    mount_point: &str,
+    ssh_port: u16,
+    options: &SshfsMountOptions,
+) -> Vec<String> {
+    let mut args: Vec<String> = vec![source.to_string(), mount_point.to_string()];
+    let mut opt = |v: String| {
+        args.push("-o".to_string());
+        args.push(v);
+    };
+
+    // Security options for localhost/IAP tunnel.
+    // StrictHostKeyChecking=no is safe here because we connect to localhost via IAP.
+    opt("StrictHostKeyChecking=no".to_string());
+    opt("UserKnownHostsFile=/dev/null".to_string());
+    opt("LogLevel=ERROR".to_string());
+
+    if let Some(identity) = &options.identity_file {
+        opt(format!("IdentityFile={}", identity));
+        // Without this, `ssh` offers every agent identity before ours and
+        // `sshd` disconnects at MaxAuthTries (6 by default) — the key would be
+        // authorised on the VM and never actually presented to it.
+        opt("IdentitiesOnly=yes".to_string());
+    }
+
+    if options.read_only {
+        opt("ro".to_string());
+    }
+
+    if options.cache {
+        opt("cache=yes".to_string());
+        opt("kernel_cache".to_string());
+        opt("auto_cache".to_string());
+    } else {
+        opt("cache=no".to_string());
+    }
+
+    if options.compression {
+        opt("Compression=yes".to_string());
+    }
+
+    if options.reconnect {
+        opt("reconnect".to_string());
+        opt(format!("ServerAliveInterval={}", options.server_alive_interval));
+        opt("ServerAliveCountMax=3".to_string());
+    }
+
+    if options.allow_other {
+        opt("allow_other".to_string());
+    }
+
+    if options.follow_symlinks {
+        opt("follow_symlinks".to_string());
+    }
+
+    opt("default_permissions".to_string());
+    opt("idmap=user".to_string());
+
+    // The port flag is not an `-o` option.
+    args.push("-p".to_string());
+    args.push(ssh_port.to_string());
+    args
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn opts() -> SshfsMountOptions {
+        SshfsMountOptions {
+            read_only: false,
+            cache: true,
+            compression: true,
+            reconnect: true,
+            server_alive_interval: 15,
+            allow_other: false,
+            follow_symlinks: true,
+            ssh_port: None,
+            identity_file: None,
+        }
+    }
+
+    /// An identity file is useless to `sshfs` on its own: it shells out to the
+    /// system `ssh`, which offers every agent identity FIRST. `sshd` disconnects
+    /// after `MaxAuthTries` (6 by default), so a populated agent exhausts the
+    /// budget before LCC's key is ever presented — the key would be authorised
+    /// on the VM and never reach it. `IdentitiesOnly=yes` is what makes the
+    /// `-o IdentityFile` actually decisive.
+    #[test]
+    fn an_identity_file_is_paired_with_identities_only() {
+        let mut o = opts();
+        o.identity_file = Some("/home/u/.local/share/lcc/ssh/lcc_ed25519".to_string());
+        let args = sshfs_args("u@localhost:/home", "/mnt/x", 40000, &o);
+
+        assert!(
+            args.iter().any(|a| a == "IdentityFile=/home/u/.local/share/lcc/ssh/lcc_ed25519"),
+            "falta el IdentityFile: {:?}",
+            args
+        );
+        assert!(
+            args.iter().any(|a| a == "IdentitiesOnly=yes"),
+            "sin IdentitiesOnly el agente agota MaxAuthTries antes de ofrecer la clave: {:?}",
+            args
+        );
+    }
+
+    /// Without a key we must NOT pin identities: that would break every user
+    /// who authenticates through their agent, which is the common case.
+    #[test]
+    fn without_an_identity_file_identities_are_not_pinned() {
+        let args = sshfs_args("u@localhost:/home", "/mnt/x", 40000, &opts());
+        assert!(
+            !args.iter().any(|a| a == "IdentitiesOnly=yes"),
+            "no debe fijar identidades sin clave propia: {:?}",
+            args
+        );
+    }
+
+    #[test]
+    fn the_source_and_mount_point_come_first_and_the_port_is_passed() {
+        let args = sshfs_args("u@localhost:/home", "/mnt/x", 40123, &opts());
+        assert_eq!(args[0], "u@localhost:/home");
+        assert_eq!(args[1], "/mnt/x");
+        let p = args.iter().position(|a| a == "-p").expect("falta -p");
+        assert_eq!(args[p + 1], "40123");
+    }
 
     #[test]
     fn test_get_sshfs_status() {

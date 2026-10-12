@@ -3,11 +3,11 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import 'frb_generated.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// RDP Client Type - Auto-synced to Dart via Flutter Rust Bridge
-enum RdpClientType { remmina, freeRdp, krdc, gnomeConnections, mstsc }
+enum RdpClientType { remmina, freeRdp, krdc, gnomeConnections }
 
 /// Result of RDP launch attempt
 class RdpLaunchResult {

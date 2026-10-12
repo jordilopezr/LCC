@@ -1,8 +1,91 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app_error.dart';
 import 'gcloud_provider.dart';
 import '../bridge/api.dart/api.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
+
+/// Map a Rust `TunnelError::code()` to a localized message.
+///
+/// Unknown codes fall back to the generic message so a new Rust error can never
+/// surface a raw identifier to the user.
+///
+/// [detail] is the untranslated payload from `TunnelError::detail()`. Codes that
+/// carry a port use it to name that port; without it they degrade to the
+/// portless wording rather than leaking the raw value.
+String tunnelErrorMessage(AppLocalizations l10n, String code, {String? detail}) {
+  switch (code) {
+    case 'not_authenticated':
+      return l10n.tunnelErrorNotAuthenticated;
+    case 'permission_denied':
+      return l10n.tunnelErrorPermissionDenied;
+    case 'instance_not_found':
+      return l10n.tunnelErrorInstanceNotFound;
+    case 'instance_not_running':
+      return l10n.tunnelErrorInstanceNotRunning;
+    case 'firewall_blocked':
+      return l10n.tunnelErrorFirewallBlocked;
+    case 'relay_unreachable':
+      return l10n.tunnelErrorRelayUnreachable;
+    case 'protocol_error':
+      return l10n.tunnelErrorProtocolError;
+    // Raised after the fact, not on connect: the tunnel worked and then the
+    // session under it died. The wording says so, because "could not establish"
+    // would send the user looking for a setup problem that never existed.
+    case 'session_lost':
+      return l10n.tunnelErrorSessionLost;
+    case 'backend_unreachable':
+      final port = _portFrom(detail);
+      return port != null
+          ? l10n.tunnelErrorBackendUnreachable(port)
+          : l10n.tunnelErrorRelayUnreachable;
+    case 'local_port_unavailable':
+      // Port 0 means "no ephemeral port could be bound at all", which the
+      // portless wording describes; a real port means that specific one is
+      // taken, and saying which is the whole point.
+      final port = _portFrom(detail);
+      return port != null
+          ? l10n.tunnelErrorLocalPortInUse(port)
+          : l10n.tunnelErrorLocalPortUnavailable;
+    default:
+      return l10n.tunnelErrorUnknown;
+  }
+}
+
+/// The tag naming the engine used for a tunnel — holding it, or the one that
+/// failed to start it — or null when there is none to show: no engine ran, or
+/// it is one this build does not know, which must never reach the screen as a
+/// raw identifier.
+///
+/// Worded as Settings words the choice, not as the log spells it: the tag
+/// answers "which of my two options is carrying this?".
+String? tunnelEngineLabel(AppLocalizations l10n, String? engine) {
+  switch (engine) {
+    case 'native':
+      return l10n.tunnelEngineNative;
+    case 'gcloud':
+      return l10n.tunnelEngineGcloud;
+    default:
+      return null;
+  }
+}
+
+/// The port named by an error's detail payload, or null when it names none.
+String? _portFrom(String? detail) {
+  final port = int.tryParse(detail?.trim() ?? '');
+  return (port != null && port > 0) ? port.toString() : null;
+}
+
+/// Codes whose detail is just a port number.
+const _portCarryingCodes = {'backend_unreachable', 'local_port_unavailable'};
+
+/// Whether [detail] still says anything once [code]'s message has been shown.
+///
+/// The port-carrying codes now name the port in the message itself, so echoing
+/// the bare number underneath is exactly the noise users saw as
+/// "Operation failed: 3000" followed by "3000".
+bool tunnelErrorDetailIsRedundant(String code, String? detail) =>
+    _portCarryingCodes.contains(code) && _portFrom(detail) != null;
 
 /// Show the Tunnel Manager Dialog
 void showTunnelManagerDialog(BuildContext context) {
@@ -140,64 +223,81 @@ class _TunnelManagerDialogState extends ConsumerState<TunnelManagerDialog> {
                 const SizedBox(height: 8),
                 Row(
                   children: [
-                    OutlinedButton.icon(
-                      icon: const Icon(Icons.power_off, size: 18),
-                      label: Text(l10n.tunnelDisconnectAll),
-                      style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                      onPressed: () async {
-                        final confirm = await showDialog<bool>(
-                          context: context,
-                          builder: (ctx) => AlertDialog(
-                            title: Text(l10n.tunnelDisconnectAllTitle),
-                            content: Text(l10n.tunnelDisconnectAllConfirm(stats.totalTunnels)),
-                            actions: [
-                              TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.commonCancel)),
-                              ElevatedButton(
-                                onPressed: () => Navigator.pop(ctx, true),
-                                style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                                child: Text(l10n.tunnelDisconnectAll),
-                              ),
-                            ],
-                          ),
-                        );
-                        if (confirm == true && context.mounted) {
-                          await ref.read(activeConnectionsProvider.notifier).disconnectAll();
-                        }
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton.icon(
-                      icon: _isCleaningUp
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.cleaning_services, size: 18),
-                      label: Text(l10n.tunnelCleanupZombies),
-                      onPressed: _isCleaningUp
-                          ? null
-                          : () async {
-                              setState(() => _isCleaningUp = true);
-                              try {
-                                final cleaned = await cleanupDeadConnections();
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(cleaned.isEmpty
-                                          ? l10n.tunnelNoZombiesFound
-                                          : l10n.tunnelCleanedUpZombies(cleaned.length)),
+                    // The two actions wrap onto a second line when they do not
+                    // fit — in Spanish they never did — and Close stays put on
+                    // the right. A plain Row overflowed as soon as the manager
+                    // had a tunnel to show.
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            icon: const Icon(Icons.power_off, size: 18),
+                            label: Text(l10n.tunnelDisconnectAll),
+                            style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: Text(l10n.tunnelDisconnectAllTitle),
+                                  content: Text(l10n.tunnelDisconnectAllConfirm(stats.totalTunnels)),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(l10n.commonCancel)),
+                                    ElevatedButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                      child: Text(l10n.tunnelDisconnectAll),
                                     ),
-                                  );
-                                }
-                              } catch (e) {
-                                if (context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(l10n.tunnelCleanupFailed(e.toString()))),
-                                  );
-                                }
-                              } finally {
-                                if (mounted) setState(() => _isCleaningUp = false);
+                                  ],
+                                ),
+                              );
+                              if (confirm == true && context.mounted) {
+                                await ref.read(activeConnectionsProvider.notifier).disconnectAll();
                               }
                             },
+                          ),
+                          OutlinedButton.icon(
+                            icon: _isCleaningUp
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.cleaning_services, size: 18),
+                            label: Text(l10n.tunnelCleanupZombies),
+                            onPressed: _isCleaningUp
+                                ? null
+                                : () async {
+                                    setState(() => _isCleaningUp = true);
+                                    try {
+                                      final cleaned = await cleanupDeadConnections();
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(cleaned.isEmpty
+                                                ? l10n.tunnelNoZombiesFound
+                                                : l10n.tunnelCleanedUpZombies(cleaned.length)),
+                                          ),
+                                        );
+                                      }
+                                    } catch (e) {
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              l10n.tunnelCleanupFailed(
+                                                localizedError(l10n, e, standalone: false),
+                                              ),
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    } finally {
+                                      if (mounted) setState(() => _isCleaningUp = false);
+                                    }
+                                  },
+                          ),
+                        ],
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     TextButton(
                       onPressed: () => Navigator.pop(context),
                       child: Text(l10n.commonClose),
@@ -226,6 +326,8 @@ class _TunnelCard extends ConsumerWidget {
     final parsed = parseTunnelKey(tunnelKey);
     final instanceName = parsed?.$1 ?? tunnelKey;
     final remotePort = parsed?.$2 ?? 0;
+
+    final engineLabel = tunnelEngineLabel(l10n, tunnel.engine);
 
     final isHealthy = tunnel.status == 'connected' && tunnel.error == null;
     final isError = tunnel.status == 'error';
@@ -285,10 +387,30 @@ class _TunnelCard extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        instanceName,
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                        overflow: TextOverflow.ellipsis,
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              instanceName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (isSshForwardKey(tunnelKey)) ...[
+                            const SizedBox(width: 6),
+                            _Tag(label: l10n.tunnelKindSshForward, shades: Colors.teal),
+                          ],
+                          // Identity, not a measurement: it belongs beside the
+                          // name, in a neutral grey that competes with neither
+                          // the status colour nor the forward tag.
+                          if (engineLabel != null) ...[
+                            const SizedBox(width: 6),
+                            Tooltip(
+                              message: l10n.tunnelEngineTooltip,
+                              child: _Tag(label: engineLabel, shades: Colors.grey),
+                            ),
+                          ],
+                        ],
                       ),
                       Text(
                         ':$remotePort -> localhost:${tunnel.port ?? "?"}',
@@ -348,12 +470,33 @@ class _TunnelCard extends ConsumerWidget {
               ],
             ),
 
+            if (isError) ...[
+              const SizedBox(height: 6),
+              Text(
+                tunnelErrorMessage(l10n, tunnel.errorCode ?? '',
+                    detail: tunnel.error),
+                style: TextStyle(fontSize: 12, color: Colors.red.shade700, fontWeight: FontWeight.w500),
+              ),
+              if (tunnel.error != null &&
+                  tunnel.error!.isNotEmpty &&
+                  !tunnelErrorDetailIsRedundant(
+                      tunnel.errorCode ?? '', tunnel.error))
+                Text(
+                  tunnel.error!,
+                  style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+            ],
+
             const SizedBox(height: 8),
 
             // Actions row
             Row(
               children: [
-                // Auto-reconnect toggle
+                // Auto-reconnect toggle (hidden for SSH forwards — they are
+                // not health-checked/auto-reconnected).
+                if (!isSshForwardKey(tunnelKey))
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -374,30 +517,71 @@ class _TunnelCard extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const Spacer(),
-                // Retry button (for error state)
-                if (isError)
-                  TextButton.icon(
-                    icon: const Icon(Icons.refresh, size: 16),
-                    label: Text(l10n.tunnelRetryNow, style: const TextStyle(fontSize: 12)),
-                    onPressed: () {
-                      ref.read(activeConnectionsProvider.notifier).retryConnection(tunnelKey);
-                    },
+                // Retry and Disconnect take what the toggle leaves and wrap
+                // onto a second line when they do not fit — on an errored
+                // row in Spanish they never did. Right-aligned, as the Spacer
+                // had them.
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 4,
+                    children: [
+                      // Retry button (for error state) — not for SSH forwards, which
+                      // would spuriously retry via the IAP path.
+                      if (isError && !isSshForwardKey(tunnelKey))
+                        TextButton.icon(
+                          icon: const Icon(Icons.refresh, size: 16),
+                          label: Text(l10n.tunnelRetryNow, style: const TextStyle(fontSize: 12)),
+                          onPressed: () {
+                            ref.read(activeConnectionsProvider.notifier).retryConnection(tunnelKey);
+                          },
+                        ),
+                      // Disconnect button
+                      TextButton.icon(
+                        icon: const Icon(Icons.close, size: 16, color: Colors.red),
+                        label: Text(l10n.commonDisconnect, style: const TextStyle(fontSize: 12, color: Colors.red)),
+                        onPressed: () async {
+                          // Route by full key so an SSH forward (sshfwd:…) is stopped
+                          // via stopSshForward, not the IAP stopConnection.
+                          await ref.read(activeConnectionsProvider.notifier)
+                              .disconnectByKey(tunnelKey);
+                        },
+                      ),
+                    ],
                   ),
-                // Disconnect button
-                TextButton.icon(
-                  icon: const Icon(Icons.close, size: 16, color: Colors.red),
-                  label: Text(l10n.commonDisconnect, style: const TextStyle(fontSize: 12, color: Colors.red)),
-                  onPressed: () async {
-                    if (parsed != null) {
-                      await ref.read(activeConnectionsProvider.notifier)
-                          .disconnect(parsed.$1, parsed.$2);
-                    }
-                  },
                 ),
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// A small outlined label on a tunnel's identity line.
+class _Tag extends StatelessWidget {
+  final String label;
+  final MaterialColor shades;
+
+  const _Tag({required this.label, required this.shades});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: shades.shade50,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: shades.shade200),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 10,
+          color: shades.shade800,
+          fontWeight: FontWeight.w600,
         ),
       ),
     );

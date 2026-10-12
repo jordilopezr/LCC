@@ -2,11 +2,15 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart'; // For StateProvider
+
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'package:linux_cloud_connector/src/features/vnc_display.dart';
 import '../services/notification_service.dart';
 import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/rdp_client.dart';
 import '../bridge/api.dart/vnc_client.dart';
+import 'gcloud_provider.dart' show accountProvider;
 
 // ==========================================
 // SETTINGS PROVIDERS
@@ -149,6 +153,90 @@ final rdpClientProvider = NotifierProvider<RdpClientNotifier, RdpClientType>(
   RdpClientNotifier.new,
 );
 
+/// Read back a stored RDP client preference.
+///
+/// Top-level and not a method so it can be tested without a provider
+/// container: the one behaviour worth pinning here is what happens to a
+/// preference this version no longer has a client for. 'mstsc' is the live
+/// case — LCC offered Windows Remote Desktop until build 20260924.36, a client
+/// that could never launch on any platform it builds for — and anyone who
+/// selected it has that string on disk today.
+///
+/// Unknown names fall back to Remmina rather than throwing. That is what makes
+/// the removal safe, and it holds only as long as the default arm stays.
+RdpClientType parseRdpClientName(String name) {
+  switch (name) {
+    case 'freerdp':
+      return RdpClientType.freeRdp;
+    case 'krdc':
+      return RdpClientType.krdc;
+    case 'gnome_connections':
+      return RdpClientType.gnomeConnections;
+    case 'remmina':
+    default:
+      return RdpClientType.remmina;
+  }
+}
+
+/// The VNC display remembered for each VM, keyed by project:zone:instance.
+///
+/// The first per-VM setting in the app; everything else here is global. A VM's
+/// display does not change, so asking for it on every connection would be
+/// friction with no upside.
+///
+/// The map is never pruned. An entry is about forty bytes, so a thousand VMs
+/// cost forty kilobytes — while pruning would need usage bookkeeping and could
+/// silently drop a display the user set on purpose. Losing a deliberate
+/// setting is the worse failure.
+class VncDisplayNotifier extends Notifier<Map<String, int>> {
+  static const _prefsKey = 'vnc_displays';
+
+  /// The read of the stored map, started by [build]. Every write and every
+  /// answer that must be right waits on it.
+  ///
+  /// It used to be fire-and-forget, and the map started empty. A `setDisplay`
+  /// that arrived before the read landed computed its new map from `{}` and
+  /// wrote it over the whole stored one: measured on 2026-10-01, `{vm-a: 1,
+  /// vm-b: 2}` on disk became `{vm-c: 0}` after one right-click VNC.
+  late Future<void> _loaded;
+
+  @override
+  Map<String, int> build() {
+    // build() is synchronous, so the state starts empty and fills in when the
+    // read lands. Reading `state` in that window answers 0 for every VM; use
+    // [displayFor] where the answer must be the stored one.
+    _loaded = _load();
+    return const {};
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = decodeVncDisplays(prefs.getString(_prefsKey));
+  }
+
+  /// The display stored for `vmKey`, once the stored map has been read.
+  Future<int> displayFor(String vmKey) async {
+    await _loaded;
+    return vncDisplayFor(state, vmKey);
+  }
+
+  /// Remember `display` for this VM. Called when the user accepts the dialog,
+  /// not when the connection succeeds: a wrong number stays visible in the
+  /// field and gets corrected, where forgetting it would make them retype.
+  Future<void> setDisplay(String vmKey, int display) async {
+    // Never compute the new map from one that has not been read yet: that is
+    // how every other VM's display was erased.
+    await _loaded;
+    state = withVncDisplay(state, vmKey, display);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefsKey, encodeVncDisplays(state));
+  }
+}
+
+final vncDisplayProvider =
+    NotifierProvider<VncDisplayNotifier, Map<String, int>>(
+        VncDisplayNotifier.new);
+
 class RdpClientNotifier extends Notifier<RdpClientType> {
   @override
   RdpClientType build() {
@@ -181,26 +269,10 @@ class RdpClientNotifier extends Notifier<RdpClientType> {
         return 'krdc';
       case RdpClientType.gnomeConnections:
         return 'gnome_connections';
-      case RdpClientType.mstsc:
-        return 'mstsc';
     }
   }
 
-  RdpClientType _parseClientType(String name) {
-    switch (name) {
-      case 'freerdp':
-        return RdpClientType.freeRdp;
-      case 'krdc':
-        return RdpClientType.krdc;
-      case 'gnome_connections':
-        return RdpClientType.gnomeConnections;
-      case 'mstsc':
-        return RdpClientType.mstsc;
-      case 'remmina':
-      default:
-        return RdpClientType.remmina;
-    }
-  }
+  RdpClientType _parseClientType(String name) => parseRdpClientName(name);
 
   /// Get display name for UI
   String displayName(RdpClientType client) {
@@ -213,8 +285,6 @@ class RdpClientNotifier extends Notifier<RdpClientType> {
         return 'KRDC';
       case RdpClientType.gnomeConnections:
         return 'GNOME Connections';
-      case RdpClientType.mstsc:
-        return 'Windows Remote Desktop';
     }
   }
 }
@@ -488,6 +558,80 @@ class ConnectionHistoryEntry {
   }
 }
 
+/// The preferences key for [base] belonging to [account], or null when no
+/// account is active.
+///
+/// History and favorites used to be one global list each, so a newly
+/// signed-in account was shown the VMs and projects another account had
+/// connected to or starred.
+///
+/// Those old global lists are handed to the account signed in when the upgrade
+/// lands and then removed, so a second account does not inherit them: see
+/// [handLegacyListsToAccount]. Giving them to nobody, as this first did, made
+/// them invisible for good.
+String? accountScopedKey(String base, String? account) =>
+    account == null ? null : '$base:$account';
+
+/// Hands both pre-account global lists — history and favorites — over to
+/// [account], together.
+///
+/// Together is the whole point. This used to live in each notifier's own load,
+/// so a list was only handed over once something on screen read that provider.
+/// Measured on a real machine on 2026-10-12: the VM panel reads the favorites
+/// as soon as it opens, the history is not read until its own view is opened,
+/// so the star went to one account and the history sat waiting — and would
+/// have gone to whichever account happened to be active whenever that view was
+/// first opened. Both loads call this, so the first one to run hands over
+/// both and they cannot end up on different accounts.
+///
+/// Each half is a no-op once its global key is gone, so calling this on every
+/// load and every account change costs one preferences read.
+Future<void> handLegacyListsToAccount(
+    SharedPreferences prefs, String account) async {
+  await _handOverHistory(prefs, account);
+  await _handOverFavorites(prefs, account);
+}
+
+/// One entry per VM, the most recent — the rule [ConnectionHistoryNotifier.addEntry]
+/// already follows. The same VM can sit in both lists with different times.
+Future<void> _handOverHistory(SharedPreferences prefs, String account) async {
+  const base = ConnectionHistoryNotifier._storageKey;
+  final legacy = prefs.getStringList(base);
+  if (legacy == null) return; // ya entregada, o nunca hubo
+  final key = '$base:$account';
+
+  // Se guardan las cadenas tal como vinieron: reescribirlas por un ida y
+  // vuelta de JSON podría perder cualquier campo que `toJson` no ponga.
+  final dated = <({DateTime at, String vm, String raw})>[];
+  for (final raw in [...?prefs.getStringList(key), ...legacy]) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) continue;
+      final entry = ConnectionHistoryEntry.fromJson(decoded);
+      dated.add((at: entry.timestamp, vm: entry.uniqueKey, raw: raw));
+    } catch (e) {
+      continue; // una entrada ilegible no bloquea la entrega
+    }
+  }
+  dated.sort((a, b) => b.at.compareTo(a.at));
+  final seen = <String>{};
+  final merged = [for (final d in dated) if (seen.add(d.vm)) d.raw];
+
+  // Escribir antes de borrar: si algo falla en medio sobra, no falta.
+  await prefs.setStringList(key, merged);
+  await prefs.remove(base);
+}
+
+Future<void> _handOverFavorites(SharedPreferences prefs, String account) async {
+  const base = FavoritesNotifier._storageKey;
+  final legacy = prefs.getStringList(base);
+  if (legacy == null) return;
+  final key = '$base:$account';
+  await prefs.setStringList(
+      key, {...?prefs.getStringList(key), ...legacy}.toList());
+  await prefs.remove(base);
+}
+
 /// Provider for connection history
 final connectionHistoryProvider = NotifierProvider<ConnectionHistoryNotifier, List<ConnectionHistoryEntry>>(
   ConnectionHistoryNotifier.new,
@@ -498,15 +642,51 @@ class ConnectionHistoryNotifier extends Notifier<List<ConnectionHistoryEntry>> {
   static const int retentionDays = 30;
   static const String _storageKey = 'connection_history';
 
+  /// This account's key, or null with no active account (nothing is read or
+  /// written then).
+  String? _key;
+
+  /// The read of this account's history, started by [build]. Every write
+  /// waits on it.
+  ///
+  /// It used to be fire-and-forget, and the state starts empty: an entry
+  /// added before the read landed computed its new list from `[]` and wrote
+  /// it over the stored one. Measured on 2026-10-03: two stored connections
+  /// plus one new left **one** entry on disk.
+  late Future<void> _loaded;
+
   @override
   List<ConnectionHistoryEntry> build() {
-    _loadHistory();
+    final account =
+        ref.watch(accountProvider.select((s) => s.activeAccountEmail));
+    final key = _key = accountScopedKey(_storageKey, account);
+    // With no account there is nothing to read, but `_loaded` must still be
+    // assigned: writes await it without knowing whether an account was there.
+    _loaded =
+        key == null ? Future<void>.value() : _loadHistory(key, account!);
     return [];
   }
 
-  Future<void> _loadHistory() async {
+  /// Waits for the stored history and answers the key to write to, or null
+  /// when there is no active account or the account changed while waiting —
+  /// in which case what was about to be written belonged to the previous one.
+  ///
+  /// The account check is load-bearing, and it took being removed to prove it.
+  /// On 2026-10-06 a switch was measured to dispose this notifier fast enough
+  /// that the write in flight died with it, so the check looked like dead code
+  /// and was dropped. Handing the legacy lists over added three awaits to the
+  /// load, the switch started landing inside that window, and one account's
+  /// star was written into the other's file.
+  Future<String?> _keyAfterLoad() async {
+    final key = _key;
+    await _loaded;
+    return (!ref.mounted || _key != key) ? null : key;
+  }
+
+  Future<void> _loadHistory(String key, String account) async {
     final prefs = await SharedPreferences.getInstance();
-    final jsonList = prefs.getStringList(_storageKey) ?? [];
+    await handLegacyListsToAccount(prefs, account);
+    final jsonList = prefs.getStringList(key) ?? [];
 
     final entries = <ConnectionHistoryEntry>[];
     final now = DateTime.now();
@@ -533,6 +713,8 @@ class ConnectionHistoryNotifier extends Notifier<List<ConnectionHistoryEntry>> {
 
     // Sort by timestamp descending (most recent first)
     entries.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    // The account may have changed while this was loading.
+    if (!ref.mounted || _key != key) return;
     state = entries;
   }
 
@@ -550,14 +732,26 @@ class ConnectionHistoryNotifier extends Notifier<List<ConnectionHistoryEntry>> {
     return jsonEncode(map);
   }
 
-  Future<void> _saveHistory() async {
+  /// Writes to [key], the one the operation started on — never to whatever
+  /// `_key` happens to hold by now.
+  ///
+  /// Reading `_key` here instead left a window between the check in
+  /// [_keyAfterLoad] and this save: an account switch landing inside it put
+  /// one account's entries in the other's file. Measured 10 runs out of 10
+  /// on 2026-10-06, once handing the legacy lists over had lengthened the
+  /// load enough for the switch to land there.
+  Future<void> _saveHistory(String key) async {
     final prefs = await SharedPreferences.getInstance();
     final jsonList = state.map((e) => _toJsonString(e.toJson())).toList();
-    await prefs.setStringList(_storageKey, jsonList);
+    await prefs.setStringList(key, jsonList);
   }
 
   /// Add a new entry to history
   Future<void> addEntry(ConnectionHistoryEntry entry) async {
+    // Never compute the new list from one that has not been read yet: that is
+    // how the stored connections were erased.
+    final key = await _keyAfterLoad();
+    if (key == null) return;
     // Remove duplicate entries for same VM (keep the new one)
     final filtered = state.where((e) => e.uniqueKey != entry.uniqueKey).toList();
 
@@ -566,18 +760,26 @@ class ConnectionHistoryNotifier extends Notifier<List<ConnectionHistoryEntry>> {
 
     // Limit to max entries
     state = newList.take(maxEntries).toList();
-    await _saveHistory();
+    await _saveHistory(key);
   }
 
   /// Clear all history
   Future<void> clearHistory() async {
+    // Waited on so the read cannot land afterwards and bring back what was
+    // just cleared.
+    final key = await _keyAfterLoad();
     state = [];
+    if (key == null) return;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_storageKey);
+    await prefs.remove(key);
   }
 
   /// Remove old entries (called on app startup)
   Future<void> cleanupOldEntries() async {
+    // Without the stored entries there is nothing to judge the age of, and
+    // the empty result would be written over them.
+    final key = await _keyAfterLoad();
+    if (key == null) return;
     final now = DateTime.now();
     final cutoff = now.subtract(const Duration(days: retentionDays));
 
@@ -585,7 +787,7 @@ class ConnectionHistoryNotifier extends Notifier<List<ConnectionHistoryEntry>> {
 
     if (filtered.length != state.length) {
       state = filtered;
-      await _saveHistory();
+      await _saveHistory(key);
     }
   }
 }
@@ -602,21 +804,49 @@ final favoritesProvider = NotifierProvider<FavoritesNotifier, Set<String>>(
 class FavoritesNotifier extends Notifier<Set<String>> {
   static const String _storageKey = 'favorite_vms';
 
+  /// This account's key, or null with no active account (nothing is read or
+  /// written then).
+  String? _key;
+
+  /// The read of this account's favorites, started by [build]. Every write
+  /// waits on it. See [ConnectionHistoryNotifier._loaded]: starred VMs were
+  /// erased the same way.
+  late Future<void> _loaded;
+
   @override
   Set<String> build() {
-    _loadFavorites();
+    final account =
+        ref.watch(accountProvider.select((s) => s.activeAccountEmail));
+    final key = _key = accountScopedKey(_storageKey, account);
+    _loaded =
+        key == null ? Future<void>.value() : _loadFavorites(key, account!);
     return {};
   }
 
-  Future<void> _loadFavorites() async {
+  /// Waits for the stored favorites and answers the key to write to, or null
+  /// when there is no active account or the account changed while waiting.
+  /// See [ConnectionHistoryNotifier._keyAfterLoad] on why that check is there.
+  Future<String?> _keyAfterLoad() async {
+    final key = _key;
+    await _loaded;
+    return (!ref.mounted || _key != key) ? null : key;
+  }
+
+  Future<void> _loadFavorites(String key, String account) async {
     final prefs = await SharedPreferences.getInstance();
-    final list = prefs.getStringList(_storageKey) ?? [];
+    await handLegacyListsToAccount(prefs, account);
+    final list = prefs.getStringList(key) ?? [];
+    // The account may have changed while this was loading.
+    if (!ref.mounted || _key != key) return;
     state = list.toSet();
   }
 
-  Future<void> _saveFavorites() async {
+  /// Writes to [key], the one the operation started on. See
+  /// [ConnectionHistoryNotifier._saveHistory] on why it is not read from
+  /// `_key` here.
+  Future<void> _saveFavorites(String key) async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setStringList(_storageKey, state.toList());
+    await prefs.setStringList(key, state.toList());
   }
 
   /// Check if a VM is favorite
@@ -624,27 +854,35 @@ class FavoritesNotifier extends Notifier<Set<String>> {
 
   /// Toggle favorite status
   Future<void> toggle(String uniqueKey) async {
+    // Never decide from a set that has not been read yet: starring one VM
+    // wrote it over every other starred one, and unstarring did nothing.
+    final key = await _keyAfterLoad();
+    if (key == null) return;
     if (state.contains(uniqueKey)) {
       state = {...state}..remove(uniqueKey);
     } else {
       state = {...state, uniqueKey};
     }
-    await _saveFavorites();
+    await _saveFavorites(key);
   }
 
   /// Add to favorites
   Future<void> addFavorite(String uniqueKey) async {
+    final key = await _keyAfterLoad();
+    if (key == null) return;
     if (!state.contains(uniqueKey)) {
       state = {...state, uniqueKey};
-      await _saveFavorites();
+      await _saveFavorites(key);
     }
   }
 
   /// Remove from favorites
   Future<void> removeFavorite(String uniqueKey) async {
+    final key = await _keyAfterLoad();
+    if (key == null) return;
     if (state.contains(uniqueKey)) {
       state = {...state}..remove(uniqueKey);
-      await _saveFavorites();
+      await _saveFavorites(key);
     }
   }
 }

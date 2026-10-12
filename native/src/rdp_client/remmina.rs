@@ -2,6 +2,7 @@ use super::utils::*;
 use super::RdpSettings;
 use std::fs::File;
 use std::io::Write;
+use crate::child_reaper::SpawnReaped;
 use std::process::{Command, Stdio};
 use anyhow::{Result, anyhow};
 use tracing;
@@ -30,7 +31,7 @@ pub fn launch(port: u16, instance_name: &str, settings: &RdpSettings) -> Result<
             .arg(path)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if native.is_ok() {
             tracing::info!("Native Remmina launched successfully");
@@ -50,7 +51,7 @@ pub fn launch(port: u16, instance_name: &str, settings: &RdpSettings) -> Result<
             .arg("@@")
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
-            .spawn();
+            .spawn_reaped();
 
         if flatpak.is_ok() {
             tracing::info!("Flatpak Remmina launched (file mode)");
@@ -72,7 +73,7 @@ pub fn launch(port: u16, instance_name: &str, settings: &RdpSettings) -> Result<
         .args(["run", "org.remmina.Remmina", "-c", &uri])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .spawn();
+        .spawn_reaped();
 
     match flatpak_uri {
         Ok(_) => {

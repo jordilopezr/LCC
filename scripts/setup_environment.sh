@@ -41,7 +41,7 @@ else
 fi
 
 # 1. Actualizar sistema e instalar dependencias básicas
-print_step "1/9: Instalando Git y herramientas básicas..."
+print_step "1/8: Instalando Git y herramientas básicas..."
 if [ "$PKG_MANAGER" = "apt" ]; then
     sudo apt-get update
     sudo apt-get install -y git curl wget build-essential
@@ -51,7 +51,7 @@ fi
 print_success "Git y herramientas básicas instaladas"
 
 # 1b. Instalar Linux toolchain (requerido por flutter doctor)
-print_step "1b/9: Instalando Linux toolchain (clang, ninja, GTK3, glxinfo)..."
+print_step "1b/8: Instalando Linux toolchain (clang, ninja, GTK3, glxinfo)..."
 if [ "$PKG_MANAGER" = "apt" ]; then
     sudo apt-get install -y clang ninja-build libgtk-3-dev mesa-utils pkg-config
 elif [ "$PKG_MANAGER" = "dnf" ]; then
@@ -60,7 +60,7 @@ fi
 print_success "Linux toolchain instalado"
 
 # 2. Verificar si Flutter ya está instalado
-print_step "2/9: Configurando Flutter SDK..."
+print_step "2/8: Configurando Flutter SDK..."
 if [ -d "$HOME/flutter" ]; then
     print_warning "Flutter ya está en $HOME/flutter"
 else
@@ -82,7 +82,7 @@ $HOME/flutter/bin/flutter doctor
 print_success "Flutter SDK configurado"
 
 # 3. Instalar Rust
-print_step "3/9: Instalando Rust y Cargo..."
+print_step "3/8: Instalando Rust y Cargo..."
 if command -v rustc &> /dev/null; then
     print_warning "Rust ya está instalado: $(rustc --version)"
 else
@@ -97,11 +97,39 @@ if ! grep -q '.cargo/env' ~/.bashrc; then
     print_success "Cargo agregado al PATH"
 fi
 
-# 4. Instalar Google Cloud SDK
-print_step "4/9: Instalando Google Cloud SDK (gcloud)..."
+# Opcional: Google Cloud SDK (gcloud). NO es un paso obligatorio y por eso no
+# lleva número: LCC ya no lo necesita para iniciar sesión.
+print_step "Opcional: Google Cloud SDK (gcloud)"
+echo "  LCC ya NO necesita gcloud para iniciar sesión: abre tu navegador y"
+echo "  mantiene su propia sesión en el llavero del sistema. Tampoco lo usa"
+echo "  para abrir túneles IAP ni reenviar puertos SSH."
+echo "  Sigue siendo útil para dos cosas:"
+echo "    - es el motor de autenticación alternativo (Ajustes → Método de"
+echo "      inicio de sesión), si prefieres que LCC use la sesión de gcloud;"
+echo "    - es la herramienta con la que ejecutas los comandos de"
+echo "      administración que sugiere Doctor (habilitar APIs, regla de"
+echo "      firewall de IAP, arrancar una VM). Doctor también da el enlace"
+echo "      equivalente de la Cloud Console para cada uno."
+echo
+
+INSTALL_GCLOUD="no"
 if command -v gcloud &> /dev/null; then
     print_warning "gcloud ya está instalado: $(gcloud --version | head -n 1)"
+elif [ "${LCC_INSTALL_GCLOUD:-}" = "1" ]; then
+    INSTALL_GCLOUD="yes"
+elif [ "${LCC_INSTALL_GCLOUD:-}" = "0" ]; then
+    print_warning "Omitido (LCC_INSTALL_GCLOUD=0)."
+elif [ -t 0 ]; then
+    read -r -p "¿Instalar Google Cloud SDK ahora? [s/N] " GCLOUD_ANSWER
+    case "$GCLOUD_ANSWER" in
+        [sSyY]*) INSTALL_GCLOUD="yes" ;;
+        *) print_warning "Omitido. Puedes instalarlo más tarde si lo necesitas." ;;
+    esac
 else
+    print_warning "Sin terminal interactiva: omitido. Usa LCC_INSTALL_GCLOUD=1 para instalarlo."
+fi
+
+if [ "$INSTALL_GCLOUD" = "yes" ]; then
     # Instalar gcloud CLI
     if [ "$PKG_MANAGER" = "apt" ]; then
         echo "deb [signed-by=/usr/share/keyrings/cloud.google.gpg] https://packages.cloud.google.com/apt cloud-sdk main" | sudo tee -a /etc/apt/sources.list.d/google-cloud-sdk.list
@@ -124,8 +152,8 @@ EOM
     print_success "Google Cloud SDK instalado"
 fi
 
-# 5. Instalar dependencias del sistema
-print_step "5/9: Instalando dependencias del sistema (libsecret, libjsoncpp, openssl)..."
+# 4. Instalar dependencias del sistema
+print_step "4/8: Instalando dependencias del sistema (libsecret, libjsoncpp, openssl)..."
 if [ "$PKG_MANAGER" = "apt" ]; then
     sudo apt-get install -y libsecret-1-dev libjsoncpp-dev libssl-dev pkg-config
 elif [ "$PKG_MANAGER" = "dnf" ]; then
@@ -133,8 +161,8 @@ elif [ "$PKG_MANAGER" = "dnf" ]; then
 fi
 print_success "Dependencias del sistema instaladas"
 
-# 6. Instalar Remmina
-print_step "6/9: Instalando Remmina (cliente RDP)..."
+# 5. Instalar Remmina
+print_step "5/8: Instalando Remmina (cliente RDP)..."
 if command -v remmina &> /dev/null; then
     print_warning "Remmina ya está instalado: $(remmina --version)"
 else
@@ -146,20 +174,20 @@ else
     print_success "Remmina instalado"
 fi
 
-# 7. Instalar flutter_rust_bridge_codegen
-print_step "7/9: Instalando flutter_rust_bridge_codegen..."
+# 6. Instalar flutter_rust_bridge_codegen
+print_step "6/8: Instalando flutter_rust_bridge_codegen..."
 source "$HOME/.cargo/env"
 cargo install flutter_rust_bridge_codegen
 print_success "flutter_rust_bridge_codegen instalado"
 
-# 8. Instalar dependencias de Flutter del proyecto
-print_step "8/9: Instalando dependencias de Flutter del proyecto..."
+# 7. Instalar dependencias de Flutter del proyecto
+print_step "7/8: Instalando dependencias de Flutter del proyecto..."
 cd "$(dirname "$0")/.."
 $HOME/flutter/bin/flutter pub get
 print_success "Dependencias de Flutter instaladas"
 
-# 9. Verificar instalación con flutter doctor
-print_step "9/9: Verificando instalación con flutter doctor..."
+# 8. Verificar instalación con flutter doctor
+print_step "8/8: Verificando instalación con flutter doctor..."
 $HOME/flutter/bin/flutter doctor
 print_success "Verificación completada"
 
@@ -175,7 +203,12 @@ echo "   flutter_rust_bridge_codegen generate --rust-input crate::api --rust-roo
 echo "3. Ejecuta la aplicación:"
 echo "   flutter run -d linux"
 echo
-echo "Configuración opcional:"
-echo "- Para usar Google Cloud Client Libraries (mejor rendimiento):"
-echo "  gcloud auth application-default login"
+echo "Inicio de sesión:"
+echo "- Se hace desde la propia aplicación: añade una cuenta y LCC abrirá tu"
+echo "  navegador para iniciar sesión en Google. No hace falta ejecutar ningún"
+echo "  comando de gcloud."
+echo
+echo "Opcional:"
+echo "- Si tienes gcloud y prefieres que LCC use su sesión, cámbialo en"
+echo "  Ajustes → Método de inicio de sesión."
 echo

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/snapshots.dart';
+import 'app_error.dart';
 import 'snapshot_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -200,7 +201,7 @@ class _SnapshotListTab extends ConsumerWidget {
           children: [
             const Icon(Icons.error_outline, size: 48, color: Colors.red),
             const SizedBox(height: 12),
-            Text(l10n.commonErrorPrefix(err.toString()),
+            Text(l10n.commonErrorPrefix(localizedError(l10n, err, standalone: false)),
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.red)),
             const SizedBox(height: 16),
@@ -462,7 +463,11 @@ class _SnapshotCard extends ConsumerWidget {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.snapshotDeleteError(e.toString()))),
+          SnackBar(
+            content: Text(
+              l10n.snapshotDeleteError(localizedError(l10n, e, standalone: false)),
+            ),
+          ),
         );
       }
     }
@@ -560,7 +565,13 @@ class _SnapshotCard extends ConsumerWidget {
       if (context.mounted) Navigator.of(context).pop(); // close loading
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.snapshotCreateDiskError(e.toString()))),
+          SnackBar(
+            content: Text(
+              l10n.snapshotCreateDiskError(
+                localizedError(l10n, e, standalone: false),
+              ),
+            ),
+          ),
         );
       }
     }
@@ -820,7 +831,11 @@ class _CreateSnapshotTabState extends ConsumerState<_CreateSnapshotTab> {
       if (mounted) {
         setState(() => _creating = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.snapshotCreateError(e.toString()))),
+          SnackBar(
+            content: Text(
+              l10n.snapshotCreateError(localizedError(l10n, e, standalone: false)),
+            ),
+          ),
         );
       }
     }

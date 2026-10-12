@@ -3,7 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import 'frb_generated.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 class GcloudAccount {
@@ -36,6 +36,11 @@ class GcpInstance {
   final bool osLoginEnabled;
   final bool isWindows;
 
+  /// Addresses of the first network interface. `external_ip` is absent on a
+  /// VM with no public address — the normal case for IAP-only instances.
+  final String? internalIp;
+  final String? externalIp;
+
   const GcpInstance({
     required this.name,
     required this.status,
@@ -47,6 +52,8 @@ class GcpInstance {
     required this.labels,
     required this.osLoginEnabled,
     required this.isWindows,
+    this.internalIp,
+    this.externalIp,
   });
 
   @override
@@ -60,7 +67,9 @@ class GcpInstance {
       diskGb.hashCode ^
       labels.hashCode ^
       osLoginEnabled.hashCode ^
-      isWindows.hashCode;
+      isWindows.hashCode ^
+      internalIp.hashCode ^
+      externalIp.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -76,7 +85,9 @@ class GcpInstance {
           diskGb == other.diskGb &&
           labels == other.labels &&
           osLoginEnabled == other.osLoginEnabled &&
-          isWindows == other.isWindows;
+          isWindows == other.isWindows &&
+          internalIp == other.internalIp &&
+          externalIp == other.externalIp;
 }
 
 class GcpProject {

@@ -4,12 +4,12 @@
 
 **Lightweight Cloud Connector** es una aplicación de escritorio nativa multiplataforma diseñada para simplificar y asegurar la conexión a instancias de Google Cloud Platform (GCP) mediante **Identity-Aware Proxy (IAP)**.
 
-Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendimiento y seguridad óptimos. LCC es **100% gratuito y open source** (licencia MIT), con todas las funcionalidades disponibles sin restricciones.
+Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendimiento y seguridad óptimos. LCC es **100% gratuito y open source** (GPLv3 o posterior), con todas las funcionalidades disponibles sin restricciones.
 
 ![Release](https://img.shields.io/badge/Release-26H2-brightgreen)
 ![Build](https://img.shields.io/badge/Build-20260731.1-blue)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20(pr%C3%B3ximamente)-blue)
-![License](https://img.shields.io/badge/License-MIT-purple)
+![License](https://img.shields.io/badge/License-GPLv3%2B-purple)
 
 <img width="1332" height="819" alt="Panel principal de LCC" src="https://github.com/user-attachments/assets/76d627da-e9a8-45c5-ab79-965b6dd3440c" />
 <img width="1332" height="819" alt="Gestión de túneles en LCC" src="https://github.com/user-attachments/assets/9c2cb83f-d770-47b4-b0d5-be40897a2012" />
@@ -31,7 +31,7 @@ Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendim
 
 ### Tunnel Manager y Auto-Reconnect
 *   **Vista consolidada:** panel centralizado con todos los túneles activos de todas las VMs.
-*   **Túnel nativo:** los túneles IAP se establecen de forma nativa en Rust, sin lanzar el binario `gcloud`, con fallback automático al motor `gcloud` si el camino nativo falla.
+*   **Túnel nativo:** los túneles IAP se establecen de forma nativa en Rust, sin lanzar el binario `gcloud`. **No hay fallback silencioso**: si el camino nativo falla, el túnel reporta el error en vez de cambiar de motor a escondidas. El motor `gcloud` sigue disponible como elección explícita en Ajustes → Avanzado (o mediante `LCC_TUNNEL_ENGINE`).
 *   **Auto-reconnect:** reconecta automáticamente túneles caídos sin intervención manual.
 *   **Gestión individual:** desconecta, reconecta o inspecciona cada túnel por separado.
 *   **Health monitoring:** estado de salud en tiempo real (proceso + puerto TCP) cada 30 segundos.
@@ -43,13 +43,13 @@ Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendim
 *   **Suspend/Resume:** suspende y reanuda VMs (además de start/stop/reset).
 
 ### Connectivity Doctor
-*   **10 checks automáticos:** diagnostica problemas de conectividad agrupados en 5 categorías.
-*   **Authentication:** verifica gcloud CLI, cuenta activa y credenciales ADC.
+*   **13 checks automáticos:** diagnostica problemas de conectividad agrupados en 5 categorías.
+*   **Authentication:** tres filas nativas — *LCC Credential Store* (el llavero del sistema responde), *LCC Account Index* (cada cuenta listada conserva su sesión guardada) y *LCC Session* (LCC puede obtener un token ahora mismo) — más tres filas de gcloud (*gcloud CLI Installed*, *gcloud Account Active*, *Application Default Credentials*). Cada grupo reporta `Skipped` cuando el motor seleccionado es el otro, así que el informe nunca te suspende por una herramienta que no usas.
 *   **Project & Permissions:** verifica acceso al proyecto y APIs habilitadas (Compute, IAP).
 *   **IAP & Network:** verifica la API de IAP y reglas de firewall para `35.235.240.0/20`.
 *   **VM Status:** verifica estado de la VM y guest agent.
 *   **Local Environment:** detecta clientes remotos instalados (SSH, RDP, VNC).
-*   **Fix suggestions:** sugerencias con comandos copiables para resolver cada problema.
+*   **Fix suggestions:** comandos copiables para cada problema y, en los remedios que de otro modo necesitarían `gcloud` (habilitar la API de Compute Engine o de IAP, añadir la regla de firewall de IAP, arrancar una VM parada), un enlace a la Cloud Console junto al comando.
 *   **Auto-fix:** acciones automáticas como re-autenticación o inicio de VM (con confirmación).
 *   **Export report:** genera un reporte Markdown con datos sensibles redactados automáticamente.
 *   **Re-run:** ejecuta los checks de nuevo después de aplicar fixes.
@@ -105,10 +105,10 @@ Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendim
 *   **Base estándar:** `gen-l10n` de Flutter con diccionarios `.arb`, lo que facilita añadir más idiomas.
 *   **Nota:** los errores del túnel IAP usan códigos tipados y están traducidos (EN/ES). El resto de mensajes de error generados en Rust (`doctor`, `sftp`, `snapshots`, `gcloud`) y las notificaciones de escritorio siguen en inglés (pendiente para una versión futura).
 
-### Integración con Google Cloud Client Libraries
-*   **Dual API:** alterna entre gcloud CLI y Google Cloud Client Libraries (REST API).
-*   **Rendimiento:** las Client Libraries son 1.3–1.5x más rápidas que la CLI.
-*   **Cambio en caliente:** toggle en el AppBar para cambiar entre métodos en tiempo real.
+### APIs de Google Cloud (cliente REST nativo)
+*   **Un solo camino, sin toggle:** proyectos, instancias, snapshots y acciones de ciclo de vida pasan todos por el cliente REST propio en Rust contra las APIs de Google Cloud. El antiguo toggle "Dual API" del AppBar entre la CLI de gcloud y las Client Libraries ya no existe: no queda camino CLI al que cambiar.
+*   **Sin proceso por llamada:** cada operación es una única petición HTTPS desde el cliente en Rust, en vez de lanzar un proceso `gcloud` y parsear su salida.
+*   **Access tokens:** se obtienen de la sesión propia de LCC con el motor de inicio de sesión nativo; se leen de gcloud (`gcloud auth print-access-token`, con ADC como respaldo) con el motor gcloud.
 
 ### Gestión del Ciclo de Vida de VMs
 *   **Start / Stop / Reset / Suspend / Resume.**
@@ -121,7 +121,7 @@ Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendim
 
 ### Seguridad y Fiabilidad
 *   **Validación de entradas:** protección contra inyección de comandos mediante validación regex.
-*   **Timeouts:** todos los comandos gcloud tienen timeout de 10 s.
+*   **Timeouts:** todo comando gcloud corre bajo uno — 10–30 s para consultas, 120 s para operaciones de ciclo de vida de la VM (arrancar, parar, reiniciar, suspender, reanudar).
 *   **Monitoreo de salud:** verificación automática de túneles cada 30 segundos (proceso + puerto TCP).
 *   **Permisos seguros:** archivos `.remmina` y de contraseña VNC creados con modo 0600.
 
@@ -141,20 +141,26 @@ Si encuentras útil esta herramienta y quieres apoyar su desarrollo continuo, pu
 
 ## Requisitos del Sistema
 
-1.  **Google Cloud SDK (`gcloud`):** instalado y en el PATH.
-2.  **Cliente RDP** (al menos uno, para conexiones RDP):
+1.  **Cliente RDP** (al menos uno, para conexiones RDP):
     - **Remmina** (recomendado) — nativo o Flatpak
     - **FreeRDP** (`xfreerdp`) — basado en CLI, ampliamente disponible
     - **KRDC** — cliente predeterminado de KDE
     - **GNOME Connections** — cliente moderno de GNOME
-3.  **Cliente VNC** (al menos uno, para conexiones VNC):
+2.  **Cliente VNC** (al menos uno, para conexiones VNC):
     - **Remmina** (recomendado) — soporta VNC y RDP
     - **TigerVNC** (`vncviewer`) — cliente ligero y rápido
     - **KRDC** — cliente KDE con soporte VNC/RDP
     - **Vinagre** — cliente GNOME clásico para VNC
-4.  **Librerías del sistema (Linux):** `libsecret-1-dev`, `libjsoncpp-dev` (para almacenamiento seguro).
-5.  **SSH keys configuradas:** para autenticación SFTP (ver sección de configuración SSH).
-6.  **Application Default Credentials:** para usar Client Libraries (opcional, requiere `gcloud auth application-default login`).
+3.  **Librerías del sistema (Linux):** `libsecret-1-dev`, `libjsoncpp-dev` (para almacenamiento seguro).
+4.  **Un Secret Service en marcha** (GNOME Keyring, KWallet o equivalente): LCC guarda ahí la sesión de cada cuenta. La fila *LCC Credential Store* de Doctor avisa cuando no responde.
+5.  **Una cuenta de Google** con acceso a los proyectos de GCP que quieras gestionar.
+
+### Opcionales
+
+*   **Google Cloud SDK (`gcloud`) — opcional.** LCC inicia sesión por su cuenta y abre los túneles IAP por su cuenta; ninguno de los dos caminos usa gcloud, así que no te hace falta tenerlo instalado. Sigue mereciendo la pena tenerlo por dos cosas:
+    - es el **motor de inicio de sesión alternativo**, seleccionable en Ajustes bajo *Método de inicio de sesión*. Con ese motor LCC lee la sesión que gcloud ya tiene — esa sesión la mantienes tú con `gcloud auth login`;
+    - es la herramienta con la que ejecutas los **comandos de administración que Doctor sugiere**: habilitar las APIs de Compute Engine y de IAP, añadir la regla de firewall de IAP para `35.235.240.0/20`, arrancar una VM parada. Doctor imprime también un enlace a la Cloud Console para cada uno de esos casos, así que ahí gcloud es una comodidad y no un requisito.
+*   **Tus propias claves SSH:** LCC genera y publica su propia clave cuando una VM la necesita (preguntando antes), y también ofrece cualquier clave que ya tengas en `~/.ssh`. Trae la tuya solo si prefieres que use esa.
 
 ## Compilación e Instalación
 
@@ -194,14 +200,42 @@ flutter run -d macos
 > [IAP Desktop](https://github.com/GoogleCloudPlatform/iap-desktop) de Google Cloud.
 > (LCC sí gestiona **VMs Windows** como destino: RDP y auto-credenciales.)
 
-### 5. (Opcional) Habilitar Client Libraries
-```bash
-# Configurar Application Default Credentials
-gcloud auth application-default login
-# Dentro de la app, usa el toggle en el AppBar para cambiar entre CLI y Client Libraries
-```
+### 5. Iniciar sesión
 
-### 6. Configurar SSH para SFTP
+Arranca LCC y añade una cuenta desde el diálogo de cuentas. LCC abre tu navegador
+para el inicio de sesión de Google (OAuth 2.0 authorization code con PKCE sobre
+un redirect de loopback) y guarda el refresh token resultante en el llavero del
+sistema. No hay paso en terminal: `gcloud auth application-default login` no hace
+falta.
+
+Para usar en su lugar la sesión de gcloud, abre **Ajustes → Método de inicio de
+sesión** y elige *Usar el CLI de gcloud*. Con ese motor LCC nunca te inicia ni te
+cierra sesión: lee las credenciales de gcloud y te dice qué comando ejecutar
+(`gcloud auth login`, `gcloud auth revoke <cuenta>`) cuando hace falta una acción
+de autenticación.
+
+Hay tres motores seleccionables, cada uno con una variable de entorno que manda
+sobre la elección guardada (Ajustes lo advierte cuando alguna está puesta):
+
+| Motor | Dónde | Variable de entorno |
+|---|---|---|
+| Inicio de sesión | Ajustes → Método de inicio de sesión | `LCC_AUTH_ENGINE` |
+| Túnel IAP | Ajustes → Avanzado | `LCC_TUNNEL_ENGINE` |
+| Reenvío de puertos SSH | Ajustes → Avanzado | `LCC_SSH_FORWARD_ENGINE` |
+
+Las tres aceptan `native` o `gcloud`, y las tres tienen `native` por defecto.
+
+### 6. (Opcional) Configurar SSH para SFTP a mano
+
+LCC se encarga solo: la primera vez que necesita acceso SSH a una VM pide
+permiso y publica su propia clave
+(`~/.local/share/lightweight_cloud_connector/ssh/lcc_ed25519`) — vía OS Login
+cuando la instancia lo tiene habilitado, y si no **fusionándola** con los
+metadatos `ssh-keys` de la instancia, sin sobrescribir las demás entradas.
+También ofrece las claves que ya tengas en `~/.ssh`.
+
+Si prefieres publicar una clave tú, el camino manual sigue funcionando:
+
 ```bash
 # Generar clave SSH (si no tienes una)
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
@@ -231,16 +265,6 @@ scripts/build_all_containers.sh   # Builds reproducibles en contenedores podman 
 
 También hay un `PKGBUILD` para Arch Linux en `packaging/arch/`.
 
-## Comparativa de Rendimiento
-
-| Operación | gcloud CLI | Client Libraries | Mejora |
-|-----------|------------|------------------|--------|
-| List Projects | ~200 ms | ~150 ms | 1.3x más rápido |
-| List Instances | ~300 ms | ~220 ms | 1.4x más rápido |
-| Start/Stop/Reset | ~2–5 s | ~1.5–4 s | 1.2x más rápido |
-
-*Benchmarks medidos en un sistema con conexión estable y autenticación previa.*
-
 ## Roadmap
 
 ### Próximo
@@ -256,7 +280,7 @@ _Desarrollado y revisado, aún sin mergear a una release publicada:_
 - [ ] Workspace por pestañas: pestañas que sobreviven al cambio de barra lateral, terminal SSH embebida, panel SFTP y tab strip estilo navegador (overflow, pestañas ancladas, grupos, reordenar arrastrando)
 - [ ] Navegador SFTP de doble panel (estilo WinSCP) con cola de transferencias cancelable
 - [ ] Transferencias SFTP en paralelo
-- [ ] Motor de túnel IAP nativo en Rust (opt-in)
+- [ ] Motor de túnel IAP nativo en Rust
 
 ### Incluido en 26H2 Update 1 (build 20260731.1)
 - [x] Releases firmadas con SBOM y procedencia de build (attestations keyless de Sigstore) vía GitHub Actions
@@ -353,4 +377,4 @@ _Desarrollado y revisado, aún sin mergear a una release publicada:_
 - SSHFS Mount, SQL Clients, Windows Auto-Credentials, Serial Console
 
 ---
-© 2026 Jordi Lopez Reyes. Distribuido bajo licencia MIT.
+© 2025-2026 Jordi Lopez Reyes. Distribuido bajo la [GNU GPL v3 o posterior](LICENSE), con los términos adicionales de [NOTICE](NOTICE): el nombre "Lightweight Cloud Connector" y el logo de LCC no se licencian para su uso en versiones modificadas. Las releases hasta 26H2 Update 1 se publicaron bajo licencia MIT.

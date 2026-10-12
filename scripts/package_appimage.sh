@@ -94,6 +94,11 @@ else
     touch "$APPDIR/usr/share/icons/hicolor/128x128/apps/$APP_NAME.png"
 fi
 
+# Licencia: la GPL exige entregar su texto con cada copia del programa, y NOTICE
+# lleva el copyright y el término adicional de marca (sección 7).
+mkdir -p "$APPDIR/usr/share/licenses/$APP_NAME"
+install -m644 LICENSE NOTICE "$APPDIR/usr/share/licenses/$APP_NAME/"
+
 # 8. Construir el AppImage
 echo "🔨 Construyendo AppImage..."
 OUTPUT_FILE="${APP_NAME}_${VERSION}_${ARCH}.AppImage"

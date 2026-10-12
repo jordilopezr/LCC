@@ -34,9 +34,10 @@ pub async fn get_boot_disk_name_async(project_id: &str, zone: &str, instance_nam
         "Getting boot disk name"
     );
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(60),
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args([
                 "compute", "instances", "describe",
                 instance_name,
@@ -103,9 +104,10 @@ pub async fn list_snapshots_async(project_id: &str, zone: &str, instance_name: &
 
     let filter = format!("sourceDisk~/{}", disk_name);
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(60),
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args([
                 "compute", "snapshots", "list",
                 "--project", project_id,
@@ -206,9 +208,10 @@ pub async fn create_snapshot_async(
 
     let disk_name = get_boot_disk_name_async(project_id, zone, instance_name).await?;
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(300),
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args([
                 "compute", "disks", "snapshot",
                 &disk_name,
@@ -260,9 +263,10 @@ pub async fn delete_snapshot_async(project_id: &str, snapshot_name: &str) -> Res
         "Deleting snapshot"
     );
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(120),
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args([
                 "compute", "snapshots", "delete",
                 snapshot_name,
@@ -315,9 +319,10 @@ pub async fn create_disk_from_snapshot_async(
         "Creating disk from snapshot"
     );
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(300),
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args([
                 "compute", "disks", "create",
                 new_disk_name,

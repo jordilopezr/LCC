@@ -4,12 +4,13 @@
 
 **Lightweight Cloud Connector** is a native, cross-platform desktop application designed to simplify and secure connections to Google Cloud Platform (GCP) instances via **Identity-Aware Proxy (IAP)**.
 
-Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal performance and security. LCC is **100% free and open source** (MIT license), with all features available without restrictions.
+Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal performance and security. LCC is **100% free and open source** (GPLv3 or later), with all features available without restrictions.
 
 ![Release](https://img.shields.io/badge/Release-26H2-brightgreen)
 ![Build](https://img.shields.io/badge/Build-20260731.1-blue)
 ![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20(coming%20soon)-blue)
-![License](https://img.shields.io/badge/License-MIT-purple)
+![License](https://img.shields.io/badge/License-GPLv3%2B-purple)
+![Preview](https://img.shields.io/badge/Preview-27H1%20build%2020261012.50-orange)
 
 <img width="1332" height="819" alt="LCC main panel" src="https://github.com/user-attachments/assets/76d627da-e9a8-45c5-ab79-965b6dd3440c" />
 <img width="1332" height="819" alt="Tunnel management in LCC" src="https://github.com/user-attachments/assets/9c2cb83f-d770-47b4-b0d5-be40897a2012" />
@@ -31,7 +32,7 @@ Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal perform
 
 ### Tunnel Manager and Auto-Reconnect
 *   **Consolidated view:** centralized panel with all active tunnels across all VMs.
-*   **Native tunnel:** IAP tunnels are established natively in Rust, without launching the `gcloud` binary, with automatic fallback to the `gcloud` engine if the native path fails.
+*   **Native tunnel:** IAP tunnels are established natively in Rust, without launching the `gcloud` binary. There is **no silent fallback**: if the native path fails, the tunnel reports the error instead of quietly switching engines. The `gcloud` engine stays available as an explicit choice in Settings → Advanced (or via `LCC_TUNNEL_ENGINE`).
 *   **Auto-reconnect:** automatically reconnects dropped tunnels without manual intervention.
 *   **Individual management:** disconnect, reconnect, or inspect each tunnel separately.
 *   **Health monitoring:** real-time health status (process + TCP port) every 30 seconds.
@@ -43,13 +44,13 @@ Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal perform
 *   **Suspend/Resume:** suspend and resume VMs (in addition to start/stop/reset).
 
 ### Connectivity Doctor
-*   **10 automatic checks:** diagnoses connectivity issues grouped into 5 categories.
-*   **Authentication:** verifies gcloud CLI, active account, and ADC credentials.
+*   **13 automatic checks:** diagnoses connectivity issues grouped into 5 categories.
+*   **Authentication:** three native rows — *LCC Credential Store* (the system keyring answers), *LCC Account Index* (every listed account still has its stored sign-in) and *LCC Session* (LCC can mint an access token right now) — plus three gcloud rows (*gcloud CLI Installed*, *gcloud Account Active*, *Application Default Credentials*). Each set reports `Skipped` when the other engine is selected, so the report never fails you for a tool you are not using.
 *   **Project & Permissions:** verifies project access and enabled APIs (Compute, IAP).
 *   **IAP & Network:** verifies the IAP API and firewall rules for `35.235.240.0/20`.
 *   **VM Status:** verifies VM status and guest agent.
 *   **Local Environment:** detects installed remote clients (SSH, RDP, VNC).
-*   **Fix suggestions:** suggestions with copyable commands to resolve each issue.
+*   **Fix suggestions:** copyable commands for each issue, and — for the remedies that would otherwise need `gcloud` (enable the Compute Engine or IAP API, add the IAP firewall rule, start a stopped VM) — a Cloud Console link alongside the command.
 *   **Auto-fix:** automatic actions such as re-authentication or starting a VM (with confirmation).
 *   **Export report:** generates a Markdown report with sensitive data automatically redacted.
 *   **Re-run:** re-runs the checks after applying fixes.
@@ -105,10 +106,10 @@ Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal perform
 *   **Standard base:** Flutter's `gen-l10n` with `.arb` dictionaries, making it easy to add more languages.
 *   **Note:** IAP tunnel errors use typed codes and are translated (EN/ES). Other error messages generated in Rust (`doctor`, `sftp`, `snapshots`, `gcloud`) and desktop notifications remain in English (pending for a future release).
 
-### Google Cloud Client Libraries Integration
-*   **Dual API:** switch between gcloud CLI and Google Cloud Client Libraries (REST API).
-*   **Performance:** Client Libraries are 1.3–1.5x faster than the CLI.
-*   **Hot swap:** toggle in the AppBar to switch between methods in real time.
+### Google Cloud APIs (native REST client)
+*   **One path, no toggle:** projects, instances, snapshots and lifecycle actions all go through LCC's own Rust REST client against the Google Cloud APIs. The old "Dual API" AppBar toggle between the gcloud CLI and the Client Libraries no longer exists — there is no CLI path left to switch to.
+*   **No subprocess per call:** each operation is a single HTTPS request from the Rust client, instead of spawning a `gcloud` process and parsing its output.
+*   **Access tokens:** minted from LCC's own stored session under the native sign-in engine; read from gcloud (`gcloud auth print-access-token`, falling back to ADC) under the gcloud engine.
 
 ### VM Lifecycle Management
 *   **Start / Stop / Reset / Suspend / Resume.**
@@ -121,7 +122,7 @@ Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal perform
 
 ### Security and Reliability
 *   **Input validation:** protection against command injection via regex validation.
-*   **Timeouts:** all gcloud commands have a 10 s timeout.
+*   **Timeouts:** every gcloud command runs under one — 10–30 s for queries, 120 s for VM lifecycle operations (start, stop, reset, suspend, resume).
 *   **Health monitoring:** automatic tunnel verification every 30 seconds (process + TCP port).
 *   **Secure permissions:** `.remmina` and VNC password files created with mode 0600.
 
@@ -141,20 +142,26 @@ If you find this tool useful and want to support its ongoing development, you ca
 
 ## System Requirements
 
-1.  **Google Cloud SDK (`gcloud`):** installed and on the PATH.
-2.  **RDP client** (at least one, for RDP connections):
+1.  **RDP client** (at least one, for RDP connections):
     - **Remmina** (recommended) — native or Flatpak
     - **FreeRDP** (`xfreerdp`) — CLI-based, widely available
     - **KRDC** — KDE's default client
     - **GNOME Connections** — modern GNOME client
-3.  **VNC client** (at least one, for VNC connections):
+2.  **VNC client** (at least one, for VNC connections):
     - **Remmina** (recommended) — supports VNC and RDP
     - **TigerVNC** (`vncviewer`) — lightweight, fast client
     - **KRDC** — KDE client with VNC/RDP support
     - **Vinagre** — classic GNOME client for VNC
-4.  **System libraries (Linux):** `libsecret-1-dev`, `libjsoncpp-dev` (for secure storage).
-5.  **SSH keys configured:** for SFTP authentication (see SSH setup section).
-6.  **Application Default Credentials:** to use Client Libraries (optional, requires `gcloud auth application-default login`).
+3.  **System libraries (Linux):** `libsecret-1-dev`, `libjsoncpp-dev` (for secure storage).
+4.  **A running Secret Service** (GNOME Keyring, KWallet, or equivalent): LCC keeps each account's sign-in in the OS keyring. Doctor's *LCC Credential Store* row tells you when it is not reachable.
+5.  **A Google account** with access to the GCP projects you want to manage.
+
+### Optional
+
+*   **Google Cloud SDK (`gcloud`) — optional.** LCC signs in on its own and opens IAP tunnels on its own; neither path uses gcloud, so you do not need it installed. It is still worth having for two things:
+    - it is the **alternative sign-in engine**, selectable in Settings under *Sign-in method*. On that engine LCC reads the session gcloud already has — you keep that session yourself with `gcloud auth login`;
+    - it is how you run the **administration commands Doctor suggests**: enabling the Compute Engine and IAP APIs, adding the IAP firewall rule for `35.235.240.0/20`, starting a stopped VM. Doctor prints a Cloud Console link for each of those as well, so gcloud is a convenience there rather than a prerequisite.
+*   **Your own SSH keys:** LCC generates and publishes its own key when a VM needs one (asking first), and also offers any key already in `~/.ssh`. Bring your own only if you would rather it used that.
 
 ## Building and Installation
 
@@ -194,14 +201,40 @@ flutter run -d macos
 > [IAP Desktop](https://github.com/GoogleCloudPlatform/iap-desktop) by Google Cloud.
 > (LCC does manage **Windows VMs** as targets: RDP and auto-credentials.)
 
-### 5. (Optional) Enable Client Libraries
-```bash
-# Configure Application Default Credentials
-gcloud auth application-default login
-# Inside the app, use the AppBar toggle to switch between CLI and Client Libraries
-```
+### 5. Sign in
 
-### 6. Configure SSH for SFTP
+Start LCC and add an account from the accounts dialog. LCC opens your browser for
+the Google sign-in (OAuth 2.0 authorization code with PKCE over a loopback
+redirect) and stores the resulting refresh token in the system keyring. There is
+no terminal step: `gcloud auth application-default login` is not needed.
+
+To use gcloud's session instead, open **Settings → Sign-in method** and pick
+*Use the gcloud CLI*. On that engine LCC never signs you in or out — it reads
+gcloud's credentials and tells you which command to run (`gcloud auth login`,
+`gcloud auth revoke <account>`) when an auth action is needed.
+
+Three engines are selectable, each with an environment variable that overrides
+the stored choice (Settings says so when one is set):
+
+| Engine | Where | Environment variable |
+|---|---|---|
+| Sign-in | Settings → Sign-in method | `LCC_AUTH_ENGINE` |
+| IAP tunnel | Settings → Advanced | `LCC_TUNNEL_ENGINE` |
+| SSH port forward | Settings → Advanced | `LCC_SSH_FORWARD_ENGINE` |
+
+All three accept `native` or `gcloud`, and all three default to `native`.
+
+### 6. (Optional) Configure SSH for SFTP yourself
+
+LCC handles this on its own: the first time it needs SSH access to a VM it asks
+for permission and then publishes its own key
+(`~/.local/share/lightweight_cloud_connector/ssh/lcc_ed25519`) — through OS Login
+when the instance has it enabled, otherwise **merged** into the instance's
+`ssh-keys` metadata, never overwriting the other entries. Keys already in
+`~/.ssh` are offered too.
+
+If you would rather publish a key yourself, the manual route still works:
+
 ```bash
 # Generate an SSH key (if you don't have one)
 ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519 -N ""
@@ -231,16 +264,6 @@ scripts/build_all_containers.sh   # Reproducible builds in podman containers (Ub
 
 There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
 
-## Performance Comparison
-
-| Operation | gcloud CLI | Client Libraries | Improvement |
-|-----------|------------|------------------|-------------|
-| List Projects | ~200 ms | ~150 ms | 1.3x faster |
-| List Instances | ~300 ms | ~220 ms | 1.4x faster |
-| Start/Stop/Reset | ~2–5 s | ~1.5–4 s | 1.2x faster |
-
-*Benchmarks measured on a system with a stable connection and prior authentication.*
-
 ## Roadmap
 
 ### Next
@@ -248,15 +271,22 @@ There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
 - [ ] Google Cloud Storage (GCS) browser
 - [ ] Secret Manager integration (read-only)
 - [ ] Cloud Monitoring API dashboard
-- [ ] Remaining i18n: Rust error mapping and desktop notifications (currently English only)
+- [ ] Finish the 27H1 Preview manual QA (see *Known gaps* below) before a stable 27H1
+- [ ] SSH host key verification for the native SSH client
 
-### Coming next (in branches)
+### Included in 27H1 Preview (build 20261012.50)
+- [x] Native Rust IAP tunnel engine, with automatic fallback to `gcloud`
+- [x] Native authentication: own OAuth flow and token store, `gcloud auth` no longer invoked
+- [x] Native SSH access: LCC's own key, published via instance metadata or OS Login
+- [x] Tabbed workspace with an embedded SSH terminal and an SFTP tab
+- [x] SFTP dual-pane browser with a cancelable transfer queue, and parallel transfers
+- [x] Per-account workspace: projects, history and favorites belong to the active account
+- [x] VNC on any display, remembered per VM
+- [x] Remaining i18n: Rust error mapping and desktop notifications now localized (EN/ES)
+
+### Still in branches
 _Developed and reviewed, not yet merged into a published release:_
-- [ ] Security hardening: resolve `gcloud` to a validated absolute path (anti PATH-hijack); stop persisting VNC passwords to disk; idle IAP-tunnel reaper; `SECURITY.md` + threat model
-- [ ] Tabbed workspace: tabs that survive sidebar changes, embedded SSH terminal, SFTP panel, and a browser-style tab strip (overflow, pinned tabs, groups, drag reorder)
-- [ ] SFTP dual-pane browser (WinSCP-style) with a cancelable transfer queue
-- [ ] Parallel SFTP transfers
-- [ ] Native Rust IAP tunnel engine (opt-in)
+- [ ] Security hardening: resolve `gcloud` to a validated absolute path (anti PATH-hijack); stop persisting VNC passwords to disk; idle IAP-tunnel reaper
 
 ### Included in 26H2 Update 1 (build 20260731.1)
 - [x] Signed releases with an SBOM and build provenance (keyless Sigstore attestations) via GitHub Actions
@@ -284,6 +314,57 @@ _Developed and reviewed, not yet merged into a published release:_
 - [x] Multi-language support (i18n): full interface in Spanish and English
 
 ## Changelog
+
+### 27H1 Preview — build 20261012.50 — Preview
+
+**This is a preview release. Its manual QA is not finished — see *Known gaps*
+at the end of this entry before running it on anything you care about.** The
+latest stable release remains the current 26H2 line.
+
+**Native IAP tunnel engine**
+- The tunnel is a Rust WebSocket relay client instead of a `gcloud` subprocess: fewer moving parts, no CLI to find on `PATH`, and failures that can be reported instead of parsed out of stderr
+- Automatic fallback to the `gcloud` engine, which is kept as an escape hatch and selectable in Settings
+- Typed tunnel errors with stable codes, localized in English and Spanish; the tunnel manager names the engine holding each entry, and the one that failed on a row in error
+
+**Native authentication**
+- LCC performs its own OAuth flow and keeps the refresh token in the system keyring; `gcloud auth login` is no longer invoked
+- Account list, switch, add and remove are served from LCC's own token store
+- The auth engine is a visible choice in Settings, and the startup log states which engines are in force and where each came from
+- The OAuth client secret is supplied at build time rather than committed. An installed app cannot keep a secret — PKCE is what protects the exchange — but a secret in a public repository is one that scanners find and providers revoke. A build without it has no native sign-in and falls back to the gcloud engine
+
+**Native SSH access**
+- LCC generates and stores its own ed25519 key and publishes it to the instance, merging the `ssh-keys` metadata blob rather than replacing it, or through OS Login
+- Native port forwarding is the default; the SSH user is derived rather than guessed
+
+**Tabbed workspace**
+- Tabs that survive sidebar changes, an embedded SSH terminal (pty + xterm), and an SFTP tab
+- Browser-style tab strip with overflow and auto-scroll to the active tab, and a confirmation when closing with live sessions
+
+**SFTP**
+- Dual-pane browser with a cancelable transfer queue
+- Parallel ranged transfers over multiple SSH sessions, with global byte progress
+
+**Per-account workspace**
+- Selected projects, connection history and favorites belong to the active account. Switching accounts disconnects every tunnel, clears the previous account's view and restores the new account's
+- Lists saved before accounts were separated are handed to the account signed in when the upgrade lands, and then removed so a second account does not inherit them
+
+**VNC**
+- The VM's display is a field in the connect dialog and is remembered per VM, so a server on `:1` (port 5901) is reachable. The port was hardcoded to 5900
+
+**Diagnostics**
+- Connectivity Doctor: a usable console path, remedies that do not require the tool you are missing, a real refresh, and a keyring liveness check
+- The log states the running build and binary, the effective engines, and whether the app shut itself down
+
+#### Known gaps
+
+Carried into this preview deliberately, so they are not discovered by surprise:
+
+- **Manual QA incomplete.** Three areas have no data yet: zombie processes after closing clients, whether disconnecting in LCC cuts a live RDP session, and the no-regression pass over RDP and SSH forwarding on both engines
+- **No SSH host key verification.** The native SSH client does not check the host key. The session runs inside the IAP tunnel, which is authenticated TLS to Google, so the exposure is narrower than a raw SSH connection — but it is a real gap and it is tracked in the roadmap
+- **Connectivity Doctor reports one failing check** and the log keeps only the summary, so which row fails is not yet known
+- **With the `gcloud` tunnel engine**, `start-iap-tunnel` has been seen to fail with a missing `compute.instances.get` permission while the app reads the same VM successfully with the same account. Under investigation; it can make unrelated tests look broken
+- **A native forward left idle** does not notice that it died until someone connects through it
+- **The VNC launch-failure dialog** is covered by widget tests but has not been confirmed on screen by a human
 
 ### 26H2 Update 1 — build 20260731.1 — Current release
 
@@ -353,4 +434,4 @@ _Developed and reviewed, not yet merged into a published release:_
 - SSHFS Mount, SQL Clients, Windows Auto-Credentials, Serial Console
 
 ---
-© 2026 Jordi Lopez Reyes. Distributed under the MIT license.
+© 2025-2026 Jordi Lopez Reyes. Distributed under the [GNU GPL v3 or later](LICENSE), with the additional terms in [NOTICE](NOTICE): the name "Lightweight Cloud Connector" and the LCC logo are not licensed for use in modified versions. Releases up to 26H2 Update 1 were published under the MIT license.

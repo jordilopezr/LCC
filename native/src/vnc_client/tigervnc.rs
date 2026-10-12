@@ -1,7 +1,6 @@
 use super::utils::*;
+use crate::child_reaper::SpawnReaped;
 use super::VncSettings;
-use std::fs::File;
-use std::io::Write;
 use std::process::{Command, Stdio};
 use anyhow::{Result, anyhow};
 use tracing;
@@ -76,23 +75,16 @@ pub fn launch(port: u16, instance_name: &str, settings: &VncSettings) -> Result<
     let quality = quality_to_tigervnc(settings.quality);
     cmd.arg(format!("-QualityLevel={}", quality));
 
-    // Handle password if provided
-    // TigerVNC can use a password file for security
-    let password_file_path = if let Some(ref password) = settings.password {
-        match create_password_file(instance_name, password) {
-            Ok(path) => {
-                cmd.arg("-passwd");
-                cmd.arg(&path);
-                Some(path)
-            },
-            Err(e) => {
-                tracing::warn!(error = %e, "Failed to create password file, password not set");
-                None
-            }
-        }
-    } else {
-        None
-    };
+    // SECURITY: we intentionally do NOT persist the VNC password to disk.
+    // A `-passwd` file leaves a recoverable credential in a temp file (even at
+    // 0600, and beyond a crash before cleanup); instead TigerVNC prompts for
+    // the password at connection time.
+    if settings.password.is_some() {
+        tracing::info!(
+            "Password provided but not written to disk for TigerVNC; the viewer \
+             will prompt for it at connection time."
+        );
+    }
 
     // Add custom resolution if specified and not fullscreen
     if !settings.fullscreen {
@@ -105,46 +97,14 @@ pub fn launch(port: u16, instance_name: &str, settings: &VncSettings) -> Result<
     cmd.stdout(Stdio::null())
         .stderr(Stdio::null());
 
-    match cmd.spawn() {
+    match cmd.spawn_reaped() {
         Ok(_) => {
             tracing::info!("TigerVNC launched successfully");
-
-            // Clean up password file after a short delay (in a separate thread)
-            // The viewer should have read it by then
-            if let Some(path) = password_file_path {
-                std::thread::spawn(move || {
-                    std::thread::sleep(std::time::Duration::from_secs(2));
-                    let _ = std::fs::remove_file(&path);
-                    tracing::debug!("Cleaned up TigerVNC password file");
-                });
-            }
-
             Ok(())
         },
         Err(e) => {
-            // Clean up password file on error
-            if let Some(path) = password_file_path {
-                let _ = std::fs::remove_file(&path);
-            }
             tracing::error!(error = %e, "Failed to launch TigerVNC");
             Err(anyhow!("Failed to launch TigerVNC: {}", e))
         }
     }
-}
-
-/// Create a temporary password file for TigerVNC
-/// TigerVNC expects password in a specific format
-fn create_password_file(instance_name: &str, password: &str) -> Result<std::path::PathBuf> {
-    let config_dir = get_config_dir()?;
-    let file_path = config_dir.join(format!("vnc_passwd_{}.tmp", instance_name));
-
-    // Write password to file (TigerVNC can handle plain text passwords via -passwd flag)
-    let mut file = File::create(&file_path)?;
-    file.write_all(password.as_bytes())?;
-
-    // Set secure permissions (0600 - owner read/write only)
-    set_secure_permissions(&file_path)?;
-
-    tracing::debug!("Created TigerVNC password file: {:?}", file_path);
-    Ok(file_path)
 }

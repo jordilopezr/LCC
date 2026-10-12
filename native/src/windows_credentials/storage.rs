@@ -126,9 +126,18 @@ pub fn store_credential(credential: &WindowsCredential) -> Result<(), String> {
     Ok(())
 }
 
-/// Store a credential in the system keyring (async-compatible wrapper).
+/// Store a credential in the system keyring, off the async runtime.
+///
+/// The `async` here is not decoration: this is reached from the `async` bridge
+/// entry points, so the blocking keyring call must leave the tokio worker or
+/// zbus panics. It used to call `store_credential` directly, and the panic was
+/// silent — the Windows password flow stopped at "Step 5" with the password
+/// already changed on the VM and thrown away here.
 pub async fn store_credential_await(credential: &WindowsCredential) -> Result<(), String> {
-    store_credential(credential)
+    let credential = credential.clone();
+    crate::oauth::store_call(move || store_credential(&credential))
+        .await
+        .map_err(|e| format!("Keyring task failed: {}", e))?
 }
 
 /// Retrieve a credential from the system keyring.
@@ -201,7 +210,14 @@ pub async fn delete_credential_await(
     zone: &str,
     instance_name: &str,
 ) -> Result<(), String> {
-    delete_credential(project_id, zone, instance_name)
+    let (project_id, zone, instance_name) = (
+        project_id.to_string(),
+        zone.to_string(),
+        instance_name.to_string(),
+    );
+    crate::oauth::store_call(move || delete_credential(&project_id, &zone, &instance_name))
+        .await
+        .map_err(|e| format!("Keyring task failed: {}", e))?
 }
 
 /// Clear all stored credentials.
@@ -220,6 +236,32 @@ pub fn clear_all() -> Result<u32, String> {
     save_index(&[])?;
     info!("Cleared {} Windows credentials", count);
     Ok(count)
+}
+
+#[cfg(test)]
+mod keyring_runtime_tests {
+    /// El llavero es sincrono y su backend (zbus) arranca su propio runtime con
+    /// `block_on`. Llamarlo desde un worker de tokio revienta con "Cannot start
+    /// a runtime from within a runtime" — y los envoltorios `_await` de este
+    /// modulo son `async`, asi que corren exactamente ahi.
+    ///
+    /// El sintoma en produccion no era un error: era silencio. El flujo de
+    /// reseteo de contrasena de Windows llegaba a "Step 5: Storing credential
+    /// in keyring" y no volvia a escribir una linea, con la contrasena ya
+    /// cambiada en la VM y tirada por LCC.
+    ///
+    /// Borrar una credencial inexistente es un no-op que igualmente toca el
+    /// backend, asi que ejercita la ruta sin escribir nada en el llavero real.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn deleting_from_the_async_runtime_does_not_panic() {
+        let r = super::delete_credential_await(
+            "lcc-guard-project",
+            "lcc-guard-zone",
+            "lcc-guard-instance-that-does-not-exist",
+        )
+        .await;
+        assert!(r.is_ok(), "el borrado deberia ser un no-op, fue: {:?}", r);
+    }
 }
 
 #[cfg(test)]

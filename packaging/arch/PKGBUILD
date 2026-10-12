@@ -1,17 +1,19 @@
 # Maintainer: Jordi Lopez Reyes <aim@jordilopezr.com>
 pkgname=lightweight-cloud-connector-bin
-pkgver=26H1.U1
+pkgver=26H2.U2
+# Nombre de la release en GitHub (tag v26H2u2, assets *_26H2u2_*). pkgver usa
+# la forma con punto; el tag y los ficheros, la de los scripts de release.
+_relver=26H2u2
 pkgrel=1
-pkgdesc="Native Google Cloud IAP Connector for Linux (Free & Pro tiers)"
+pkgdesc="Native Google Cloud IAP Connector for Linux"
 arch=('x86_64')
-url="https://github.com/jordilopezr/linux_gcloud_connector"
-license=('MIT')
+url="https://github.com/jordilopezr/LCC"
+license=('GPL-3.0-or-later')
 depends=('gtk3' 'remmina' 'freerdp' 'krdc' 'tigervnc')
 provides=('lightweight-cloud-connector')
 conflicts=('lightweight-cloud-connector')
 
-# Aquí pondrás la URL de donde GitHub aloja tu archivo .tar.gz o .deb cuando crees la release
-source=("https://github.com/jordilopezr/linux_gcloud_connector/releases/download/v${pkgver}/lightweight-cloud-connector_${pkgver}_amd64.tar.gz")
+source=("${url}/releases/download/v${_relver}/lightweight-cloud-connector_${_relver}_amd64.tar.gz")
 sha256sums=('SKIP') # En producción, reemplaza SKIP por el hash sha256 del tar.gz
 
 package() {
@@ -40,6 +42,9 @@ Categories=Development;Network;Utility;
 Terminal=false
 StartupNotify=true
 EOF
+
+    # Licencia (GPL) y NOTICE (copyright + término adicional de marca)
+    install -Dm644 LICENSE NOTICE -t "${pkgdir}/usr/share/licenses/${pkgname}/"
 
     # Instalar icono
     install -d "${pkgdir}/usr/share/icons/hicolor/128x128/apps"

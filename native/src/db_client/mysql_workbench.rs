@@ -1,5 +1,6 @@
 use super::utils::*;
 use super::{DbConnectionSettings, DatabaseType};
+use crate::child_reaper::SpawnReaped;
 use std::process::{Command, Stdio};
 use anyhow::{Result, anyhow};
 use tracing;
@@ -43,7 +44,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
             .arg(&uri)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if native.is_ok() {
             tracing::info!("Native MySQL Workbench launched successfully");
@@ -60,7 +61,7 @@ pub fn launch(settings: &DbConnectionSettings) -> Result<()> {
             .arg(&uri)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if flatpak.is_ok() {
             tracing::info!("Flatpak MySQL Workbench launched successfully");

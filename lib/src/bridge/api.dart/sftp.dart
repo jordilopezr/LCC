@@ -3,7 +3,7 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import 'frb_generated.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// Represents a remote file or directory entry
@@ -44,4 +44,23 @@ class RemoteFileEntry {
           size == other.size &&
           modified == other.modified &&
           permissions == other.permissions;
+}
+
+/// Byte-level progress of an SFTP transfer, streamed to the UI.
+class SftpProgress {
+  final BigInt transferred;
+  final BigInt total;
+
+  const SftpProgress({required this.transferred, required this.total});
+
+  @override
+  int get hashCode => transferred.hashCode ^ total.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SftpProgress &&
+          runtimeType == other.runtimeType &&
+          transferred == other.transferred &&
+          total == other.total;
 }

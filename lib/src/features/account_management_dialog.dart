@@ -1,28 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
+import '../bridge/api.dart/api.dart' show engineFor;
+import 'app_error.dart';
+import 'gcloud_command_dialog.dart';
 import 'gcloud_provider.dart';
-
-/// Maps a semantic [GcpErrorType] to a localized message. Returns null when
-/// there is no classified type, so callers fall back to the raw error text.
-String? _gcpErrorMessage(AppLocalizations l10n, GcpErrorType? type) {
-  switch (type) {
-    case GcpErrorType.permissionDenied:
-      return l10n.commonGcpErrorPermissionDenied;
-    case GcpErrorType.notFound:
-      return l10n.commonGcpErrorNotFound;
-    case GcpErrorType.unauthenticated:
-      return l10n.commonGcpErrorUnauthenticated;
-    case GcpErrorType.quotaExceeded:
-      return l10n.commonGcpErrorQuotaExceeded;
-    case GcpErrorType.network:
-      return l10n.commonGcpErrorNetwork;
-    case GcpErrorType.unknown:
-      return l10n.commonGcpErrorUnknown;
-    case null:
-      return null;
-  }
-}
 
 /// Shows the Account Management Dialog
 void showAccountManagementDialog(BuildContext context) {
@@ -77,7 +59,7 @@ class AccountManagementDialog extends ConsumerWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          _gcpErrorMessage(l10n, accountState.errorType) ?? accountState.error!,
+                          localizedError(l10n, accountState.error!),
                           style: TextStyle(fontSize: 12, color: Colors.red.shade700),
                         ),
                       ),
@@ -174,8 +156,25 @@ class AccountManagementDialog extends ConsumerWidget {
                                   ? null
                                   : () async {
                                       await ref.read(accountProvider.notifier).switchAccount(account.account);
-                                      if (context.mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                      if (!context.mounted) return;
+                                      // `switchAccount` swallows its exception
+                                      // into `state.error` and returns normally,
+                                      // so the await alone proves nothing. It
+                                      // clears `error` when it starts, so an
+                                      // error here belongs to this switch.
+                                      final error = ref.read(accountProvider).error;
+                                      final messenger = ScaffoldMessenger.of(context);
+                                      if (error != null) {
+                                        messenger.showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              l10n.commonErrorPrefix(
+                                                  localizedError(l10n, error, standalone: false)),
+                                            ),
+                                          ),
+                                        );
+                                      } else {
+                                        messenger.showSnackBar(
                                           SnackBar(content: Text(l10n.accountSwitchedTo(account.account))),
                                         );
                                       }
@@ -204,6 +203,16 @@ class AccountManagementDialog extends ConsumerWidget {
           onPressed: accountState.isLoading
               ? null
               : () async {
+                  if (await engineFor(slot: 'auth') == 'gcloud') {
+                    if (!context.mounted) return;
+                    await showGcloudCommandDialog(
+                      context,
+                      command: 'gcloud auth login',
+                      explanation: l10n.gcloudCommandAddExplanation,
+                      onRefresh: () => ref.read(accountProvider.notifier).refresh(),
+                    );
+                    return;
+                  }
                   await ref.read(accountProvider.notifier).addAccount();
                 },
         ),
@@ -265,9 +274,30 @@ class AccountManagementDialog extends ConsumerWidget {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
+              if (await engineFor(slot: 'auth') == 'gcloud') {
+                if (!context.mounted) return;
+                await showGcloudCommandDialog(
+                  context,
+                  command: 'gcloud auth revoke $email',
+                  explanation: l10n.gcloudCommandRemoveExplanation,
+                  onRefresh: () => ref.read(accountProvider.notifier).refresh(),
+                );
+                return;
+              }
               await ref.read(accountProvider.notifier).removeAccount(email);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
+              if (!context.mounted) return;
+              final error = ref.read(accountProvider).error;
+              final messenger = ScaffoldMessenger.of(context);
+              if (error != null) {
+                messenger.showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      l10n.commonErrorPrefix(localizedError(l10n, error, standalone: false)),
+                    ),
+                  ),
+                );
+              } else {
+                messenger.showSnackBar(
                   SnackBar(content: Text(l10n.accountRemovedSnackbar(email))),
                 );
               }

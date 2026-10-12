@@ -12,10 +12,132 @@
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tracing::{info, debug, error, warn};
+use tracing::{info, debug, error};
 
 use crate::gcp_rest_client::GcpAuthClient;
 use crate::redact::redact_sensitive;
+
+/// Whether serial-console `contents` show the Google **guest agent** running
+/// (`google-guest-agent` — accounts/network/Windows password), matched
+/// case-insensitively by the signatures it logs. This is distinct from the
+/// OS Config agent that populates `guestInventory` guest attributes, so it
+/// detects an agent that is running even when guest attributes are empty.
+/// Shared by the Diagnostics panel and the Connectivity Doctor so both agree.
+pub(crate) fn guest_agent_in_serial(contents: &str) -> bool {
+    let lower = contents.to_lowercase();
+    lower.contains("gceagent:")
+        || lower.contains("gceguestagent")
+        || lower.contains("google-guest-agent")
+        || lower.contains("google compute engine guest agent")
+}
+
+/// Where a guest-agent detection was confirmed. `Default` is `None`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub(crate) enum GuestAgentSource {
+    /// Confirmed via getGuestAttributes with non-empty inventory items.
+    Inventory,
+    /// Confirmed via the guest agent's signature in the serial console.
+    Serial,
+    /// Neither inventory nor serial shows the agent.
+    #[default]
+    None,
+}
+
+/// Result of the unified guest-agent detection shared by the Diagnostics
+/// panel and the Connectivity Doctor. `os_version`/`last_heartbeat` are only
+/// populated when `source == Inventory`.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct GuestAgentDetection {
+    pub reporting: bool,
+    pub source: GuestAgentSource,
+    pub os_version: Option<String>,
+    pub last_heartbeat: Option<String>,
+}
+
+/// Extract inventory facts from a getGuestAttributes response body.
+/// Returns `Some((os_version, last_heartbeat))` ONLY when `queryValue.items`
+/// is non-empty (⇒ inventory-confirmed). Returns `None` when items is empty
+/// or absent (⇒ caller falls back to the serial console). This is the
+/// canonical rule that keeps Doctor and Diagnostics from drifting.
+fn inventory_facts(body: &serde_json::Value) -> Option<(Option<String>, Option<String>)> {
+    let items = body["queryValue"]["items"].as_array()?;
+    if items.is_empty() {
+        return None;
+    }
+    let mut os_version = None;
+    let mut last_heartbeat = None;
+    for item in items {
+        let key = item["key"].as_str().unwrap_or("");
+        let value = item["value"].as_str().unwrap_or("");
+        match key {
+            "LongName" | "KernelRelease" => os_version = Some(value.to_string()),
+            "LastUpdated" => last_heartbeat = Some(value.to_string()),
+            _ => {}
+        }
+    }
+    Some((os_version, last_heartbeat))
+}
+
+/// Unified guest-agent detection shared by the Diagnostics panel and the
+/// Connectivity Doctor so both surfaces always agree. Two steps:
+/// 1. getGuestAttributes (OS inventory) — confirmed only when items are
+///    non-empty (see `inventory_facts`).
+/// 2. Serial console fallback — matches the guest agent's log signature
+///    (see `guest_agent_in_serial`).
+/// Never returns `Err`: degrades to `GuestAgentSource::None` on any failure.
+pub(crate) async fn detect_guest_agent(
+    base_url: &str,
+    token: &str,
+    project: &str,
+    zone: &str,
+    instance: &str,
+) -> GuestAgentDetection {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .unwrap_or_default();
+
+    // Step 1: guest attributes (OS inventory).
+    let inv_url = format!(
+        "{}/projects/{}/zones/{}/instances/{}/getGuestAttributes?queryPath=guestInventory/",
+        base_url, project, zone, instance
+    );
+    if let Ok(r) = client.get(&inv_url).bearer_auth(token).send().await {
+        if r.status().is_success() {
+            let body: serde_json::Value = r.json().await.unwrap_or_default();
+            if let Some((os_version, last_heartbeat)) = inventory_facts(&body) {
+                return GuestAgentDetection {
+                    reporting: true,
+                    source: GuestAgentSource::Inventory,
+                    os_version,
+                    last_heartbeat,
+                };
+            }
+        }
+    }
+
+    // Step 2: serial console fallback.
+    let serial_url = format!(
+        "{}/projects/{}/zones/{}/instances/{}/serialPort?port=1",
+        base_url, project, zone, instance
+    );
+    if let Ok(r) = client.get(&serial_url).bearer_auth(token).send().await {
+        if r.status().is_success() {
+            let body: serde_json::Value = r.json().await.unwrap_or_default();
+            let contents = body["contents"].as_str().unwrap_or("");
+            if guest_agent_in_serial(contents) {
+                return GuestAgentDetection {
+                    reporting: true,
+                    source: GuestAgentSource::Serial,
+                    os_version: None,
+                    last_heartbeat: None,
+                };
+            }
+        }
+    }
+
+    GuestAgentDetection::default()
+}
 
 // ==========================================
 // SERIAL PORT OUTPUT
@@ -428,41 +550,8 @@ impl DiagnosticsClient {
         })
     }
 
-    /// Fallback to check guest agent via serial console
-    async fn check_guest_agent_via_serial(
-        &self,
-        project: &str,
-        zone: &str,
-        instance: &str,
-    ) -> Result<GuestAgentStatus> {
-        debug!("Checking serial console for guest agent status on {}", instance);
-        
-        match self.get_serial_port_output(project, zone, instance, SerialPortNumber::Port1, None).await {
-            Ok(serial) => {
-                let lower_contents = serial.contents.to_lowercase();
-                if lower_contents.contains("gceagent:") 
-                    || lower_contents.contains("gceguestagent")
-                    || lower_contents.contains("google-guest-agent")
-                    || lower_contents.contains("google compute engine guest agent") 
-                {
-                    info!("Guest agent detected via serial console for {}", instance);
-                    Ok(GuestAgentStatus {
-                        is_reporting: true,
-                        os_type: Some("Detected via Serial".to_string()),
-                        ..Default::default()
-                    })
-                } else {
-                    Ok(GuestAgentStatus::default())
-                }
-            }
-            Err(e) => {
-                warn!("Failed to check serial console for guest agent: {}", e);
-                Ok(GuestAgentStatus::default())
-            }
-        }
-    }
-
-    /// Get guest agent status from guest attributes
+    /// Get guest agent status via the unified detection (shared with the
+    /// Connectivity Doctor so both surfaces agree).
     async fn get_guest_agent_status(
         &self,
         project: &str,
@@ -470,64 +559,16 @@ impl DiagnosticsClient {
         instance: &str,
     ) -> Result<GuestAgentStatus> {
         let token = self.auth.get_access_token().await?;
-        let client = reqwest::Client::new();
-
-        // Try to get guest attributes
-        let url = format!(
-            "{}/projects/{}/zones/{}/instances/{}/getGuestAttributes?queryPath=guestInventory/",
-            self.compute_base_url, project, zone, instance
-        );
-
-        let response = client
-            .get(&url)
-            .bearer_auth(&token)
-            .send()
-            .await;
-
-        match response {
-            Ok(resp) if resp.status().is_success() => {
-                let attrs: serde_json::Value = resp.json().await.unwrap_or_default();
-
-                let mut status = GuestAgentStatus {
-                    is_reporting: true,
-                    ..Default::default()
-                };
-
-                // Parse guest inventory attributes
-                if let Some(items) = attrs["queryValue"]["items"].as_array() {
-                    for item in items {
-                        let key = item["key"].as_str().unwrap_or("");
-                        let value = item["value"].as_str().unwrap_or("");
-
-                        match key {
-                            "ShortName" | "Hostname" => {
-                                // OS type indicator
-                            }
-                            "LongName" | "KernelRelease" => {
-                                status.os_version = Some(value.to_string());
-                            }
-                            "LastUpdated" => {
-                                status.last_heartbeat = Some(value.to_string());
-                            }
-                            _ => {}
-                        }
-                    }
-                }
-
-                Ok(status)
-            }
-            Ok(resp) => {
-                // 404 means no guest attributes (agent not running or not configured)
-                if resp.status().as_u16() == 404 {
-                    debug!("Guest attributes not available for {}", instance);
-                }
-                self.check_guest_agent_via_serial(project, zone, instance).await
-            }
-            Err(e) => {
-                warn!("Failed to get guest attributes: {}", e);
-                self.check_guest_agent_via_serial(project, zone, instance).await
-            }
-        }
+        let d = detect_guest_agent(&self.compute_base_url, &token, project, zone, instance).await;
+        Ok(GuestAgentStatus {
+            is_reporting: d.reporting,
+            os_type: match d.source {
+                GuestAgentSource::Serial => Some("Detected via Serial".to_string()),
+                _ => None,
+            },
+            os_version: d.os_version,
+            last_heartbeat: d.last_heartbeat,
+        })
     }
 
     /// Get audit logs for a VM
@@ -784,5 +825,58 @@ mod tests {
         let status = GuestAgentStatus::default();
         assert!(!status.is_reporting);
         assert!(status.os_type.is_none());
+    }
+
+    #[test]
+    fn test_guest_agent_in_serial() {
+        // Real signatures the google-guest-agent logs to the serial console
+        // (case-insensitive).
+        assert!(super::guest_agent_in_serial("... systemd[1]: Started GCEGuestAgent ..."));
+        assert!(super::guest_agent_in_serial("Started google-guest-agent.service"));
+        assert!(super::guest_agent_in_serial("GCEAgent: agent ready"));
+        assert!(super::guest_agent_in_serial("Google Compute Engine Guest Agent starting"));
+        // Negatives: the OS-config agent alone or unrelated output must not match.
+        assert!(!super::guest_agent_in_serial("google-osconfig-agent running"));
+        assert!(!super::guest_agent_in_serial("nothing relevant here"));
+        assert!(!super::guest_agent_in_serial(""));
+    }
+
+    #[test]
+    fn test_inventory_facts_populated() {
+        let body = serde_json::json!({
+            "queryValue": { "items": [
+                {"key": "LongName", "value": "Debian GNU/Linux 12"},
+                {"key": "LastUpdated", "value": "2026-08-05T00:00:00Z"}
+            ]}
+        });
+        assert_eq!(
+            super::inventory_facts(&body),
+            Some((
+                Some("Debian GNU/Linux 12".to_string()),
+                Some("2026-08-05T00:00:00Z".to_string())
+            ))
+        );
+    }
+
+    #[test]
+    fn test_inventory_facts_items_without_metadata() {
+        // Non-empty items ⇒ inventory-confirmed even without os/heartbeat keys.
+        let body = serde_json::json!({
+            "queryValue": { "items": [ {"key": "ShortName", "value": "debian"} ] }
+        });
+        assert_eq!(super::inventory_facts(&body), Some((None, None)));
+    }
+
+    #[test]
+    fn test_inventory_facts_empty_items_is_none() {
+        // The drift case: HTTP 200 with an empty inventory must NOT confirm.
+        let body = serde_json::json!({ "queryValue": { "items": [] } });
+        assert_eq!(super::inventory_facts(&body), None);
+    }
+
+    #[test]
+    fn test_inventory_facts_absent_queryvalue_is_none() {
+        assert_eq!(super::inventory_facts(&serde_json::json!({})), None);
+        assert_eq!(super::inventory_facts(&serde_json::json!({ "foo": 1 })), None);
     }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/db_client.dart';
+import 'app_error.dart';
 import 'database_profiles_provider.dart';
 import 'gcloud_provider.dart';
 
@@ -233,7 +234,9 @@ class _NewConnectionTabState extends ConsumerState<_NewConnectionTab> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.dbConnectionFailed(e.toString())),
+            content: Text(
+              l10n.dbConnectionFailed(localizedError(l10n, e, standalone: false)),
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -465,7 +468,9 @@ class _NewConnectionTabState extends ConsumerState<_NewConnectionTab> {
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text(l10n.dbErrorLoadingClients(e.toString())),
+            error: (e, _) => Text(
+              l10n.dbErrorLoadingClients(localizedError(l10n, e, standalone: false)),
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -659,7 +664,9 @@ class _ProfileCardState extends ConsumerState<_ProfileCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.dbConnectionFailed(e.toString())),
+            content: Text(
+              l10n.dbConnectionFailed(localizedError(l10n, e, standalone: false)),
+            ),
             backgroundColor: Colors.red,
           ),
         );

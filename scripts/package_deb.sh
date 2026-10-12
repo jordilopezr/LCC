@@ -76,6 +76,11 @@ else
     touch "$BUILD_DIR/usr/share/icons/hicolor/128x128/apps/$APP_NAME.png"
 fi
 
+# Licencia: la GPL exige entregar su texto con cada copia del programa, y NOTICE
+# lleva el copyright y el término adicional de marca (sección 7).
+mkdir -p $BUILD_DIR/usr/share/doc/$APP_NAME
+install -m644 LICENSE NOTICE $BUILD_DIR/usr/share/doc/$APP_NAME/
+
 # 7. Crear archivo CONTROL (Metadatos)
 # Calculamos tamaño instalado (en KB)
 INSTALLED_SIZE=$(du -s $BUILD_DIR/usr | cut -f1)

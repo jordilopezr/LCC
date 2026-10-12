@@ -6,18 +6,20 @@ import 'package:path_provider/path_provider.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/doctor.dart';
+import 'app_error.dart';
 
-/// Connectivity Doctor Dialog - Sprint 7
+/// Connectivity Doctor View - Sprint 7
 ///
-/// Automated troubleshooter that diagnoses connectivity problems with GCP VMs.
-/// Runs 10 checks grouped in 5 categories, shows results with status icons,
-/// and provides fix suggestions and export functionality.
-class ConnectivityDoctorDialog extends ConsumerStatefulWidget {
+/// Embeddable body (used by both the workspace Doctor tab and the modal
+/// [ConnectivityDoctorDialog]) that diagnoses connectivity problems with GCP
+/// VMs. Runs 13 checks grouped in 5 categories, shows results with status
+/// icons, and provides fix suggestions and export functionality.
+class ConnectivityDoctorView extends ConsumerStatefulWidget {
   final String projectId;
   final String zone;
   final String instanceName;
 
-  const ConnectivityDoctorDialog({
+  const ConnectivityDoctorView({
     super.key,
     required this.projectId,
     required this.zone,
@@ -25,12 +27,12 @@ class ConnectivityDoctorDialog extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ConnectivityDoctorDialog> createState() =>
-      _ConnectivityDoctorDialogState();
+  ConsumerState<ConnectivityDoctorView> createState() =>
+      _ConnectivityDoctorViewState();
 }
 
-class _ConnectivityDoctorDialogState
-    extends ConsumerState<ConnectivityDoctorDialog> {
+class _ConnectivityDoctorViewState
+    extends ConsumerState<ConnectivityDoctorView> {
   DoctorReport? _report;
   bool _isRunning = false;
   String? _error;
@@ -104,7 +106,11 @@ class _ConnectivityDoctorDialogState
       if (mounted) {
         final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.doctorExportFailed('$e'))),
+          SnackBar(
+            content: Text(
+              l10n.doctorExportFailed(localizedError(l10n, e, standalone: false)),
+            ),
+          ),
         );
       }
     }
@@ -159,7 +165,11 @@ class _ConnectivityDoctorDialogState
       if (mounted) {
         final l10n = AppLocalizations.of(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(l10n.doctorFixFailed('$e'))),
+          SnackBar(
+            content: Text(
+              l10n.doctorFixFailed(localizedError(l10n, e, standalone: false)),
+            ),
+          ),
         );
       }
     }
@@ -169,146 +179,96 @@ class _ConnectivityDoctorDialogState
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
-
-    return Dialog(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900, maxHeight: 700),
-        child: Column(
-          children: [
-            // Header
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primaryContainer,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(28)),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.medical_services_outlined,
-                    size: 28,
-                    color: theme.colorScheme.onPrimaryContainer,
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          l10n.doctorTitle,
-                          style: theme.textTheme.titleLarge?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer,
-                          ),
-                        ),
-                        Text(
-                          widget.instanceName,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: theme.colorScheme.onPrimaryContainer
-                                .withAlpha(178),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ],
-              ),
-            ),
-
-            // Action bar
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-              child: Row(
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: _isRunning ? null : _runDoctor,
-                    icon: _isRunning
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.refresh, size: 18),
-                    label: Text(
-                        _isRunning ? l10n.doctorRunning : l10n.doctorRunAgain),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed:
-                        _report != null && !_isRunning ? _exportReport : null,
-                    icon: const Icon(Icons.download, size: 18),
-                    label: Text(l10n.doctorExportReport),
-                  ),
-                  const Spacer(),
-                  if (_report != null) ...[
-                    _SummaryChip(
-                      label: '${_report!.passCount}',
-                      icon: Icons.check_circle,
-                      color: Colors.green,
-                    ),
-                    const SizedBox(width: 4),
-                    _SummaryChip(
-                      label: '${_report!.warningCount}',
-                      icon: Icons.warning,
-                      color: Colors.orange,
-                    ),
-                    const SizedBox(width: 4),
-                    _SummaryChip(
-                      label: '${_report!.failCount}',
-                      icon: Icons.cancel,
-                      color: Colors.red,
-                    ),
-                    const SizedBox(width: 4),
-                    _SummaryChip(
-                      label: '${_report!.skippedCount}',
-                      icon: Icons.skip_next,
-                      color: Colors.grey,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-
-            const Divider(height: 1),
-
-            // Body
-            Expanded(
-              child: _buildBody(theme, l10n),
-            ),
-
-            // Footer
-            if (_report != null)
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerLow,
-                  borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(28)),
-                ),
-                child: Row(
+    return Column(
+      children: [
+        // Action bar
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            children: [
+              // Wrap (not Row) so the two buttons flow to a second line
+              // instead of overflowing when Spanish labels ("Ejecutar de
+              // nuevo", "Exportar informe") don't both fit on narrow widths.
+              Expanded(
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text(
-                      l10n.doctorTotalDuration(
-                          _report!.totalDurationMs.toInt()),
-                      style: theme.textTheme.bodySmall,
+                    OutlinedButton.icon(
+                      onPressed: _isRunning ? null : _runDoctor,
+                      icon: _isRunning
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.refresh, size: 18),
+                      label: Text(_isRunning
+                          ? l10n.doctorRunning
+                          : l10n.doctorRunAgain),
                     ),
-                    const Spacer(),
-                    Text(
-                      _report!.generatedAt.split('T').first,
-                      style: theme.textTheme.bodySmall,
+                    OutlinedButton.icon(
+                      onPressed: _report != null && !_isRunning
+                          ? _exportReport
+                          : null,
+                      icon: const Icon(Icons.download, size: 18),
+                      label: Text(l10n.doctorExportReport),
                     ),
                   ],
                 ),
               ),
-          ],
+              if (_report != null) ...[
+                _SummaryChip(
+                  label: '${_report!.passCount}',
+                  icon: Icons.check_circle,
+                  color: Colors.green,
+                ),
+                const SizedBox(width: 4),
+                _SummaryChip(
+                  label: '${_report!.warningCount}',
+                  icon: Icons.warning,
+                  color: Colors.orange,
+                ),
+                const SizedBox(width: 4),
+                _SummaryChip(
+                  label: '${_report!.failCount}',
+                  icon: Icons.cancel,
+                  color: Colors.red,
+                ),
+                const SizedBox(width: 4),
+                _SummaryChip(
+                  label: '${_report!.skippedCount}',
+                  icon: Icons.skip_next,
+                  color: Colors.grey,
+                ),
+              ],
+            ],
+          ),
         ),
-      ),
+        const Divider(height: 1),
+        Expanded(child: _buildBody(theme, l10n)),
+        if (_report != null)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surfaceContainerLow,
+            ),
+            child: Row(
+              children: [
+                Text(
+                  l10n.doctorTotalDuration(_report!.totalDurationMs.toInt()),
+                  style: theme.textTheme.bodySmall,
+                ),
+                const Spacer(),
+                Text(
+                  _report!.generatedAt.split('T').first,
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
@@ -473,6 +433,22 @@ class _SummaryChip extends StatelessWidget {
   }
 }
 
+/// The Cloud Console route a remedy carries in its `details`, if any.
+///
+/// Rust appends it as `Without gcloud: <url>` (see `with_console_alternative`
+/// in `doctor.rs`). Pulling it back out here is what lets the panel offer it as
+/// something the user can open or copy: rendered as prose it was visible and
+/// unusable, which for the user with no gcloud — the one the alternative exists
+/// for — is the same as not being there.
+String? consoleUrlIn(String? details) {
+  if (details == null) return null;
+  final match =
+      RegExp(r'https://console\.cloud\.google\.com/\S+').firstMatch(details);
+  if (match == null) return null;
+  // Trim trailing punctuation a sentence may have left glued to the URL.
+  return match.group(0)!.replaceAll(RegExp(r'[).,;]+$'), '');
+}
+
 class _DoctorCheckTile extends StatelessWidget {
   final DoctorCheckResult check;
   final VoidCallback? onCopyCommand;
@@ -488,6 +464,7 @@ class _DoctorCheckTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context);
+    final consoleUrl = consoleUrlIn(check.details);
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 2),
@@ -517,9 +494,49 @@ class _DoctorCheckTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (check.details != null) ...[
-                  Text(
+                  // Selectable: the Cloud Console route lives in here, and a
+                  // route the user cannot copy is not a route.
+                  SelectableText(
                     check.details!,
                     style: theme.textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (consoleUrl != null) ...[
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            Process.run('xdg-open', [consoleUrl]),
+                        icon: const Icon(Icons.open_in_new, size: 14),
+                        label: Text(l10n.doctorOpenInConsole),
+                        style: OutlinedButton.styleFrom(
+                          textStyle: const TextStyle(fontSize: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          // No await before the snackbar: the clipboard write
+                          // is fire-and-forget, so `context` is still the one
+                          // this frame built with.
+                          Clipboard.setData(ClipboardData(text: consoleUrl));
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(l10n.doctorConsoleLinkCopied)),
+                          );
+                        },
+                        icon: const Icon(Icons.link, size: 14),
+                        label: Text(l10n.doctorCopyConsoleLink),
+                        style: OutlinedButton.styleFrom(
+                          textStyle: const TextStyle(fontSize: 12),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 4),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 8),
                 ],
@@ -591,6 +608,76 @@ class _DoctorCheckTile extends StatelessWidget {
       case DoctorCheckStatus.skipped:
         return const Icon(Icons.skip_next, color: Colors.grey, size: 24);
     }
+  }
+}
+
+/// Modal wrapper around [ConnectivityDoctorView] for the ResourceTree
+/// right-click menu. The workspace uses [ConnectivityDoctorView] directly.
+class ConnectivityDoctorDialog extends StatelessWidget {
+  final String projectId;
+  final String zone;
+  final String instanceName;
+
+  const ConnectivityDoctorDialog({
+    super.key,
+    required this.projectId,
+    required this.zone,
+    required this.instanceName,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context);
+    return Dialog(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 900, maxHeight: 700),
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primaryContainer,
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(28)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.medical_services_outlined,
+                      size: 28, color: theme.colorScheme.onPrimaryContainer),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.doctorTitle,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer)),
+                        Text(instanceName,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onPrimaryContainer
+                                    .withAlpha(178))),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ConnectivityDoctorView(
+                projectId: projectId,
+                zone: zone,
+                instanceName: instanceName,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

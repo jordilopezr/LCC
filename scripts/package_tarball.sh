@@ -67,6 +67,10 @@ if [ -f "linux/runner/resources/app_icon.png" ]; then
     cp "linux/runner/resources/app_icon.png" "$BUILD_DIR/$APP_NAME/icon.png"
 fi
 
+# Licencia: la GPL exige entregar su texto con cada copia del programa, y NOTICE
+# lleva el copyright y el término adicional de marca (sección 7).
+cp LICENSE NOTICE "$BUILD_DIR/$APP_NAME/"
+
 # 5. Comprimir
 echo "🔨 Comprimiendo en tar.gz..."
 cd $BUILD_DIR

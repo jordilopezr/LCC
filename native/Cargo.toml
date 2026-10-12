@@ -16,7 +16,18 @@ regex = "1.11.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 ssh2 = "0.9.4"
-tokio = { version = "1.48.0", features = ["rt", "time", "process", "io-util", "fs", "sync"] }
+tokio = { version = "1.48.0", features = ["rt", "rt-multi-thread", "time", "process", "io-util", "fs", "sync", "net", "macros"] }
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-webpki-roots"] }
+# tokio-tungstenite's rustls feature enables NO crypto provider, and rustls 0.23
+# refuses to choose one on its own — the first TLS handshake then panics. Declared
+# here so feature unification gives rustls 0.23 the `ring` provider; `ring` is
+# already in the tree via rustls 0.22, so this adds no C toolchain requirement.
+# `default-features = false` matters: rustls 0.23's defaults include the
+# `aws-lc-rs` provider, which drags in aws-lc-sys and a C/cmake toolchain the
+# packaging containers do not install. `ring` is already in the tree via
+# rustls 0.22, so this adds no new build requirement.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
+futures-util = "0.3"
 tracing = "0.1.41"
 tracing-subscriber = { version = "0.3.19", features = ["env-filter", "fmt", "json"] }
 tracing-appender = "0.2.3"
@@ -29,9 +40,28 @@ reqwest = { version = "0.12", features = ["json"] }
 # Sprint 5: Windows Credentials
 rsa = "0.9"
 rand = "0.8"
-keyring = "3"
 base64 = "0.22"
 num-bigint-dig = "0.8"
 sha1 = "0.10"
+sha2 = "0.10"
 
 # Sprint 10.5: License verification removed
+
+# SP-1: generate LCC's own ed25519 key in pure Rust. Shelling out to
+# ssh-keygen would add a CLI dependency to a project whose point is
+# removing one.
+ssh-key = { version = "0.6", features = ["ed25519", "rand_core", "std"] }
+rand_core = { version = "0.6", features = ["std"] }
+
+# keyring's default build has no credential-store backend and silently falls
+# back to an in-memory mock (no persistence). LCC only ships for Linux today
+# (see packaging/podman/), so only the Linux backend is wired up here.
+# async-secret-service (zbus, pure Rust) is used instead of sync-secret-service
+# to avoid a libdbus-1 C dependency that the build containers do not install.
+[target.'cfg(target_os = "linux")'.dependencies]
+keyring = { version = "3", features = ["async-secret-service", "tokio", "crypto-rust"] }
+
+# `killpg`, to tear down a spawned gcloud together with the `ssh` it forks.
+# Already in the dependency tree transitively, so this adds no build cost.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

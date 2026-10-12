@@ -1,6 +1,8 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
+
 /// Service for managing desktop notifications
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -12,6 +14,15 @@ class NotificationService {
 
   bool _initialized = false;
   bool _notificationsEnabled = true;
+
+  AppLocalizations? _l10n;
+
+  /// Keep the service's localizations in sync with the app's current locale.
+  /// Called from a widget below MaterialApp (see main.dart), so it uses the
+  /// same resolved locale as the UI (including "system").
+  void updateLocalizations(AppLocalizations l10n) {
+    _l10n = l10n;
+  }
 
   /// Initialize the notification service
   Future<void> initialize() async {
@@ -71,9 +82,11 @@ class NotificationService {
     required String zone,
   }) async {
     if (!isEnabled) return;
+    final l10n = _l10n;
+    if (l10n == null) return;
 
-    final title = 'VM State Changed: $instanceName';
-    final body = '$oldState → $newState\n$project/$zone';
+    final title = l10n.notifVmStateChangeTitle(instanceName);
+    final body = l10n.notifVmStateChangeBody(oldState, newState, project, zone);
 
     await _showNotification(
       id: instanceName.hashCode,
@@ -91,9 +104,11 @@ class NotificationService {
     required String zone,
   }) async {
     if (!isEnabled) return;
+    final l10n = _l10n;
+    if (l10n == null) return;
 
-    final title = 'IAP Tunnel Failed: $instanceName';
-    final body = 'Port $remotePort disconnected\n$project/$zone';
+    final title = l10n.notifTunnelFailedTitle(instanceName);
+    final body = l10n.notifTunnelFailedBody(remotePort, project, zone);
 
     await _showNotification(
       id: '$instanceName:$remotePort'.hashCode,
@@ -115,13 +130,15 @@ class NotificationService {
     String? errorMessage,
   }) async {
     if (!isEnabled) return;
+    final l10n = _l10n;
+    if (l10n == null) return;
 
     final title = success
-        ? '✓ $operation completed: $instanceName'
-        : '✗ $operation failed: $instanceName';
+        ? l10n.notifLifecycleSuccessTitle(operation, instanceName)
+        : l10n.notifLifecycleFailedTitle(operation, instanceName);
     final body = success
-        ? '$project/$zone'
-        : '${errorMessage ?? 'Unknown error'}\n$project/$zone';
+        ? l10n.notifLifecycleSuccessBody(project, zone)
+        : l10n.notifLifecycleFailedBody(errorMessage ?? l10n.notifUnknownError, project, zone);
 
     await _showNotification(
       id: '$operation:$instanceName'.hashCode,
@@ -142,9 +159,11 @@ class NotificationService {
     required String project,
   }) async {
     if (!isEnabled) return;
+    final l10n = _l10n;
+    if (l10n == null) return;
 
-    final title = 'Tunnel Reconnecting: $instanceName';
-    final body = 'Port $remotePort - Attempt $attempt/$maxAttempts\n$project';
+    final title = l10n.notifTunnelReconnectingTitle(instanceName);
+    final body = l10n.notifTunnelReconnectingBody(remotePort, attempt, maxAttempts, project);
 
     await _showNotification(
       id: 'reconnect:$instanceName:$remotePort'.hashCode,
@@ -161,9 +180,11 @@ class NotificationService {
     required String project,
   }) async {
     if (!isEnabled) return;
+    final l10n = _l10n;
+    if (l10n == null) return;
 
-    final title = 'Tunnel Reconnected: $instanceName';
-    final body = 'Port $remotePort successfully restored\n$project';
+    final title = l10n.notifTunnelReconnectedTitle(instanceName);
+    final body = l10n.notifTunnelReconnectedBody(remotePort, project);
 
     await _showNotification(
       id: 'reconnect:$instanceName:$remotePort'.hashCode,
@@ -181,9 +202,11 @@ class NotificationService {
     required String project,
   }) async {
     if (!isEnabled) return;
+    final l10n = _l10n;
+    if (l10n == null) return;
 
-    final title = 'Tunnel Failed: $instanceName';
-    final body = 'Port $remotePort - Gave up after $maxAttempts attempts\n$project';
+    final title = l10n.notifTunnelGaveUpTitle(instanceName);
+    final body = l10n.notifTunnelGaveUpBody(remotePort, maxAttempts, project);
 
     await _showNotification(
       id: 'reconnect:$instanceName:$remotePort'.hashCode,
@@ -195,19 +218,20 @@ class NotificationService {
     );
   }
 
-  /// Show a general notification
-  Future<void> notifyGeneral({
-    required String title,
-    required String body,
-    String? payload,
+  /// Show a notification that a preferred RDP/VNC client was unavailable and a
+  /// fallback client was used. `protocol` is "RDP"/"VNC" (raw, not translated).
+  Future<void> notifyClientFallback({
+    required String protocol,
+    required String clientName,
   }) async {
     if (!isEnabled) return;
-
+    final l10n = _l10n;
+    if (l10n == null) return;
     await _showNotification(
-      id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title: title,
-      body: body,
-      payload: payload,
+      id: 'fallback:$protocol'.hashCode,
+      title: l10n.notifClientFallbackTitle(protocol),
+      body: l10n.notifClientFallbackBody(clientName),
+      payload: 'client_fallback:$protocol',
     );
   }
 

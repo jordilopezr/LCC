@@ -41,6 +41,17 @@ class StorageService {
     return _sharedPrefs.getString('api_method') ?? 'clientLibrary';
   }
 
+  /// Whether the user has seen the notice about native sign-in becoming the
+  /// default. UI state, deliberately separate from the engine preference that
+  /// Rust owns.
+  Future<void> setEngineChangeNoticeSeen() async {
+    await _sharedPrefs.setBool('engine_change_notice_seen', true);
+  }
+
+  bool getEngineChangeNoticeSeen() {
+    return _sharedPrefs.getBool('engine_change_notice_seen') ?? false;
+  }
+
   // --- Multi-Project Support ---
 
   /// Maximum number of projects that can be selected simultaneously
@@ -116,6 +127,17 @@ class StorageService {
       }
     }
     return result;
+  }
+
+  /// The project selection that belongs to [accountEmail]: empty for an
+  /// account with no entry of its own, and for no account at all.
+  ///
+  /// Never falls back to the global `selected_project_ids`: that list is the
+  /// previous account's, and loading it for a new one sent that account's
+  /// token to ask for ten projects it cannot see, while its own stayed hidden.
+  List<String> getSelectedProjectsForAccount(String? accountEmail) {
+    if (accountEmail == null) return [];
+    return getAccountProjects()[accountEmail] ?? [];
   }
 
   /// Migrate existing projects to account mapping (called once on upgrade)
@@ -222,5 +244,16 @@ class StorageService {
       }
     }
     return map;
+  }
+
+  /// Whether the user has answered the SSH-key provisioning prompt for a
+  /// project, and what they answered. A denial is remembered too: re-asking on
+  /// every connection is not consent.
+  Future<void> setSshProvisionConsent(String projectId, bool allowed) async {
+    await _sharedPrefs.setBool('ssh_provision_consent_$projectId', allowed);
+  }
+
+  bool? getSshProvisionConsent(String projectId) {
+    return _sharedPrefs.getBool('ssh_provision_consent_$projectId');
   }
 }

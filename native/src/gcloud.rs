@@ -26,6 +26,10 @@ pub struct GcpInstance {
     pub labels: Vec<(String, String)>,
     pub os_login_enabled: bool,
     pub is_windows: bool,
+    /// Addresses of the first network interface. `external_ip` is absent on a
+    /// VM with no public address — the normal case for IAP-only instances.
+    pub internal_ip: Option<String>,
+    pub external_ip: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -63,10 +67,48 @@ struct RawInstance {
     disks: Option<Vec<RawDisk>>,
     labels: Option<HashMap<String, String>>,
     metadata: Option<RawMetadata>,
+    #[serde(rename = "networkInterfaces")]
+    network_interfaces: Option<Vec<RawNetworkInterface>>,
+}
+
+#[derive(Deserialize)]
+struct RawNetworkInterface {
+    #[serde(rename = "networkIP")]
+    network_ip: Option<String>,
+    #[serde(rename = "accessConfigs")]
+    access_configs: Option<Vec<RawAccessConfig>>,
+}
+
+#[derive(Deserialize)]
+struct RawAccessConfig {
+    #[serde(rename = "natIP")]
+    nat_ip: Option<String>,
+}
+
+/// The first interface's addresses, from `gcloud`'s JSON.
+///
+/// Mirrors `gcp_rest_client::instance_ips`: both engines read the same Compute
+/// resource, and an address that appeared under one engine and vanished under
+/// the other would read as a bug in whichever the user happened to switch to.
+fn raw_ips(nics: &Option<Vec<RawNetworkInterface>>) -> (Option<String>, Option<String>) {
+    let Some(nic) = nics.as_ref().and_then(|n| n.first()) else {
+        return (None, None);
+    };
+    // An accessConfigs entry exists whether or not an address was assigned, so
+    // only a natIP proves there is a public address.
+    let external = nic
+        .access_configs
+        .as_ref()
+        .and_then(|cfgs| cfgs.iter().find_map(|c| c.nat_ip.clone()));
+    (nic.network_ip.clone(), external)
 }
 
 pub fn is_gcloud_installed() -> bool {
-    Command::new("gcloud")
+    let bin = match crate::gcloud_bin::gcloud_path() {
+        Ok(b) => b,
+        Err(_) => return false,
+    };
+    Command::new(bin)
         .arg("--version")
         .output()
         .map(|o| o.status.success())
@@ -74,7 +116,11 @@ pub fn is_gcloud_installed() -> bool {
 }
 
 pub fn is_gcloud_authenticated() -> bool {
-    let output = Command::new("gcloud")
+    let bin = match crate::gcloud_bin::gcloud_path() {
+        Ok(b) => b,
+        Err(_) => return false,
+    };
+    let output = Command::new(bin)
         .args(["auth", "list", "--filter=status:ACTIVE", "--format=json"])
         .output();
 
@@ -98,7 +144,7 @@ pub fn is_gcloud_authenticated() -> bool {
 /// * Email address of the active GCP account (e.g., "user@domain.com")
 /// * Error if gcloud is not authenticated or command fails
 pub fn get_gcloud_account() -> Result<String> {
-    let output = Command::new("gcloud")
+    let output = Command::new(crate::gcloud_bin::gcloud_path()?)
         .args(["config", "get-value", "account"])
         .output()
         .map_err(|e| anyhow!("Failed to execute gcloud: {}", e))?;
@@ -120,10 +166,11 @@ pub fn get_gcloud_account() -> Result<String> {
 
 /// Async version with timeout
 pub async fn get_projects_async() -> Result<Vec<GcpProject>> {
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     // 10 second timeout for listing projects
     let output = timeout(
         Duration::from_secs(10),
-        TokioCommand::new("gcloud")
+        TokioCommand::new(gcloud_bin)
             .args(["projects", "list", "--format=json"])
             .output()
     )
@@ -228,10 +275,11 @@ pub async fn get_instances_async(project_id: &str) -> Result<Vec<GcpInstance>> {
     // Validate project ID before passing to shell command
     validate_project_id(project_id)?;
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     // 10 second timeout for listing instances
     let output = timeout(
         Duration::from_secs(10),
-        TokioCommand::new("gcloud")
+        TokioCommand::new(gcloud_bin)
             .args(["compute", "instances", "list", "--project", project_id, "--format=json"])
             .output()
     )
@@ -308,6 +356,8 @@ pub async fn get_instances_async(project_id: &str) -> Result<Vec<GcpInstance>> {
             })
             .unwrap_or(false);
 
+        let (internal_ip, external_ip) = raw_ips(&raw.network_interfaces);
+
         GcpInstance {
             name: raw.name,
             status: raw.status,
@@ -319,6 +369,8 @@ pub async fn get_instances_async(project_id: &str) -> Result<Vec<GcpInstance>> {
             labels,
             os_login_enabled,
             is_windows,
+            internal_ip,
+            external_ip,
         }
     }).collect();
 
@@ -331,20 +383,6 @@ pub fn get_instances(project_id: &str) -> Result<Vec<GcpInstance>> {
     let rt = tokio::runtime::Runtime::new()
         .map_err(|e| anyhow!("Failed to create tokio runtime: {}", e))?;
     rt.block_on(get_instances_async(project_id))
-}
-
-pub fn execute_login() -> Result<()> {
-    // gcloud auth login launches the browser. We wait for it to complete.
-    let status = Command::new("gcloud")
-        .args(["auth", "login", "--quiet"]) 
-        .status()
-        .map_err(|e| anyhow!("Failed to execute gcloud login: {}", e))?;
-
-    if status.success() {
-        Ok(())
-    } else {
-        Err(anyhow!("Login failed or was cancelled."))
-    }
 }
 
 pub fn launch_ssh(project_id: &str, zone: &str, instance_name: &str) -> anyhow::Result<()> {
@@ -413,76 +451,7 @@ pub fn launch_sftp_browser(port: u16, username: Option<String>) -> anyhow::Resul
     Ok(())
 }
 
-pub fn execute_logout() -> Result<()> {
-    tracing::info!("Revoking all gcloud credentials");
-
-    // --quiet evita prompts, --all borra todas las cuentas activas
-    let _ = Command::new("gcloud")
-        .args(&["auth", "revoke", "--all", "--quiet"])
-        .status(); // Ignoramos el resultado, si falla es probable que ya no haya credenciales.
-
-    Ok(())
-}
-
 // VM Lifecycle Management Functions
-
-/// Start a stopped instance
-pub async fn start_instance_async(project_id: &str, zone: &str, instance_name: &str) -> Result<()> {
-    // SECURITY: Validate all inputs
-    validate_project_id(project_id)?;
-    validate_zone(zone)?;
-    validate_instance_name(instance_name)?;
-
-    tracing::info!(
-        project_id = project_id,
-        zone = zone,
-        instance_name = instance_name,
-        "Starting instance"
-    );
-
-    let output = tokio::time::timeout(
-        std::time::Duration::from_secs(120), // 2 minutes timeout for start
-        tokio::process::Command::new("gcloud")
-            .args(&[
-                "compute",
-                "instances",
-                "start",
-                instance_name,
-                "--zone",
-                zone,
-                "--project",
-                project_id,
-                "--quiet",
-            ])
-            .output()
-    )
-    .await
-    .map_err(|_| anyhow!("Timeout starting instance after 120 seconds"))?
-    .map_err(|e| anyhow!("Failed to execute gcloud start command: {}", e))?;
-
-    if output.status.success() {
-        tracing::info!(
-            instance_name = instance_name,
-            "Instance started successfully"
-        );
-        Ok(())
-    } else {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        tracing::error!(
-            instance_name = instance_name,
-            stderr = %stderr,
-            "Failed to start instance"
-        );
-        Err(anyhow!("Failed to start instance: {}", stderr))
-    }
-}
-
-/// Synchronous wrapper for start_instance
-pub fn start_instance(project_id: &str, zone: &str, instance_name: &str) -> Result<()> {
-    let rt = tokio::runtime::Runtime::new()
-        .map_err(|e| anyhow!("Failed to create tokio runtime: {}", e))?;
-    rt.block_on(start_instance_async(project_id, zone, instance_name))
-}
 
 /// Stop a running instance
 pub async fn stop_instance_async(project_id: &str, zone: &str, instance_name: &str) -> Result<()> {
@@ -498,9 +467,10 @@ pub async fn stop_instance_async(project_id: &str, zone: &str, instance_name: &s
         "Stopping instance"
     );
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(120), // 2 minutes timeout for stop
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args(&[
                 "compute",
                 "instances",
@@ -556,9 +526,10 @@ pub async fn reset_instance_async(project_id: &str, zone: &str, instance_name: &
         "Resetting instance"
     );
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(120), // 2 minutes timeout for reset
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args(&[
                 "compute",
                 "instances",
@@ -615,9 +586,10 @@ pub async fn get_instance_async(project_id: &str, zone: &str, instance_name: &st
         "Getting instance via gcloud CLI"
     );
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = timeout(
         Duration::from_secs(30),
-        TokioCommand::new("gcloud")
+        TokioCommand::new(gcloud_bin)
             .args([
                 "compute", "instances", "describe",
                 instance_name,
@@ -710,6 +682,8 @@ pub async fn get_instance_async(project_id: &str, zone: &str, instance_name: &st
         })
         .unwrap_or(false);
 
+    let (internal_ip, external_ip) = raw_ips(&raw.network_interfaces);
+
     Ok(GcpInstance {
         name: raw.name,
         status: raw.status,
@@ -721,6 +695,8 @@ pub async fn get_instance_async(project_id: &str, zone: &str, instance_name: &st
         labels,
         os_login_enabled,
         is_windows,
+        internal_ip,
+        external_ip,
     })
 }
 
@@ -760,9 +736,10 @@ fn parse_machine_type_specs(machine_type: &str) -> (Option<u32>, Option<u32>) {
 
 /// List all authenticated gcloud accounts
 pub async fn list_gcloud_accounts_async() -> Result<Vec<GcloudAccount>> {
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = timeout(
         Duration::from_secs(10),
-        TokioCommand::new("gcloud")
+        TokioCommand::new(gcloud_bin)
             .args(["auth", "list", "--format=json"])
             .output()
     )
@@ -799,9 +776,10 @@ pub async fn switch_gcloud_account_async(email: &str) -> Result<()> {
 
     tracing::info!(email = email, "Switching gcloud account");
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = timeout(
         Duration::from_secs(10),
-        TokioCommand::new("gcloud")
+        TokioCommand::new(gcloud_bin)
             .args(["config", "set", "account", email])
             .output()
     )
@@ -817,48 +795,6 @@ pub async fn switch_gcloud_account_async(email: &str) -> Result<()> {
     crate::gcp_rest_client::invalidate_cached_access_token().await;
 
     tracing::info!(email = email, "Account switched successfully");
-    Ok(())
-}
-
-/// Add a new gcloud account (opens browser for authentication)
-/// This is synchronous because it waits for the browser auth flow
-pub fn add_gcloud_account() -> Result<()> {
-    tracing::info!("Adding new gcloud account (opening browser)");
-
-    let status = Command::new("gcloud")
-        .args(["auth", "login", "--quiet"])
-        .status()
-        .map_err(|e| anyhow!("Failed to execute gcloud auth login: {}", e))?;
-
-    if status.success() {
-        tracing::info!("New account added successfully");
-        Ok(())
-    } else {
-        Err(anyhow!("Login failed or was cancelled."))
-    }
-}
-
-/// Remove (revoke) a gcloud account
-pub async fn remove_gcloud_account_async(email: &str) -> Result<()> {
-    validate_email(email)?;
-
-    tracing::info!(email = email, "Revoking gcloud account");
-
-    let output = timeout(
-        Duration::from_secs(10),
-        TokioCommand::new("gcloud")
-            .args(["auth", "revoke", email, "--quiet"])
-            .output()
-    )
-    .await
-    .map_err(|_| anyhow!("Timeout: gcloud auth revoke took longer than 10 seconds"))?
-    .map_err(|e| anyhow!("Failed to execute gcloud: {}", e))?;
-
-    if !output.status.success() {
-        return Err(anyhow!("Failed to revoke account: {}", String::from_utf8_lossy(&output.stderr)));
-    }
-
-    tracing::info!(email = email, "Account revoked successfully");
     Ok(())
 }
 
@@ -890,9 +826,10 @@ pub async fn suspend_instance_async(project_id: &str, zone: &str, instance_name:
         "Suspending instance"
     );
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(120),
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args(&[
                 "compute", "instances", "suspend",
                 instance_name, "--zone", zone,
@@ -934,9 +871,10 @@ pub async fn resume_instance_async(project_id: &str, zone: &str, instance_name: 
         "Resuming instance"
     );
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = tokio::time::timeout(
         std::time::Duration::from_secs(120),
-        tokio::process::Command::new("gcloud")
+        tokio::process::Command::new(gcloud_bin)
             .args(&[
                 "compute", "instances", "resume",
                 instance_name, "--zone", zone,
@@ -969,9 +907,10 @@ pub fn resume_instance(project_id: &str, zone: &str, instance_name: &str) -> Res
 pub async fn get_projects_for_account_async(email: &str) -> Result<Vec<GcpProject>> {
     validate_email(email)?;
 
+    let gcloud_bin = crate::gcloud_bin::gcloud_path()?;
     let output = timeout(
         Duration::from_secs(15),
-        TokioCommand::new("gcloud")
+        TokioCommand::new(gcloud_bin)
             .args(["projects", "list", "--account", email, "--format=json"])
             .output()
     )
@@ -988,3 +927,65 @@ pub async fn get_projects_for_account_async(email: &str) -> Result<Vec<GcpProjec
     Ok(projects)
 }
 
+
+#[cfg(test)]
+mod ip_tests {
+    use super::{raw_ips, RawInstance};
+
+    fn nics_of(json: &str) -> Option<Vec<super::RawNetworkInterface>> {
+        let raw: RawInstance = serde_json::from_str(json).expect("parse instance");
+        raw.network_interfaces
+    }
+
+    const BASE: &str = r#""name":"vm1","status":"RUNNING","zone":"z""#;
+
+    /// Both engines read the same Compute resource. An address that showed up
+    /// under the native engine and vanished under gcloud would be reported as
+    /// a bug in whichever one the user happened to switch to, so this mirrors
+    /// `gcp_rest_client`'s tests case for case.
+    #[test]
+    fn an_iap_only_vm_reports_an_internal_address_and_no_external_one() {
+        let nics = nics_of(&format!(
+            r#"{{{BASE},"networkInterfaces":[{{"networkIP":"10.128.0.5"}}]}}"#
+        ));
+        assert_eq!(raw_ips(&nics), (Some("10.128.0.5".to_string()), None));
+    }
+
+    #[test]
+    fn a_vm_with_a_public_address_reports_both() {
+        let nics = nics_of(&format!(
+            r#"{{{BASE},"networkInterfaces":[{{"networkIP":"10.128.0.5","accessConfigs":[{{"natIP":"34.1.2.3"}}]}}]}}"#
+        ));
+        assert_eq!(
+            raw_ips(&nics),
+            (Some("10.128.0.5".to_string()), Some("34.1.2.3".to_string()))
+        );
+    }
+
+    /// gcloud emits the accessConfigs entry even with no address assigned.
+    #[test]
+    fn an_access_config_without_an_address_is_not_an_external_ip() {
+        let nics = nics_of(&format!(
+            r#"{{{BASE},"networkInterfaces":[{{"networkIP":"10.128.0.5","accessConfigs":[{{"name":"External NAT"}}]}}]}}"#
+        ));
+        assert_eq!(raw_ips(&nics), (Some("10.128.0.5".to_string()), None));
+    }
+
+    /// An older gcloud, or a trimmed --format, may omit the field entirely.
+    #[test]
+    fn an_instance_with_no_interfaces_reports_nothing_rather_than_failing() {
+        assert_eq!(raw_ips(&nics_of(&format!(r#"{{{BASE}}}"#))), (None, None));
+        assert_eq!(
+            raw_ips(&nics_of(&format!(r#"{{{BASE},"networkInterfaces":[]}}"#))),
+            (None, None)
+        );
+    }
+
+    #[test]
+    fn the_first_interface_is_the_one_reported() {
+        let nics = nics_of(&format!(
+            r#"{{{BASE},"networkInterfaces":[{{"networkIP":"10.128.0.5"}},{{"networkIP":"10.200.0.9","accessConfigs":[{{"natIP":"34.9.9.9"}}]}}]}}"#
+        ));
+        assert_eq!(raw_ips(&nics), (Some("10.128.0.5".to_string()), None));
+    }
+}

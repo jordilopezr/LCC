@@ -1,5 +1,6 @@
 use super::utils::*;
 use super::RdpSettings;
+use crate::child_reaper::SpawnReaped;
 use std::process::{Command, Stdio};
 use anyhow::{Result, anyhow};
 use tracing;
@@ -48,7 +49,7 @@ fn try_native_launch(uri: &str, settings: &RdpSettings) -> Result<()> {
 
     cmd.stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()?;
+        .spawn_reaped()?;
 
     tracing::info!("Native GNOME Connections launched");
     Ok(())
@@ -61,7 +62,7 @@ fn try_flatpak_launch(uri: &str, _settings: &RdpSettings) -> Result<()> {
         .args(["run", "org.gnome.Connections", uri])
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()?;
+        .spawn_reaped()?;
 
     tracing::info!("Flatpak GNOME Connections launched");
     Ok(())

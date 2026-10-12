@@ -14,21 +14,22 @@ El proyecto sigue una arquitectura centrada en rendimiento, seguridad y experien
 *   **Backend / Core Logic:** **Rust** para el trabajo pesado: red, seguridad, clientes de GCP, túneles IAP, SFTP y diagnósticos.
 *   **Bridge (FFI):** **[Flutter Rust Bridge 2.x](https://pub.dev/packages/flutter_rust_bridge)** para comunicación asíncrona de alto rendimiento entre Dart y Rust sin bloquear la UI. Los ficheros generados viven en `lib/src/bridge/api.dart/` y no deben editarse a mano.
 *   **Almacenamiento:** `SharedPreferences` para preferencias y `libsecret` (D-Bus Secret Service) para almacenamiento local seguro de credenciales.
-*   **Integración GCP (Dual API):** Capacidad de operar usando la interfaz de línea de comandos tradicional (`gcloud CLI`) o vía llamadas directas de API REST usando **Google Cloud Client Libraries** para mejoras de rendimiento (hasta 1.5x más rápido).
+*   **Integración GCP (REST nativo):** todas las llamadas a recursos de GCP pasan por el cliente REST propio en Rust (`native/src/gcp_rest_client.rs`); ya no existe el conmutador "Dual API" entre la CLI de `gcloud` y las Client Libraries.
+*   **Autenticación:** LCC inicia sesión por su cuenta (OAuth 2.0 code + PKCE con redirect de loopback; refresh token en el llavero del sistema — `native/src/oauth.rs`, `native/src/token_store.rs`). El motor `gcloud` es una alternativa seleccionable en Ajustes; `gcloud` no es necesario para iniciar sesión.
 
 ## 2. Modelo de Distribución
 
-LCC es **100% gratuito y open source** (licencia MIT), con todas las funcionalidades disponibles sin restricciones. El antiguo modelo Free/Pro con validación de licencias Ed25519 fue eliminado por completo del código (ver `docs/cleanup_plan.md`, ejecutado): no existen `native/src/license.rs`, `license_provider.dart` ni `pro_gate.dart`.
+LCC es **100% gratuito y open source** (GPL-3.0-or-later, con un término adicional de la sección 7(e) sobre la marca; ver `LICENSE` y `NOTICE`; hasta 26H2 Update 1 fue MIT), con todas las funcionalidades disponibles sin restricciones. El antiguo modelo Free/Pro con validación de licencias Ed25519 fue eliminado por completo del código (ver `docs/cleanup_plan.md`, ejecutado): no existen `native/src/license.rs`, `license_provider.dart` ni `pro_gate.dart`.
 
 ---
 
 ## 3. Requisitos y Comandos de Desarrollo
 
 ### Requisitos del Sistema
-1.  **Google Cloud SDK (`gcloud`)** configurado en el PATH.
-2.  **Clientes RDP/VNC** instalados localmente (ej: Remmina).
-3.  **Librerías C/C++ (Linux):** `libsecret-1-dev`, `libjsoncpp-dev`.
-4.  Entorno de **Flutter** y **Rust** configurado con `cargo install flutter_rust_bridge_codegen`.
+1.  **Clientes RDP/VNC** instalados localmente (ej: Remmina).
+2.  **Librerías C/C++ (Linux):** `libsecret-1-dev`, `libjsoncpp-dev`, y un Secret Service en marcha (GNOME Keyring / KWallet) donde LCC guarda la sesión.
+3.  Entorno de **Flutter** y **Rust** configurado con `cargo install flutter_rust_bridge_codegen`.
+4.  **Opcional — Google Cloud SDK (`gcloud`)** en el PATH: motor de autenticación alternativo y herramienta para los comandos de administración que sugiere Doctor. No es necesario para iniciar sesión ni para abrir túneles.
 
 ### Comandos Frecuentes
 ```bash
@@ -80,6 +81,7 @@ Objetivos principales para próximas iteraciones:
 *   **Cost Monitor per VM:** resaltado de instancias costosas en ejecución prolongada (recomendación de idle).
 *   **Startup Script Editor:** edición de startup scripts bash directamente desde la aplicación.
 *   **Multi-Language (i18n):** ✅ **Completado (capa Dart) en 26H2U2** — UI Flutter migrada a diccionarios `gen-l10n` (`.arb`), plantilla EN + traducción ES completa (paridad de claves 666 = 666) y selector de idioma en Configuración. QA de layout en español verificado (suite automatizada `test/es_overflow_test.dart` sobre 8 diálogos + revisión manual de credenciales Windows y SSHFS). Pendiente: mapeo de códigos de error de Rust a claves localizadas y localización de las notificaciones de escritorio (`notification_service.dart`, sin locale accesible en contexto background — requiere cambio de arquitectura).
+*   **IAP Tunnel nativo:** ✅ **Enviado en 27H1** — módulo `native/src/iap_tunnel/` (frame/error/session/listener) implementa el protocolo de túnel IAP directamente en Rust, sin depender del binario `gcloud`. `tunnel.rs` usa el motor nativo por defecto y **sin fallback silencioso**: si el camino nativo falla, se reporta el error. El motor `gcloud` es una elección explícita en Ajustes → Avanzado, y la variable de entorno `LCC_TUNNEL_ENGINE` (`native`/`gcloud`) manda sobre la elección guardada. `TunnelFailure` es el primer módulo de la app que usa códigos de error tipados propagados por el bridge (9 claves `tunnelError*` localizadas EN/ES); `doctor.rs`, `sftp.rs`, `snapshots.rs` y `gcloud.rs` siguen pendientes de migrar a errores tipados. La relación con la VM real (sesión SSH/RDP/SFTP sostenida, recuperación tras corte de red) no se puede ejercitar en tests automatizados — ver checklist de QA manual en `docs/superpowers/plans/2026-07-20-native-iap-tunnel-manual-qa.md`.
 
 **Tareas Técnicas Prioritarias (Backlog)**
 *   Resource Caching en memoria (TTL 5 min) para evitar exceso de peticiones a la API.

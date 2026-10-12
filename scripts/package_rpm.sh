@@ -102,13 +102,18 @@ else
     touch "$BUILDROOT/usr/share/icons/hicolor/128x128/apps/$APP_NAME.png"
 fi
 
+# Licencia: la GPL exige entregar su texto con cada copia del programa, y NOTICE
+# lleva el copyright y el término adicional de marca (sección 7).
+mkdir -p "$BUILDROOT/usr/share/licenses/$APP_NAME"
+install -m644 LICENSE NOTICE "$BUILDROOT/usr/share/licenses/$APP_NAME/"
+
 # 7. Crear el archivo .spec
 cat <<EOF > "$RPM_BUILD_DIR/SPECS/$APP_NAME.spec"
 Name:           $APP_NAME
 Version:        $VERSION
 Release:        ${RELEASE}%{?dist}
 Summary:        $DESCRIPTION
-License:        Proprietary
+License:        GPL-3.0-or-later
 BuildArch:      $ARCH
 
 # Disable RPATH check because Flutter plugins contain ephemeral paths
@@ -135,6 +140,8 @@ cp -r %{_topdir}/BUILDROOT/${APP_NAME}-${VERSION}-${RELEASE}.${ARCH}/* %{buildro
 /usr/lib/$APP_NAME/
 /usr/share/applications/$APP_NAME.desktop
 /usr/share/icons/hicolor/128x128/apps/$APP_NAME.png
+%license /usr/share/licenses/$APP_NAME/LICENSE
+%license /usr/share/licenses/$APP_NAME/NOTICE
 
 %post
 gtk-update-icon-cache /usr/share/icons/hicolor &>/dev/null || true

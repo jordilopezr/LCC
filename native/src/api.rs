@@ -73,12 +73,9 @@ pub fn check_gcloud_auth() -> bool {
     crate::gcloud::is_gcloud_authenticated()
 }
 
-/// Get the email of the currently active GCP account
-///
-/// Uses `gcloud config get-value account` to retrieve the email address
-/// of the authenticated user. Returns the full email (e.g., "user@domain.com").
-pub fn get_gcloud_account_email() -> anyhow::Result<String> {
-    crate::gcloud::get_gcloud_account()
+/// Get the email of the currently active GCP account.
+pub async fn get_gcloud_account_email() -> anyhow::Result<String> {
+    crate::accounts::active_email().await
 }
 
 pub async fn list_projects() -> anyhow::Result<Vec<crate::gcloud::GcpProject>> {
@@ -102,44 +99,52 @@ pub async fn list_instances(project_id: String) -> anyhow::Result<Vec<crate::gcl
         labels: i.labels,
         os_login_enabled: i.os_login_enabled,
         is_windows: i.is_windows,
+        internal_ip: i.internal_ip,
+        external_ip: i.external_ip,
     }).collect())
-}
-
-pub fn gcloud_login() -> anyhow::Result<()> {
-    crate::gcloud::execute_login()
-}
-
-pub fn gcloud_logout() -> anyhow::Result<()> {
-    crate::gcloud::execute_logout()
 }
 
 // ==========================================
 // Multi-Account Management (Sprint 8)
 // ==========================================
 
-/// List all authenticated gcloud accounts
+/// List all authenticated accounts
 pub async fn list_gcloud_accounts() -> anyhow::Result<Vec<crate::gcloud::GcloudAccount>> {
-    crate::gcloud::list_gcloud_accounts_async().await
+    crate::accounts::list().await
 }
 
-/// Switch the active gcloud account
+/// Switch the active account
 pub async fn switch_gcloud_account(email: String) -> anyhow::Result<()> {
-    crate::gcloud::switch_gcloud_account_async(&email).await
+    crate::accounts::switch(&email).await
 }
 
-/// Add a new gcloud account (opens browser)
-pub fn add_gcloud_account() -> anyhow::Result<()> {
-    crate::gcloud::add_gcloud_account()
+/// Add a new account (opens browser)
+pub async fn add_gcloud_account() -> anyhow::Result<()> {
+    crate::accounts::add().await
 }
 
-/// Remove (revoke) a gcloud account
+/// Remove an account: revoked at Google, then forgotten locally
 pub async fn remove_gcloud_account(email: String) -> anyhow::Result<()> {
-    crate::gcloud::remove_gcloud_account_async(&email).await
+    crate::accounts::remove(&email).await
+}
+
+/// Log out every stored account: revoked at Google, then forgotten locally.
+pub async fn log_out_all() -> anyhow::Result<()> {
+    crate::accounts::log_out_all().await
 }
 
 /// List projects for a specific account (without changing global config)
 pub async fn list_projects_for_account(email: String) -> anyhow::Result<Vec<crate::gcloud::GcpProject>> {
-    crate::gcloud::get_projects_for_account_async(&email).await
+    crate::accounts::projects_for(&email).await
+}
+
+/// Whether gcloud is present, and whether there is a usable session.
+///
+/// One call rather than two, because under the native engine "is there a
+/// session" must not be gated on gcloud being installed — and that decision
+/// belongs where the engine flag lives.
+pub async fn check_auth_status() -> crate::accounts::AuthStatus {
+    crate::accounts::auth_status().await
 }
 
 pub async fn start_instance(project_id: String, zone: String, instance_name: String) -> anyhow::Result<()> {
@@ -186,12 +191,96 @@ pub fn greet() -> String {
 }
 
 // Wrapper functions for tunnel module
-pub fn start_connection(project_id: String, zone: String, instance_name: String, remote_port: u16) -> anyhow::Result<u16> {
-    crate::tunnel::start_tunnel(&project_id, &zone, &instance_name, remote_port)
+
+/// Error crossing the bridge: a stable code plus untranslated diagnostic detail.
+pub struct TunnelFailure {
+    pub code: String,
+    pub detail: Option<String>,
+    /// The engine that failed ("native" or "gcloud"), or None when the start
+    /// failed before any engine ran.
+    pub engine: Option<String>,
+}
+
+/// Carry a tunnel failure across the bridge with its code intact.
+///
+/// `protocol_error` is the fallback for a failure that carries no type — it
+/// renders as "the IAP relay answered unexpectedly", which is a claim about
+/// Google's side of the wire. Applying it to *every* failure, as the SSH
+/// forward used to, sends a user whose own machine is holding the local port
+/// to go and investigate the relay.
+fn tunnel_failure(err: anyhow::Error) -> TunnelFailure {
+    match err.downcast_ref::<crate::iap_tunnel::TunnelError>() {
+        Some(tunnel_error) => TunnelFailure {
+            code: tunnel_error.code().to_string(),
+            detail: tunnel_error.detail(),
+            engine: None,
+        },
+        None => TunnelFailure {
+            code: "protocol_error".to_string(),
+            detail: Some(err.to_string()),
+            engine: None,
+        },
+    }
+}
+
+/// A failed start across the bridge: [`tunnel_failure`]'s code and detail,
+/// plus the engine that was trying, so the tunnel manager can name it on the
+/// errored row.
+fn start_failure(failure: crate::tunnel::StartFailure) -> TunnelFailure {
+    TunnelFailure {
+        engine: failure.engine.map(|engine| engine.as_str().to_string()),
+        ..tunnel_failure(failure.error)
+    }
+}
+
+/// A tunnel or forward that is up, and the engine holding it: "native" or
+/// "gcloud". The engine is the entry's own — including when an existing entry
+/// is reused — so the tunnel manager can say which engine to look at even
+/// after the selected engine has changed.
+pub struct StartedConnection {
+    pub local_port: u16,
+    pub engine: String,
+}
+
+fn started_connection(started: crate::tunnel::Started) -> StartedConnection {
+    StartedConnection { local_port: started.local_port, engine: started.engine.as_str().to_string() }
+}
+
+pub fn start_connection(
+    project_id: String,
+    zone: String,
+    instance_name: String,
+    remote_port: u16,
+    local_port: Option<u16>,
+) -> Result<StartedConnection, TunnelFailure> {
+    crate::tunnel::start_tunnel(&project_id, &zone, &instance_name, remote_port, local_port)
+        .map(started_connection)
+        .map_err(start_failure)
 }
 
 pub fn stop_connection(instance_name: String, remote_port: u16) -> anyhow::Result<()> {
     crate::tunnel::stop_tunnel(&instance_name, remote_port)
+}
+
+/// `identity_file` is the key file already proven to work for `username` on
+/// this VM, as reported by `probe_ssh_access`/`provision_ssh_access`. `None`
+/// means the SSH agent authenticated, and the candidate ladder is right.
+pub fn start_ssh_forward(
+    project_id: String,
+    zone: String,
+    instance_name: String,
+    remote_port: u16,
+    local_port: Option<u16>,
+    username: String,
+    identity_file: Option<String>,
+) -> Result<StartedConnection, TunnelFailure> {
+    crate::tunnel::start_ssh_forward(&project_id, &zone, &instance_name, remote_port, local_port, &username, identity_file.as_deref())
+        .map(started_connection)
+        .map_err(start_failure)
+}
+
+pub fn stop_ssh_forward(instance_name: String, remote_port: u16) -> anyhow::Result<()> {
+    crate::tunnel::stop_ssh_forward(&instance_name, remote_port)
 }
 
 pub fn check_connection_health(instance_name: String, remote_port: u16) -> anyhow::Result<bool> {
@@ -213,9 +302,12 @@ pub fn cleanup_dead_connections() -> anyhow::Result<Vec<String>> {
     crate::tunnel::cleanup_dead_tunnels()
 }
 
-/// Get status snapshot of all active tunnels for the global panel.
-pub fn get_all_connections_status() -> anyhow::Result<Vec<crate::tunnel::TunnelInfo>> {
-    crate::tunnel::get_all_tunnels_status()
+/// Refresh a tunnel's idle timer by its local port. Used by UIs (e.g. the SFTP
+/// browser) that hold a tunnel open but may have no active TCP connection
+/// between stateless operations, so the idle reaper doesn't close it from
+/// under them.
+pub fn touch_tunnel(local_port: u16) {
+    crate::tunnel::touch_tunnel_by_local_port(local_port);
 }
 
 // Wrapper functions for rdp_client module
@@ -268,8 +360,16 @@ pub fn get_available_vnc_clients() -> Vec<crate::vnc_client::VncClientType> {
 }
 
 // Wrapper functions for logging module
-pub fn init_logging_system() -> anyhow::Result<()> {
-    crate::logging::init_logging()
+pub fn init_logging_system(app_version: String) -> anyhow::Result<()> {
+    crate::logging::init_logging(&app_version)
+}
+
+/// Record a deliberate exit. `reason` names which path asked for it, so the
+/// three window-close branches stay distinguishable in the log.
+///
+/// Called on every clean exit precisely so that its absence means something.
+pub fn log_shutdown(reason: String) {
+    crate::logging::log_shutdown(&reason);
 }
 
 pub fn export_logs_to_file() -> anyhow::Result<String> {
@@ -283,24 +383,76 @@ pub fn get_log_file_path() -> anyhow::Result<String> {
 }
 
 // Wrapper functions for SFTP module
-pub fn sftp_list_dir(host: String, port: u16, username: String, remote_path: String) -> anyhow::Result<Vec<crate::sftp::RemoteFileEntry>> {
-    crate::sftp::sftp_list_directory(host, port, username, remote_path)
+pub fn sftp_list_dir(host: String, port: u16, username: String, identity_file: Option<String>, remote_path: String) -> anyhow::Result<Vec<crate::sftp::RemoteFileEntry>> {
+    crate::sftp::sftp_list_directory(host, port, username, identity_file, remote_path)
 }
 
-pub fn sftp_download(host: String, port: u16, username: String, remote_path: String, local_path: String) -> anyhow::Result<u64> {
-    crate::sftp::sftp_download_file(host, port, username, remote_path, local_path)
+pub fn sftp_download(host: String, port: u16, username: String, identity_file: Option<String>, remote_path: String, local_path: String, transfer_id: u32) -> anyhow::Result<u64> {
+    crate::sftp::sftp_download_file(host, port, username, identity_file, remote_path, local_path, transfer_id)
 }
 
-pub fn sftp_upload(host: String, port: u16, username: String, local_path: String, remote_path: String) -> anyhow::Result<u64> {
-    crate::sftp::sftp_upload_file(host, port, username, local_path, remote_path)
+pub fn sftp_upload(host: String, port: u16, username: String, identity_file: Option<String>, local_path: String, remote_path: String) -> anyhow::Result<u64> {
+    crate::sftp::sftp_upload_file(host, port, username, identity_file, local_path, remote_path)
 }
 
-pub fn sftp_mkdir(host: String, port: u16, username: String, remote_path: String) -> anyhow::Result<()> {
-    crate::sftp::sftp_create_directory(host, port, username, remote_path)
+/// Streaming upload: emits byte-level progress so the UI can show a progress bar.
+pub fn sftp_upload_streaming(
+    host: String,
+    port: u16,
+    username: String,
+    identity_file: Option<String>,
+    local_path: String,
+    remote_path: String,
+    transfer_id: u32,
+    sink: crate::frb_generated::StreamSink<crate::sftp::SftpProgress>,
+) -> anyhow::Result<()> {
+    crate::sftp::sftp_upload_file_streaming(host, port, username, identity_file, local_path, remote_path, transfer_id, sink)
 }
 
-pub fn sftp_delete(host: String, port: u16, username: String, remote_path: String, is_directory: bool) -> anyhow::Result<()> {
-    crate::sftp::sftp_delete(host, port, username, remote_path, is_directory)
+/// Parallel upload: K SSH connections write ranges; emits aggregate progress.
+pub fn sftp_upload_parallel(
+    host: String,
+    port: u16,
+    username: String,
+    identity_file: Option<String>,
+    local_path: String,
+    remote_path: String,
+    concurrency: Option<u8>,
+    transfer_id: u32,
+    sink: crate::frb_generated::StreamSink<crate::sftp::SftpProgress>,
+) -> anyhow::Result<()> {
+    crate::sftp::sftp_upload_file_parallel(
+        host, port, username, identity_file, local_path, remote_path, concurrency, transfer_id, sink,
+    )
+}
+
+/// Parallel download: K SSH connections read ranges; emits aggregate progress.
+pub fn sftp_download_parallel(
+    host: String,
+    port: u16,
+    username: String,
+    identity_file: Option<String>,
+    remote_path: String,
+    local_path: String,
+    concurrency: Option<u8>,
+    transfer_id: u32,
+    sink: crate::frb_generated::StreamSink<crate::sftp::SftpProgress>,
+) -> anyhow::Result<()> {
+    crate::sftp::sftp_download_file_parallel(
+        host, port, username, identity_file, remote_path, local_path, concurrency, transfer_id, sink,
+    )
+}
+
+pub fn sftp_cancel_transfer(transfer_id: u32) {
+    crate::sftp::sftp_cancel_transfer(transfer_id);
+}
+
+pub fn sftp_mkdir(host: String, port: u16, username: String, identity_file: Option<String>, remote_path: String) -> anyhow::Result<()> {
+    crate::sftp::sftp_create_directory(host, port, username, identity_file, remote_path)
+}
+
+pub fn sftp_delete(host: String, port: u16, username: String, identity_file: Option<String>, remote_path: String, is_directory: bool) -> anyhow::Result<()> {
+    crate::sftp::sftp_delete(host, port, username, identity_file, remote_path, is_directory)
 }
 
 pub fn get_username() -> anyhow::Result<String> {
@@ -793,11 +945,16 @@ pub async fn execute_doctor_fix(
     crate::doctor::execute_fix(fix_action_id, project_id, zone, instance_name).await
 }
 
-/// Re-run `gcloud auth login` (opens the browser) to refresh an expired
-/// session. Surfaced by the in-app "Re-authenticate" banner. Reuses the same
-/// login path the Doctor uses (`execute_login`); adds no new gcloud logic.
+/// Open the browser to refresh an expired session. Surfaced by the in-app
+/// "Re-authenticate" banner.
+///
+/// Which sign-in runs depends on the auth engine, so the choice lives in
+/// `accounts`, with the rest of the dispatch. This used to call
+/// `gcloud auth login` unconditionally, which writes gcloud's credentials and
+/// never the native token store: under the native engine the button could not
+/// do the one thing its label promises.
 pub async fn reauthenticate() -> anyhow::Result<()> {
-    crate::gcloud::execute_login()
+    crate::accounts::reauthenticate().await
 }
 
 // Sprint 10.5: License Verification removed
@@ -854,4 +1011,163 @@ pub async fn create_disk_from_snapshot(
     new_disk_name: String,
 ) -> anyhow::Result<()> {
     crate::snapshots::create_disk_from_snapshot_async(&project_id, &zone, &snapshot_name, &new_disk_name).await
+}
+
+/// The SSH username for this VM, resolved without probing or provisioning.
+///
+/// Cheap enough to fill a form field on dialog open — one REST call, no tunnel.
+pub async fn ssh_username_for(project_id: String, zone: String, instance_name: String)
+    -> anyhow::Result<String> {
+    crate::ssh_access::ssh_username_for(project_id, zone, instance_name).await
+}
+
+/// Whether SSH access to this VM already works, and as which user.
+pub async fn probe_ssh_access(project_id: String, zone: String, instance_name: String)
+    -> anyhow::Result<crate::ssh_access::SshAccessState> {
+    crate::ssh_access::probe_ssh_access(project_id, zone, instance_name).await
+}
+
+/// Authorise LCC's key on this VM. Only call after the user has consented.
+pub async fn provision_ssh_access(project_id: String, zone: String, instance_name: String)
+    -> anyhow::Result<crate::ssh_access::SshCredential> {
+    crate::ssh_access::provision_ssh_access(project_id, zone, instance_name).await
+}
+
+/// Parse a slot name from Dart, or fail loudly. A typo must not resolve to a
+/// default slot: that would read one preference and write another.
+fn slot_from_key(slot: &str) -> anyhow::Result<crate::engine_pref::EngineSlot> {
+    crate::engine_pref::EngineSlot::from_key(slot)
+        .ok_or_else(|| anyhow::anyhow!("Unknown engine slot: {}", slot))
+}
+
+/// The bridge speaks the same words as the environment variable, the
+/// `engine.json` file and the log line — one mapping, in `engine_pref`. A
+/// second copy here could drift from it, and then the string Settings writes
+/// would stop matching the string the resolver reads.
+fn engine_name(engine: crate::engine_pref::Engine) -> String {
+    engine.as_str().to_string()
+}
+
+/// The engine actually in force for this slot, with the environment override
+/// already applied.
+pub fn engine_for(slot: String) -> anyhow::Result<String> {
+    Ok(engine_name(crate::engine_pref::engine_for(slot_from_key(&slot)?)))
+}
+
+/// The user's explicit choice for this slot, or None when they have never
+/// made one.
+pub fn stored_engine(slot: String) -> anyhow::Result<Option<String>> {
+    Ok(crate::engine_pref::stored(slot_from_key(&slot)?))
+}
+
+/// The engine this slot's environment variable is forcing, or None when the
+/// environment is not overriding.
+pub fn engine_override(slot: String) -> anyhow::Result<Option<String>> {
+    Ok(crate::engine_pref::env_override(slot_from_key(&slot)?).map(engine_name))
+}
+
+/// The environment variable that outranks the stored choice for this slot.
+pub fn engine_env_var(slot: String) -> anyhow::Result<String> {
+    Ok(slot_from_key(&slot)?.env_var().to_string())
+}
+
+/// Persist the user's choice for one slot.
+pub async fn set_engine(slot: String, engine: String) -> anyhow::Result<()> {
+    let slot = slot_from_key(&slot)?;
+    crate::engine_pref::set_stored(slot, &engine)?;
+    // Only the auth slot changes which credentials serve tokens. Invalidating
+    // on a tunnel-engine change would be noise pretending to be care.
+    if slot == crate::engine_pref::EngineSlot::Auth {
+        crate::gcp_rest_client::invalidate_cached_access_token().await;
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tunnel_failure_tests {
+    use super::*;
+
+    /// The half that was broken: a typed failure keeps its own code, so the UI
+    /// can name the port instead of blaming the relay.
+    #[test]
+    fn a_typed_failure_keeps_its_code_and_detail() {
+        let failure = tunnel_failure(anyhow::Error::new(
+            crate::iap_tunnel::TunnelError::LocalPortUnavailable { port: 8443 },
+        ));
+        assert_eq!(failure.code, "local_port_unavailable");
+        assert_eq!(failure.detail, Some("8443".to_string()));
+    }
+
+    /// And the other half: `protocol_error` still exists, but only for a
+    /// failure that genuinely arrived with no type at all.
+    #[test]
+    fn only_an_untyped_failure_falls_back_to_protocol_error() {
+        let failure = tunnel_failure(anyhow::anyhow!("gcloud exited before listening"));
+        assert_eq!(failure.code, "protocol_error");
+        assert_eq!(failure.detail, Some("gcloud exited before listening".to_string()));
+    }
+
+    /// Both bridge entry points share one mapper. Nothing here can prove the
+    /// two `map_err(tunnel_failure)` call sites stay wired — that is read, not
+    /// tested — but a second hand-rolled mapping would have to be written
+    /// deliberately rather than inherited by copy-paste, which is how the
+    /// SSH-forward path acquired its blanket `protocol_error`.
+    #[test]
+    fn the_relay_error_is_reserved_for_the_relay() {
+        let relay = tunnel_failure(anyhow::Error::new(
+            crate::iap_tunnel::TunnelError::RelayUnreachable,
+        ));
+        assert_eq!(relay.code, "relay_unreachable");
+        assert_ne!(relay.code, "protocol_error");
+    }
+}
+
+#[cfg(test)]
+mod start_failure_tests {
+    use super::*;
+    use crate::tunnel::{StartFailure, TunnelEngine};
+
+    /// A failed start says which engine failed, in the shared vocabulary, and
+    /// keeps the code and detail `tunnel_failure` already produces.
+    #[test]
+    fn a_failed_start_carries_the_engine_that_failed() {
+        let failure = start_failure(StartFailure {
+            engine: Some(TunnelEngine::Gcloud),
+            error: anyhow::Error::new(crate::iap_tunnel::TunnelError::LocalPortUnavailable { port: 8443 }),
+        });
+        assert_eq!(failure.engine.as_deref(), Some("gcloud"));
+        assert_eq!(failure.code, "local_port_unavailable");
+        assert_eq!(failure.detail, Some("8443".to_string()));
+
+        let native = start_failure(StartFailure {
+            engine: Some(TunnelEngine::Native),
+            error: anyhow::anyhow!("relay said no"),
+        });
+        assert_eq!(native.engine.as_deref(), Some("native"));
+    }
+
+    /// No engine ran, so none is named.
+    #[test]
+    fn a_failure_before_any_engine_names_none() {
+        let failure = start_failure(StartFailure { engine: None, error: anyhow::anyhow!("invalid project") });
+        assert_eq!(failure.engine, None);
+        assert_eq!(failure.code, "protocol_error");
+    }
+}
+
+#[cfg(test)]
+mod started_connection_tests {
+    use super::*;
+    use crate::tunnel::{Started, TunnelEngine};
+
+    /// What crosses to Dart is the entry's port and its engine, spelled as the
+    /// log and the environment variables spell it. Dart matches on these exact
+    /// strings to pick the tag; anything else shows no tag at all.
+    #[test]
+    fn the_start_result_carries_the_port_and_the_engine_name() {
+        let native = started_connection(Started { local_port: 40001, engine: TunnelEngine::Native });
+        assert_eq!((native.local_port, native.engine.as_str()), (40001, "native"));
+        let gcloud = started_connection(Started { local_port: 40002, engine: TunnelEngine::Gcloud });
+        assert_eq!((gcloud.local_port, gcloud.engine.as_str()), (40002, "gcloud"));
+    }
 }

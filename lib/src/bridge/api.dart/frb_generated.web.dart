@@ -6,23 +6,24 @@
 // Static analysis wrongly picks the IO variant, thus ignore this
 // ignore_for_file: argument_type_not_assignable
 
-import 'api.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/accounts.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/api.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'db_client.dart';
-import 'diagnostics.dart';
-import 'doctor.dart';
-import 'frb_generated.dart';
-import 'gcloud.dart';
-import 'gcp_rest_client.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/db_client.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/diagnostics.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/doctor.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/frb_generated.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/gcloud.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/gcp_rest_client.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated_web.dart';
-import 'rdp_client.dart';
-import 'sftp.dart';
-import 'snapshots.dart';
-import 'sshfs_mount.dart';
-import 'tunnel.dart';
-import 'vnc_client.dart';
-import 'windows_credentials/storage.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/rdp_client.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/sftp.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/snapshots.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/ssh_access.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/sshfs_mount.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/vnc_client.dart';
+import 'package:linux_cloud_connector/src/bridge/api.dart/windows_credentials/storage.dart';
 
 abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   RustLibApiImplPlatform({
@@ -36,10 +37,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
+  RustStreamSink<SftpProgress> dco_decode_StreamSink_sftp_progress_Sse(
+    dynamic raw,
+  );
+
+  @protected
   String dco_decode_String(dynamic raw);
 
   @protected
   AuditLogEntry dco_decode_audit_log_entry(dynamic raw);
+
+  @protected
+  AuthStatus dco_decode_auth_status(dynamic raw);
 
   @protected
   bool dco_decode_bool(dynamic raw);
@@ -62,7 +71,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_box_autoadd_i_64(dynamic raw);
 
   @protected
+  KeyringProblem dco_decode_box_autoadd_keyring_problem(dynamic raw);
+
+  @protected
   RdpSettings dco_decode_box_autoadd_rdp_settings(dynamic raw);
+
+  @protected
+  SshCredential dco_decode_box_autoadd_ssh_credential(dynamic raw);
 
   @protected
   SshfsMount dco_decode_box_autoadd_sshfs_mount(dynamic raw);
@@ -75,6 +90,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int dco_decode_box_autoadd_u_32(dynamic raw);
+
+  @protected
+  int dco_decode_box_autoadd_u_8(dynamic raw);
 
   @protected
   VncSettings dco_decode_box_autoadd_vnc_settings(dynamic raw);
@@ -140,6 +158,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 dco_decode_i_64(dynamic raw);
 
   @protected
+  KeyringProblem dco_decode_keyring_problem(dynamic raw);
+
+  @protected
   List<String> dco_decode_list_String(dynamic raw);
 
   @protected
@@ -199,9 +220,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SshfsMount> dco_decode_list_sshfs_mount(dynamic raw);
 
   @protected
-  List<TunnelInfo> dco_decode_list_tunnel_info(dynamic raw);
-
-  @protected
   List<UnmountResult> dco_decode_list_unmount_result(dynamic raw);
 
   @protected
@@ -229,6 +247,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? dco_decode_opt_box_autoadd_i_64(dynamic raw);
 
   @protected
+  KeyringProblem? dco_decode_opt_box_autoadd_keyring_problem(dynamic raw);
+
+  @protected
   SshfsMount? dco_decode_opt_box_autoadd_sshfs_mount(dynamic raw);
 
   @protected
@@ -238,7 +259,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? dco_decode_opt_box_autoadd_u_32(dynamic raw);
 
   @protected
+  int? dco_decode_opt_box_autoadd_u_8(dynamic raw);
+
+  @protected
   WindowsCredential? dco_decode_opt_box_autoadd_windows_credential(dynamic raw);
+
+  @protected
+  ProvisionMethod dco_decode_provision_method(dynamic raw);
 
   @protected
   RdpClientType dco_decode_rdp_client_type(dynamic raw);
@@ -259,6 +286,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SerialPortOutput dco_decode_serial_port_output(dynamic raw);
 
   @protected
+  SftpProgress dco_decode_sftp_progress(dynamic raw);
+
+  @protected
+  SshAccessState dco_decode_ssh_access_state(dynamic raw);
+
+  @protected
+  SshCredential dco_decode_ssh_credential(dynamic raw);
+
+  @protected
   SshfsMount dco_decode_sshfs_mount(dynamic raw);
 
   @protected
@@ -268,7 +304,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SshfsStatus dco_decode_sshfs_status(dynamic raw);
 
   @protected
-  TunnelInfo dco_decode_tunnel_info(dynamic raw);
+  StartedConnection dco_decode_started_connection(dynamic raw);
+
+  @protected
+  TunnelFailure dco_decode_tunnel_failure(dynamic raw);
 
   @protected
   int dco_decode_u_16(dynamic raw);
@@ -310,10 +349,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
+  RustStreamSink<SftpProgress> sse_decode_StreamSink_sftp_progress_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
   AuditLogEntry sse_decode_audit_log_entry(SseDeserializer deserializer);
+
+  @protected
+  AuthStatus sse_decode_auth_status(SseDeserializer deserializer);
 
   @protected
   bool sse_decode_bool(SseDeserializer deserializer);
@@ -340,7 +387,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  KeyringProblem sse_decode_box_autoadd_keyring_problem(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   RdpSettings sse_decode_box_autoadd_rdp_settings(SseDeserializer deserializer);
+
+  @protected
+  SshCredential sse_decode_box_autoadd_ssh_credential(
+    SseDeserializer deserializer,
+  );
 
   @protected
   SshfsMount sse_decode_box_autoadd_sshfs_mount(SseDeserializer deserializer);
@@ -355,6 +412,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer);
+
+  @protected
+  int sse_decode_box_autoadd_u_8(SseDeserializer deserializer);
 
   @protected
   VncSettings sse_decode_box_autoadd_vnc_settings(SseDeserializer deserializer);
@@ -432,6 +492,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   PlatformInt64 sse_decode_i_64(SseDeserializer deserializer);
+
+  @protected
+  KeyringProblem sse_decode_keyring_problem(SseDeserializer deserializer);
 
   @protected
   List<String> sse_decode_list_String(SseDeserializer deserializer);
@@ -515,9 +578,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   List<SshfsMount> sse_decode_list_sshfs_mount(SseDeserializer deserializer);
 
   @protected
-  List<TunnelInfo> sse_decode_list_tunnel_info(SseDeserializer deserializer);
-
-  @protected
   List<UnmountResult> sse_decode_list_unmount_result(
     SseDeserializer deserializer,
   );
@@ -553,6 +613,11 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   PlatformInt64? sse_decode_opt_box_autoadd_i_64(SseDeserializer deserializer);
 
   @protected
+  KeyringProblem? sse_decode_opt_box_autoadd_keyring_problem(
+    SseDeserializer deserializer,
+  );
+
+  @protected
   SshfsMount? sse_decode_opt_box_autoadd_sshfs_mount(
     SseDeserializer deserializer,
   );
@@ -564,9 +629,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int? sse_decode_opt_box_autoadd_u_32(SseDeserializer deserializer);
 
   @protected
+  int? sse_decode_opt_box_autoadd_u_8(SseDeserializer deserializer);
+
+  @protected
   WindowsCredential? sse_decode_opt_box_autoadd_windows_credential(
     SseDeserializer deserializer,
   );
+
+  @protected
+  ProvisionMethod sse_decode_provision_method(SseDeserializer deserializer);
 
   @protected
   RdpClientType sse_decode_rdp_client_type(SseDeserializer deserializer);
@@ -589,6 +660,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SerialPortOutput sse_decode_serial_port_output(SseDeserializer deserializer);
 
   @protected
+  SftpProgress sse_decode_sftp_progress(SseDeserializer deserializer);
+
+  @protected
+  SshAccessState sse_decode_ssh_access_state(SseDeserializer deserializer);
+
+  @protected
+  SshCredential sse_decode_ssh_credential(SseDeserializer deserializer);
+
+  @protected
   SshfsMount sse_decode_sshfs_mount(SseDeserializer deserializer);
 
   @protected
@@ -600,7 +680,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   SshfsStatus sse_decode_sshfs_status(SseDeserializer deserializer);
 
   @protected
-  TunnelInfo sse_decode_tunnel_info(SseDeserializer deserializer);
+  StartedConnection sse_decode_started_connection(SseDeserializer deserializer);
+
+  @protected
+  TunnelFailure sse_decode_tunnel_failure(SseDeserializer deserializer);
 
   @protected
   int sse_decode_u_16(SseDeserializer deserializer);
@@ -645,10 +728,19 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_StreamSink_sftp_progress_Sse(
+    RustStreamSink<SftpProgress> self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
   void sse_encode_audit_log_entry(AuditLogEntry self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_auth_status(AuthStatus self, SseSerializer serializer);
 
   @protected
   void sse_encode_bool(bool self, SseSerializer serializer);
@@ -681,8 +773,20 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_box_autoadd_keyring_problem(
+    KeyringProblem self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_box_autoadd_rdp_settings(
     RdpSettings self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_box_autoadd_ssh_credential(
+    SshCredential self,
     SseSerializer serializer,
   );
 
@@ -703,6 +807,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_box_autoadd_u_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_box_autoadd_u_8(int self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_vnc_settings(
@@ -799,6 +906,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_64(PlatformInt64 self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_keyring_problem(
+    KeyringProblem self,
+    SseSerializer serializer,
+  );
 
   @protected
   void sse_encode_list_String(List<String> self, SseSerializer serializer);
@@ -912,12 +1025,6 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_tunnel_info(
-    List<TunnelInfo> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_list_unmount_result(
     List<UnmountResult> self,
     SseSerializer serializer,
@@ -963,6 +1070,12 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_opt_box_autoadd_keyring_problem(
+    KeyringProblem? self,
+    SseSerializer serializer,
+  );
+
+  @protected
   void sse_encode_opt_box_autoadd_sshfs_mount(
     SshfsMount? self,
     SseSerializer serializer,
@@ -975,8 +1088,17 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_opt_box_autoadd_u_32(int? self, SseSerializer serializer);
 
   @protected
+  void sse_encode_opt_box_autoadd_u_8(int? self, SseSerializer serializer);
+
+  @protected
   void sse_encode_opt_box_autoadd_windows_credential(
     WindowsCredential? self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_provision_method(
+    ProvisionMethod self,
     SseSerializer serializer,
   );
 
@@ -1011,6 +1133,18 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
+  void sse_encode_sftp_progress(SftpProgress self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_ssh_access_state(
+    SshAccessState self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_ssh_credential(SshCredential self, SseSerializer serializer);
+
+  @protected
   void sse_encode_sshfs_mount(SshfsMount self, SseSerializer serializer);
 
   @protected
@@ -1023,7 +1157,13 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_sshfs_status(SshfsStatus self, SseSerializer serializer);
 
   @protected
-  void sse_encode_tunnel_info(TunnelInfo self, SseSerializer serializer);
+  void sse_encode_started_connection(
+    StartedConnection self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_tunnel_failure(TunnelFailure self, SseSerializer serializer);
 
   @protected
   void sse_encode_u_16(int self, SseSerializer serializer);

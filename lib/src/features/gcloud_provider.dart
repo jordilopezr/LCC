@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:math';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import '../bridge/api.dart/api.dart';
@@ -9,41 +9,31 @@ import '../bridge/api.dart/gcloud.dart';
 import '../bridge/api.dart/gcp_rest_client.dart';
 import '../bridge/api.dart/rdp_client.dart';
 import '../bridge/api.dart/sshfs_mount.dart';
-import '../bridge/api.dart/tunnel.dart';
 import '../bridge/api.dart/vnc_client.dart';
 import '../services/storage_service.dart';
 import '../services/notification_service.dart';
 import 'settings_provider.dart';
+import 'package:linux_cloud_connector/src/features/vnc_display.dart';
 import 'snapshot_provider.dart';
+import 'ssh_consent_dialog.dart';
+import 'dashboard_gate.dart';
+import 'package:linux_cloud_connector/src/features/app_error.dart';
 
 // ==========================================
 // MULTI-ACCOUNT MANAGEMENT (Sprint 8 - v2.7.0)
 // ==========================================
-
-/// Semantic classification of a sanitized GCP error, so widgets can map
-/// it to a localized message via `l10n.*` instead of a hardcoded string.
-enum GcpErrorType {
-  permissionDenied,
-  notFound,
-  unauthenticated,
-  quotaExceeded,
-  network,
-  unknown,
-}
 
 class AccountState {
   final List<GcloudAccount> accounts;
   final String? activeAccountEmail;
   final bool isLoading;
   final String? error;
-  final GcpErrorType? errorType;
 
   const AccountState({
     this.accounts = const [],
     this.activeAccountEmail,
     this.isLoading = false,
     this.error,
-    this.errorType,
   });
 
   AccountState copyWith({
@@ -51,14 +41,12 @@ class AccountState {
     String? activeAccountEmail,
     bool? isLoading,
     String? error,
-    GcpErrorType? errorType,
   }) {
     return AccountState(
       accounts: accounts ?? this.accounts,
       activeAccountEmail: activeAccountEmail ?? this.activeAccountEmail,
       isLoading: isLoading ?? this.isLoading,
       error: error,
-      errorType: errorType,
     );
   }
 
@@ -67,35 +55,6 @@ class AccountState {
 
   /// Whether multiple accounts are active
   bool get isMultiAccount => accounts.length > 1;
-}
-
-/// Classify a raw GCP exception into a semantic [GcpErrorType]. The widget
-/// layer maps this to a localized message; this function stays free of
-/// user-facing text.
-GcpErrorType classifyGcpError(dynamic e) {
-  final msg = e.toString();
-  if (msg.contains('PERMISSION_DENIED') || msg.contains('403')) {
-    return GcpErrorType.permissionDenied;
-  }
-  if (msg.contains('NOT_FOUND') || msg.contains('404')) {
-    return GcpErrorType.notFound;
-  }
-  if (msg.contains('UNAUTHENTICATED') || msg.contains('401')) {
-    return GcpErrorType.unauthenticated;
-  }
-  if (msg.contains('quota') || msg.contains('RESOURCE_EXHAUSTED')) {
-    return GcpErrorType.quotaExceeded;
-  }
-  if (msg.contains('network') || msg.contains('timeout') || msg.contains('connect')) {
-    return GcpErrorType.network;
-  }
-  if (msg.contains('requires reauthentication') ||
-      msg.contains('session has expired') ||
-      msg.contains('invalid_rapt') ||
-      msg.contains('No active GCP account')) {
-    return GcpErrorType.unauthenticated;
-  }
-  return GcpErrorType.unknown;
 }
 
 final accountProvider = NotifierProvider<AccountNotifier, AccountState>(AccountNotifier.new);
@@ -134,7 +93,6 @@ class AccountNotifier extends Notifier<AccountState> {
       state = AccountState(
         isLoading: false,
         error: e.toString(),
-        errorType: classifyGcpError(e),
       );
     }
   }
@@ -190,7 +148,6 @@ class AccountNotifier extends Notifier<AccountState> {
       state = state.copyWith(
         isLoading: false,
         error: e.toString(),
-        errorType: classifyGcpError(e),
       );
     }
   }
@@ -198,8 +155,14 @@ class AccountNotifier extends Notifier<AccountState> {
   /// Add a new account (opens browser)
   Future<void> addAccount() async {
     try {
+      final previousEmail = state.activeAccountEmail;
       await addGcloudAccount();
       await refresh();
+      // The added account becomes active when none was (Rust's index_upsert):
+      // the workspace must then be that account's, not the one still loaded.
+      if (state.activeAccountEmail != previousEmail) {
+        ref.invalidate(multiProjectProvider);
+      }
     } catch (e) {
       state = state.copyWith(error: e.toString());
     }
@@ -262,10 +225,26 @@ String makeTunnelKey(String instanceName, int remotePort) {
   return '$instanceName:$remotePort';
 }
 
+const _sshForwardPrefix = 'sshfwd:';
+
+/// Composite key for SSH port-forward tunnels: "sshfwd:instanceName:port"
+String makeSshForwardKey(String instanceName, int remotePort) =>
+    '$_sshForwardPrefix$instanceName:$remotePort';
+
+/// Whether a tunnel key belongs to an SSH port forward (vs. an IAP tunnel).
+/// An SSH-forward key is `sshfwd:<instance>:<port>` (3 colon parts); requiring
+/// 3 parts avoids misclassifying an IAP tunnel for an instance literally named
+/// `sshfwd` (whose key is `sshfwd:<port>`, 2 parts).
+bool isSshForwardKey(String key) =>
+    key.startsWith(_sshForwardPrefix) && key.split(':').length == 3;
+
 /// Parse tunnel key back to instance and port
 /// Returns (instanceName, remotePort) or null if invalid format
 (String, int)? parseTunnelKey(String key) {
-  final parts = key.split(':');
+  final bare = isSshForwardKey(key)
+      ? key.substring(_sshForwardPrefix.length)
+      : key;
+  final parts = bare.split(':');
   if (parts.length != 2) return null;
 
   final port = int.tryParse(parts[1]);
@@ -275,12 +254,20 @@ String makeTunnelKey(String instanceName, int remotePort) {
 }
 
 // Estado para la instalación/auth
+/// Whether gcloud is installed and whether there is a usable session.
+///
+/// Both come from one Rust call, because under the native auth engine having a
+/// session must not depend on gcloud being installed — this used to
+/// short-circuit on `installed`, so on a machine without gcloud the account
+/// dialog never asked for the list at all. The map's shape is unchanged for
+/// its consumers.
+/// `gcloudRequired` is what the dashboard's "install the SDK" screen gates on:
+/// `installed` alone would still blank the whole body under the native engine
+/// on a machine without gcloud, session or no session.
+/// The keyring keys say why a native session with an active account is not
+/// usable; see `dashboardGateFor`.
 final gcloudStatusProvider = FutureProvider<Map<String, bool>>((ref) async {
-  final installed = await checkGcloudInstalled();
-  if (!installed) return {'installed': false, 'authenticated': false};
-  
-  final authenticated = await checkGcloudAuth();
-  return {'installed': true, 'authenticated': authenticated};
+  return statusMapFor(await checkAuthStatus());
 });
 
 // ==========================================
@@ -350,7 +337,9 @@ final projectsProvider = FutureProvider<List<GcpProject>>((ref) async {
     debugPrint('Project listing failed for $activeEmail: $e');
     rethrow;
   }
-});
+  // A session Google rejected is rejected again on every retry; see
+  // retryUnlessSignedOut. Other failures keep Riverpod's backoff.
+}, retry: retryUnlessSignedOut);
 
 // Provider para el proyecto seleccionado
 final selectedProjectProvider = NotifierProvider<SelectedProjectNotifier, String?>(SelectedProjectNotifier.new);
@@ -370,7 +359,7 @@ class SelectedProjectNotifier extends Notifier<String?> {
   }
 }
 
-// Provider para la lista de instancias (account-aware, CLI for active account)
+// Provider para la lista de instancias (account-aware, vía REST del cliente Rust).
 final instancesProvider = FutureProvider<List<GcpInstance>>((ref) async {
   final link = ref.keepAlive();
   final timer = Timer(const Duration(minutes: 5), () {
@@ -385,32 +374,15 @@ final instancesProvider = FutureProvider<List<GcpInstance>>((ref) async {
   final projectId = ref.watch(selectedProjectProvider);
   if (projectId == null) return [];
 
+  // listInstances() va por el cliente REST de Rust (sigue la cuenta activa). En
+  // fallo propagamos: una lista vacía ocultaría el problema real.
   try {
-    // Use CLI which respects the active gcloud account
     return await listInstances(projectId: projectId);
-  } catch (cliError) {
-    debugPrint('CLI instances failed for $projectId: $cliError');
-    try {
-      // Fallback to REST
-      final clientLibInstances = await listInstancesClientLib(projectId: projectId);
-      return clientLibInstances.map((inst) => GcpInstance(
-        name: inst.name,
-        status: inst.status,
-        zone: inst.zone,
-        machineType: inst.machineType,
-        cpuCount: inst.cpuCount,
-        memoryMb: inst.memoryMb,
-        diskGb: inst.diskGb,
-        labels: inst.labels,
-        osLoginEnabled: inst.osLoginEnabled,
-        isWindows: inst.isWindows,
-      )).toList();
-    } catch (restError) {
-      debugPrint('REST fallback also failed for $projectId: $restError');
-      rethrow;
-    }
+  } catch (e) {
+    debugPrint('Instance listing failed for $projectId: $e');
+    rethrow;
   }
-});
+}, retry: retryUnlessSignedOut);
 
 // UI Selection State
 final selectedInstanceProvider = NotifierProvider<SelectedInstanceNotifier, GcpInstance?>(SelectedInstanceNotifier.new);
@@ -425,11 +397,90 @@ class SelectedInstanceNotifier extends Notifier<GcpInstance?> {
 }
 
 // Gestión de Conexiones (Tunneling) - Soporte Múltiple
+/// How many tunnels are carrying something right now.
+///
+/// Asked when the user closes the window, to decide whether closing would
+/// interrupt anything. Only `connected` counts: a tunnel in error carries
+/// nothing, and one still connecting or retrying has nothing to interrupt yet.
+int activeTunnelCount(Map<String, TunnelState> tunnels) =>
+    tunnels.values.where((t) => t.status == 'connected').length;
+
+/// Which warning the close dialog should carry, if any.
+enum CloseWarning {
+  /// Nothing in progress — close without asking.
+  none,
+  sessionsOnly,
+  tunnelsOnly,
+  both,
+}
+
+/// Decide what the user is about to lose by closing.
+///
+/// Kept apart from the counts themselves because the distinction is the point:
+/// a single combined number would let the dialog say "3 things" and leave the
+/// user guessing whether that includes the RDP session they are looking at.
+///
+/// Tunnels began to matter here only recently. They used to survive the app's
+/// exit — a leak, since fixed — so closing the window left a live forward
+/// behind and the silence cost nothing. Now the child dies with the parent by
+/// construction, and closing really does cut the session.
+CloseWarning closeWarning({required int sessions, required int tunnels}) {
+  if (sessions > 0 && tunnels > 0) return CloseWarning.both;
+  if (sessions > 0) return CloseWarning.sessionsOnly;
+  if (tunnels > 0) return CloseWarning.tunnelsOnly;
+  return CloseWarning.none;
+}
+
+/// Mark the tunnels Rust reaped as dead, leaving every other entry untouched.
+///
+/// Rust's `cleanup_dead_connections` is the only signal that reaches an SSH
+/// forward. The periodic health check addresses a tunnel by (instance, remote
+/// port), and that pair cannot name a forward — which is why forwards are
+/// skipped there. The reap list is keyed, so it names both kinds, and by the
+/// time a key appears in it Rust has already stopped the tunnel and dropped it
+/// from its registry.
+///
+/// Pure on purpose: the timer does the talking to Rust, this does the thinking,
+/// and the thinking is what the tests can reach.
+Map<String, TunnelState> markDeadTunnels(
+  Map<String, TunnelState> state,
+  List<String> deadKeys,
+  DateTime now,
+) {
+  if (deadKeys.isEmpty) return state;
+
+  final marked = {...state};
+  for (final key in deadKeys) {
+    final previous = marked[key];
+    // Rust reaps by key and knows nothing of what the UI is showing, so a key
+    // the UI never had must not conjure an entry.
+    if (previous == null) continue;
+    // A tunnel mid-reconnect is owned by the reconnect flow, which stopped the
+    // old one in Rust itself. Marking it dead here would clobber that.
+    if (previous.status == 'reconnecting') continue;
+
+    marked[key] = TunnelState(
+      status: 'error',
+      port: previous.port,
+      remotePort: previous.remotePort,
+      errorCode: 'session_lost',
+      createdAt: previous.createdAt,
+      lastHealthCheck: now,
+      projectId: previous.projectId,
+      zone: previous.zone,
+      autoReconnectEnabled: previous.autoReconnectEnabled,
+      engine: previous.engine,
+    );
+  }
+  return marked;
+}
+
 class TunnelState {
   final String status; // 'disconnected', 'connecting', 'connected', 'error', 'reconnecting'
   final int? port; // Local port where tunnel listens (e.g., 40759)
   final int? remotePort; // Remote port being forwarded (e.g., 3389 for RDP, 22 for SSH)
   final String? error;
+  final String? errorCode; // Stable machine-readable code from TunnelFailure (Task 8 localizes it)
   final DateTime? createdAt; // When the tunnel was established
   final DateTime? lastHealthCheck; // Last health verification timestamp
 
@@ -442,11 +493,39 @@ class TunnelState {
   final String? projectId; // Needed for reconnection
   final String? zone; // Needed for reconnection
 
+  /// The engine used for this entry ('native' or 'gcloud'): the one holding
+  /// it, as the start call reported, or — on a row whose start failed — the
+  /// one that tried, as the TunnelFailure reported. Null when no engine ran:
+  /// still connecting, or a failure before an engine was chosen.
+  ///
+  /// `required` although nullable, on purpose — do not "tidy" it into an
+  /// optional parameter. There is no copyWith: eleven places rebuild a
+  /// TunnelState from the previous one (health check, reconnect, dead
+  /// marking, RDP/VNC reuse), and with an optional parameter forgetting to
+  /// pass `engine: previous.engine` in any of them compiles cleanly and
+  /// silently blanks the tag on the next health check, thirty seconds later —
+  /// on the very row someone is diagnosing. Required, every construction has
+  /// to say what it knows about the engine, and the compiler checks it.
+  ///
+  /// What `required` does NOT check is that the answer is right, and no test
+  /// covers the places that get it from the bridge — those flows call Rust:
+  /// - the three constructions right after a successful start (`_connect`,
+  ///   `_connectSshForward`, `_attemptReconnection`) must pass
+  ///   `started.engine`;
+  /// - the two `on TunnelFailure` handlers (`_connect`, `_connectSshForward`)
+  ///   must pass `e.engine`, and `_attemptReconnection`'s catch its
+  ///   `failedEngine`.
+  /// Passing `null` in any of them compiles and keeps every test green, and
+  /// the tag never appears. Whoever edits those has to read them.
+  final String? engine;
+
   const TunnelState({
+    required this.engine,
     this.status = 'disconnected',
     this.port,
     this.remotePort,
     this.error,
+    this.errorCode,
     this.createdAt,
     this.lastHealthCheck,
     this.reconnectAttempts = 0,
@@ -502,6 +581,16 @@ final activeConnectionsProvider = NotifierProvider<ConnectionsNotifier, Map<Stri
 class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
   Timer? _healthCheckTimer;
 
+  /// Connect calls in progress, keyed by tunnel key. Used to single-flight
+  /// concurrent [connect] calls for the same tunnel so they do not each spawn
+  /// a backend (see [connect]).
+  final Map<String, Future<int?>> _inFlightConnects = {};
+
+  /// Local port the user explicitly requested per tunnel (keyed by the stable
+  /// tunnelKey). Absent = auto-assigned. Read on auto-reconnect so a chosen
+  /// port survives the idle-reaper; removed on explicit disconnect.
+  final Map<String, int?> _requestedLocalPorts = {};
+
   @override
   Map<String, TunnelState> build() {
     // Start health check timer: check every 30 seconds
@@ -518,17 +607,21 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
     return {};
   }
 
-  int _healthCheckCycleCount = 0;
-
   /// Periodic health check for all active tunnels with reconnection logic
   Future<void> _checkAllTunnels(Timer timer) async {
-    _healthCheckCycleCount++;
     final currentConnections = {...state};
     final now = DateTime.now();
 
     for (var entry in currentConnections.entries) {
       final tunnelKey = entry.key;
       final tunnelState = entry.value;
+
+      // Forwards are not health-checked here, and cannot be: the check below
+      // addresses a tunnel by (instance, remote port), and that pair names an
+      // IAP tunnel — never a forward, whose key carries the `sshfwd:` prefix.
+      // They are covered by the reap sweep at the end of this method instead,
+      // which is keyed and so reaches both kinds.
+      if (isSshForwardKey(tunnelKey)) continue;
 
       // Handle 'reconnecting' tunnels: check if it's time to retry
       if (tunnelState.status == 'reconnecting' && tunnelState.remotePort != null) {
@@ -582,6 +675,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
                   projectId: tunnelState.projectId,
                   zone: tunnelState.zone,
                   autoReconnectEnabled: tunnelState.autoReconnectEnabled,
+                  engine: tunnelState.engine,
                 ),
               };
             }
@@ -610,6 +704,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
                 zone: tunnelState.zone,
                 autoReconnectEnabled: tunnelState.autoReconnectEnabled,
                 latencyMs: latency,
+                engine: tunnelState.engine,
               ),
             };
           }
@@ -631,6 +726,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
                 projectId: tunnelState.projectId,
                 zone: tunnelState.zone,
                 autoReconnectEnabled: tunnelState.autoReconnectEnabled,
+                engine: tunnelState.engine,
               ),
             };
           }
@@ -638,23 +734,43 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
       }
     }
 
-    // Every 5 cycles (~2.5 min): cleanup zombie tunnels in Rust
-    if (_healthCheckCycleCount % 5 == 0) {
-      try {
-        final cleaned = await cleanupDeadConnections();
-        if (cleaned.isNotEmpty) {
-          debugPrint('Cleaned up ${cleaned.length} zombie tunnel(s): $cleaned');
+    // Every cycle: let Rust reap whatever died, and show it.
+    //
+    // This used to run every 5 cycles and only `debugPrint` the result, which
+    // meant a dead SSH forward — the one kind of tunnel the health check above
+    // cannot reach — stayed green in the manager forever. The sweep is cheap
+    // (a lock and a liveness check per tunnel) and it is the only signal a
+    // forward has, so it runs as often as the check it stands in for.
+    try {
+      final reaped = await cleanupDeadConnections();
+      if (reaped.isNotEmpty) {
+        debugPrint('Rust reaped ${reaped.length} dead tunnel(s): $reaped');
+        final before = state;
+        state = markDeadTunnels(before, reaped, now);
+        for (final key in reaped) {
+          final died = before[key];
+          // Only announce what the user was actually being shown as working,
+          // and leave a reconnection in progress to speak for itself.
+          if (died == null || died.status != 'connected') continue;
+          final parsed = parseTunnelKey(key);
+          if (parsed == null) continue;
+          await NotificationService().notifyTunnelFailed(
+            instanceName: parsed.$1,
+            remotePort: parsed.$2,
+            project: died.projectId ?? 'unknown',
+            zone: died.zone ?? 'unknown',
+          );
         }
-      } catch (e) {
-        debugPrint('Zombie cleanup failed: $e');
       }
+    } catch (e) {
+      debugPrint('Reap sweep failed: $e');
     }
   }
 
   /// Enter the reconnecting state for a tunnel
   void _enterReconnectingState(String tunnelKey, TunnelState tunnelState) {
     final now = DateTime.now();
-    final backoff = const TunnelState().nextBackoffDelay; // 2s for first attempt
+    final backoff = const TunnelState(engine: null).nextBackoffDelay; // 2s for first attempt
 
     // Stop the dead tunnel in Rust
     final parsed = parseTunnelKey(tunnelKey);
@@ -685,6 +801,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
         autoReconnectEnabled: tunnelState.autoReconnectEnabled,
         projectId: tunnelState.projectId,
         zone: tunnelState.zone,
+        engine: tunnelState.engine,
       ),
     };
   }
@@ -702,12 +819,14 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
     debugPrint('Reconnection attempt $attempt/${tunnelState.maxReconnectAttempts} for $tunnelKey');
 
     try {
-      final port = await startConnection(
+      final started = await startConnection(
         projectId: tunnelState.projectId!,
         zone: tunnelState.zone!,
         instanceName: instanceName,
         remotePort: remotePort,
+        localPort: _requestedLocalPorts[tunnelKey],
       );
+      final port = started.localPort;
 
       // Reconnection successful!
       debugPrint('Reconnection successful for $tunnelKey on port $port');
@@ -730,10 +849,14 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
           autoReconnectEnabled: tunnelState.autoReconnectEnabled,
           projectId: tunnelState.projectId,
           zone: tunnelState.zone,
+          engine: started.engine,
         ),
       };
     } catch (e) {
       debugPrint('Reconnection attempt $attempt failed for $tunnelKey: $e');
+      // The row now shows the engine that just failed. A failure from before
+      // any engine ran carries none, and then the row keeps the one it had.
+      final failedEngine = (e is TunnelFailure ? e.engine : null) ?? tunnelState.engine;
 
       if (attempt >= tunnelState.maxReconnectAttempts) {
         // Give up
@@ -758,6 +881,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
             autoReconnectEnabled: tunnelState.autoReconnectEnabled,
             projectId: tunnelState.projectId,
             zone: tunnelState.zone,
+            engine: failedEngine,
           ),
         };
       } else {
@@ -788,6 +912,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
             autoReconnectEnabled: tunnelState.autoReconnectEnabled,
             projectId: tunnelState.projectId,
             zone: tunnelState.zone,
+            engine: failedEngine,
           ),
         };
       }
@@ -815,6 +940,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
         latencyMs: tunnel.latencyMs,
         projectId: tunnel.projectId,
         zone: tunnel.zone,
+        engine: tunnel.engine,
       ),
     };
   }
@@ -843,6 +969,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
         autoReconnectEnabled: tunnel.autoReconnectEnabled,
         projectId: tunnel.projectId,
         zone: tunnel.zone,
+        engine: tunnel.engine,
       ),
     };
 
@@ -854,10 +981,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
   Future<void> disconnectAll() async {
     final tunnelsToDisconnect = state.entries.toList();
     for (final entry in tunnelsToDisconnect) {
-      final parsed = parseTunnelKey(entry.key);
-      if (parsed != null) {
-        await disconnect(parsed.$1, parsed.$2);
-      }
+      await disconnectByKey(entry.key);
     }
   }
 
@@ -866,27 +990,197 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
     String zone,
     String instanceName, {
     int remotePort = 3389, // Default to RDP port, configurable via Custom Tunnel dialog
-  }) async {
-    // No tier limits apply
-
+    int? localPort,
+  }) {
     // Use composite key to support multiple tunnels per instance
     final tunnelKey = makeTunnelKey(instanceName, remotePort);
+
+    // Single-flight: if a connect for this exact tunnel key is already in
+    // progress, join it instead of starting a second backend. Without this,
+    // two callers racing inside start_tunnel's ~1s spawn window — e.g. an SSH
+    // tab and an SFTP tab opening the same VM:port within a second — would each
+    // spawn a tunnel, and the second insert would overwrite the first in the
+    // Rust TUNNELS map, orphaning (leaking) the first backend.
+    final existing = _inFlightConnects[tunnelKey];
+    if (existing != null) {
+      return existing;
+    }
+
+    final future = _connect(projectId, zone, instanceName, remotePort, tunnelKey, localPort);
+    _inFlightConnects[tunnelKey] = future;
+    // Clear the in-flight entry once it settles (success or failure), but only
+    // if it is still ours (defensive against a re-entrant replacement).
+    future.whenComplete(() {
+      if (identical(_inFlightConnects[tunnelKey], future)) {
+        _inFlightConnects.remove(tunnelKey);
+      }
+    });
+    return future;
+  }
+
+  Future<int?> _connect(
+    String projectId,
+    String zone,
+    String instanceName,
+    int remotePort,
+    String tunnelKey,
+    int? localPort,
+  ) async {
+    // No tier limits apply
 
     // Actualizar estado de ESTE túnel específico a 'connecting'
     state = {
       ...state,
-      tunnelKey: const TunnelState(status: 'connecting')
+      tunnelKey: const TunnelState(status: 'connecting', engine: null)
     };
 
     try {
-      final port = await startConnection(
+      final started = await startConnection(
         projectId: projectId,
         zone: zone,
         instanceName: instanceName,
         remotePort: remotePort,
+        localPort: localPort,
       );
+      final port = started.localPort;
 
       // Actualizar a 'connected'
+      final now = DateTime.now();
+      if (localPort != null) {
+        _requestedLocalPorts[tunnelKey] = localPort;
+      } else {
+        _requestedLocalPorts.remove(tunnelKey);
+      }
+      state = {
+        ...state,
+        tunnelKey: TunnelState(
+          status: 'connected',
+          port: port,
+          remotePort: remotePort,
+          createdAt: now,
+          lastHealthCheck: now,
+          projectId: projectId,
+          zone: zone,
+          engine: started.engine,
+        )
+      };
+      return port;
+    } on TunnelFailure catch (e) {
+      // Error solo en este túnel específico
+      state = {
+        ...state,
+        tunnelKey: TunnelState(
+          status: 'error',
+          remotePort: remotePort,
+          error: e.detail ?? e.code,
+          errorCode: e.code,
+          projectId: projectId,
+          zone: zone,
+          engine: e.engine,
+        )
+      };
+      // No hacemos rethrow para no romper la UI general, el estado refleja el error
+      return null;
+    } catch (e) {
+      // Error solo en este túnel específico
+      state = {
+        ...state,
+        tunnelKey: TunnelState(
+          status: 'error',
+          remotePort: remotePort,
+          error: e.toString(),
+          projectId: projectId,
+          zone: zone,
+          engine: null,
+        )
+      };
+      // No hacemos rethrow para no romper la UI general, el estado refleja el error
+      return null;
+    }
+  }
+
+  /// Single-flight connect for an SSH port forward (mirrors [connect]).
+  ///
+  /// [context] must be a live [BuildContext] from the widget that triggers the
+  /// connection: the first forward into a project may need to show the SSH
+  /// consent dialog, and this notifier has no context of its own.
+  Future<int?> connectSshForward(
+    BuildContext context,
+    String projectId,
+    String zone,
+    String instanceName, {
+    required int remotePort,
+    int? localPort,
+  }) {
+    final tunnelKey = makeSshForwardKey(instanceName, remotePort);
+    final existing = _inFlightConnects[tunnelKey];
+    if (existing != null) return existing;
+    final future = _connectSshForward(
+        context, projectId, zone, instanceName, remotePort, tunnelKey, localPort);
+    _inFlightConnects[tunnelKey] = future;
+    future.whenComplete(() {
+      if (identical(_inFlightConnects[tunnelKey], future)) {
+        _inFlightConnects.remove(tunnelKey);
+      }
+    });
+    return future;
+  }
+
+  Future<int?> _connectSshForward(BuildContext context, String projectId, String zone,
+      String instanceName, int remotePort, String tunnelKey, int? localPort) async {
+    state = {...state, tunnelKey: const TunnelState(status: 'connecting', engine: null)};
+    try {
+      final outcome = await ensureSshAccess(
+        context,
+        projectId: projectId,
+        zone: zone,
+        instance: instanceName,
+      );
+      if (outcome is SshAccessAbandoned) {
+        // The widget that triggered this vanished mid-probe/consent. Not a
+        // failure the user caused — leave no error, just undo 'connecting'.
+        state = {...state, tunnelKey: const TunnelState(status: 'disconnected', engine: null)};
+        return null;
+      }
+      if (outcome is SshAccessRefused) {
+        // A refusal with a dead context used to leave `error: null` on an
+        // 'error' state — an error chip with no text, which tells the user
+        // nothing at all. The refusal is a fact independent of any widget
+        // being alive, so it gets a message either way; only the localised
+        // wording depends on the context.
+        final deniedMessage = context.mounted
+            ? AppLocalizations.of(context).sshConsentDenied
+            : 'LCC is not authorised to add an SSH key to this project.';
+        state = {
+          ...state,
+          tunnelKey: TunnelState(
+            status: 'error',
+            remotePort: remotePort,
+            error: deniedMessage,
+            projectId: projectId,
+            zone: zone,
+            engine: null,
+          ),
+        };
+        return null;
+      }
+      final granted = outcome as SshAccessGranted;
+      // The key travels with the user name. Without it the native forward
+      // re-walks libssh2's candidate ladder, which offers LCC's own key LAST:
+      // a user with a couple of agent identities plus the usual `~/.ssh`
+      // files exhausts `sshd`'s default `MaxAuthTries` of 6 before it is
+      // reached, and the forward fails moments after provisioning reported
+      // success.
+      final started = await startSshForward(
+        projectId: projectId,
+        zone: zone,
+        instanceName: instanceName,
+        remotePort: remotePort,
+        localPort: localPort,
+        username: granted.username,
+        identityFile: granted.keyPath,
+      );
+      final port = started.localPort;
       final now = DateTime.now();
       state = {
         ...state,
@@ -898,11 +1192,26 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
           lastHealthCheck: now,
           projectId: projectId,
           zone: zone,
-        )
+          autoReconnectEnabled: false,
+          engine: started.engine,
+        ),
       };
       return port;
+    } on TunnelFailure catch (e) {
+      state = {
+        ...state,
+        tunnelKey: TunnelState(
+          status: 'error',
+          remotePort: remotePort,
+          error: e.detail ?? e.code,
+          errorCode: e.code,
+          projectId: projectId,
+          zone: zone,
+          engine: e.engine,
+        ),
+      };
+      return null;
     } catch (e) {
-      // Error solo en este túnel específico
       state = {
         ...state,
         tunnelKey: TunnelState(
@@ -911,46 +1220,53 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
           error: e.toString(),
           projectId: projectId,
           zone: zone,
-        )
+          engine: null,
+        ),
       };
-      // No hacemos rethrow para no romper la UI general, el estado refleja el error
       return null;
     }
   }
 
-  Future<void> disconnect(String instanceName, int remotePort) async {
-    final tunnelKey = makeTunnelKey(instanceName, remotePort);
-
-    try {
-      await stopConnection(
-        instanceName: instanceName,
-        remotePort: remotePort,
-      );
-    } catch (e) {
-      debugPrint("Error stopping tunnel $tunnelKey: $e");
+  Future<void> disconnectByKey(String tunnelKey) async {
+    final parsed = parseTunnelKey(tunnelKey);
+    if (parsed != null) {
+      try {
+        if (isSshForwardKey(tunnelKey)) {
+          await stopSshForward(instanceName: parsed.$1, remotePort: parsed.$2);
+        } else {
+          await stopConnection(instanceName: parsed.$1, remotePort: parsed.$2);
+        }
+      } catch (e) {
+        debugPrint('Error stopping tunnel $tunnelKey: $e');
+      }
     }
-
-    // Remove from map - keeps the map clean
     final newState = Map<String, TunnelState>.from(state);
     newState.remove(tunnelKey);
+    _requestedLocalPorts.remove(tunnelKey);
     state = newState;
+  }
+
+  Future<void> disconnect(String instanceName, int remotePort) async {
+    return disconnectByKey(makeTunnelKey(instanceName, remotePort));
   }
 
   /// Disconnect ALL tunnels for a given instance (all ports)
   Future<void> disconnectAllForInstance(String instanceName) async {
     final tunnelsToRemove = state.entries
-        .where((entry) => entry.key.startsWith('$instanceName:'))
+        .where((entry) => parseTunnelKey(entry.key)?.$1 == instanceName)
         .toList();
 
     for (final entry in tunnelsToRemove) {
-      final parsed = parseTunnelKey(entry.key);
-      if (parsed != null) {
-        await disconnect(parsed.$1, parsed.$2);
-      }
+      await disconnectByKey(entry.key);
     }
   }
 
-  Future<void> launchRDP(String projectId, String zone, String instanceName, {RdpSettings? settings}) async {
+  /// Returns whether an RDP client was actually launched. It used to return
+  /// nothing — the same defect a43b816 fixed in [launchVNC] — so a tunnel that
+  /// could not be built ended the press in silence. Callers that get `false`
+  /// read `state[makeTunnelKey(instanceName, 3389)]` for why: `status ==
+  /// 'error'` is the tunnel, anything else is the client.
+  Future<bool> launchRDP(String projectId, String zone, String instanceName, {RdpSettings? settings}) async {
     const rdpPort = 3389;
     final tunnelKey = makeTunnelKey(instanceName, rdpPort);
     final currentTunnel = state[tunnelKey];
@@ -963,7 +1279,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
         // Check if connection succeeded
         final newTunnel = state[tunnelKey];
         if (newTunnel?.status != 'connected') {
-           return; // Failed to connect, stop here.
+           return false; // Failed to connect, stop here.
         }
       }
 
@@ -996,11 +1312,10 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
           // Show notification if fallback occurred
           if (result.fallbackOccurred) {
             final clientName = ref.read(rdpClientProvider.notifier).displayName(result.clientUsed);
-            NotificationService().notifyGeneral(
-              title: 'RDP Client Fallback',
-              body: 'Your preferred client was unavailable. Using $clientName instead.',
-            );
+            NotificationService().notifyClientFallback(
+                protocol: 'RDP', clientName: clientName);
           }
+          return true;
         } catch (e) {
            // Connection is still good, just launch failed
            state = {
@@ -1011,33 +1326,73 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
                remotePort: rdpPort,
                error: "Launch Failed: $e", // Show transient error
                createdAt: activeTunnel?.createdAt, // Preserve creation time
-               lastHealthCheck: activeTunnel?.lastHealthCheck, // Preserve last check
+               lastHealthCheck: activeTunnel?.lastHealthCheck, // Preserve last check,
+               engine: activeTunnel?.engine,
              )
            };
+           return false;
         }
       }
+      // Connected, but with no local port there is nothing to point a client
+      // at. The tunnel entry already holds whatever is known about it.
+      return false;
     } catch (e) {
        state = {
          ...state,
-         tunnelKey: TunnelState(status: 'error', remotePort: rdpPort, error: "Auto-connect failed: $e")
+         tunnelKey: TunnelState(status: 'error', remotePort: rdpPort, error: "Auto-connect failed: $e", engine: null)
        };
+       return false;
     }
   }
 
-  Future<void> launchVNC(String projectId, String zone, String instanceName, {VncSettings? settings}) async {
-    const vncPort = 5900;
+  /// Launch VNC on the display remembered for this VM, for callers with no
+  /// dialog to ask for one — the right-click menu.
+  ///
+  /// The menu used to call [launchVNC] with no display at all: it tunnelled
+  /// 5900 whatever the VM served on, and since [launchVNC] saves the display
+  /// it is given, it also wrote 0 over the one the user had set. Returns the
+  /// launch result and the port used, so the caller reads the tunnel entry
+  /// that was actually built rather than assuming 5900.
+  Future<(bool, int)> launchVncRemembered(
+      String projectId, String zone, String instanceName) async {
+    final display = await ref
+        .read(vncDisplayProvider.notifier)
+        .displayFor(vncVmKey(projectId, zone, instanceName));
+    final launched =
+        await launchVNC(projectId, zone, instanceName, display: display);
+    return (launched, vncPortForDisplay(display));
+  }
+
+  /// `display` is the VNC display the VM serves on: `:0` is port 5900, `:1` is
+  /// 5901. It used to be the constant 5900, which left a VM on any other
+  /// display unreachable from here with no way to say so.
+  ///
+  /// Returns whether a viewer was actually launched. It used to return
+  /// nothing, so a tunnel that could not be built — a port IAP cannot reach,
+  /// for instance — ended the press in silence and the reason was only
+  /// visible to someone who thought to open the tunnel manager. Callers that
+  /// get `false` read `state[makeTunnelKey(instanceName, port)]` for why:
+  /// `status == 'error'` is the tunnel, anything else is the viewer.
+  Future<bool> launchVNC(String projectId, String zone, String instanceName,
+      {VncSettings? settings, int display = 0}) async {
+    final vncPort = vncPortForDisplay(display);
+    // Remembered now rather than on a successful connection: a wrong number
+    // stays in the field where the user can see and fix it, instead of being
+    // quietly forgotten and retyped.
+    await ref
+        .read(vncDisplayProvider.notifier)
+        .setDisplay(vncVmKey(projectId, zone, instanceName), display);
     final tunnelKey = makeTunnelKey(instanceName, vncPort);
     final currentTunnel = state[tunnelKey];
     bool alreadyConnected = currentTunnel?.status == 'connected' && currentTunnel?.port != null;
 
     try {
       if (!alreadyConnected) {
-        // Auto-connect VNC tunnel (port 5900)
         await connect(projectId, zone, instanceName, remotePort: vncPort);
         // Check if connection succeeded
         final newTunnel = state[tunnelKey];
         if (newTunnel?.status != 'connected') {
-           return; // Failed to connect, stop here.
+           return false; // Failed to connect, stop here.
         }
       }
 
@@ -1069,11 +1424,10 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
           // Show notification if fallback occurred
           if (result.fallbackOccurred) {
             final clientName = ref.read(vncClientProvider.notifier).displayName(result.clientUsed);
-            NotificationService().notifyGeneral(
-              title: 'VNC Client Fallback',
-              body: 'Your preferred client was unavailable. Using $clientName instead.',
-            );
+            NotificationService().notifyClientFallback(
+                protocol: 'VNC', clientName: clientName);
           }
+          return true;
         } catch (e) {
            // Connection is still good, just launch failed
            state = {
@@ -1084,16 +1438,22 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
                remotePort: vncPort,
                error: "Launch Failed: $e", // Show transient error
                createdAt: activeTunnel?.createdAt, // Preserve creation time
-               lastHealthCheck: activeTunnel?.lastHealthCheck, // Preserve last check
+               lastHealthCheck: activeTunnel?.lastHealthCheck, // Preserve last check,
+               engine: activeTunnel?.engine,
              )
            };
+           return false;
         }
       }
+      // Connected, but with no local port there is nothing to point a viewer
+      // at. The tunnel entry already holds whatever is known about it.
+      return false;
     } catch (e) {
        state = {
          ...state,
-         tunnelKey: TunnelState(status: 'error', remotePort: vncPort, error: "Auto-connect failed: $e")
+         tunnelKey: TunnelState(status: 'error', remotePort: vncPort, error: "Auto-connect failed: $e", engine: null)
        };
+       return false;
     }
   }
 
@@ -1106,12 +1466,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
   /// Start instance (REST-first, CLI fallback)
   Future<void> startInstanceWithMethod(String projectId, String zone, String instanceName) async {
     try {
-      try {
-        await startInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
-      } catch (e) {
-        debugPrint('REST start failed, falling back to CLI: $e');
-        await startInstance(projectId: projectId, zone: zone, instanceName: instanceName);
-      }
+      await startInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
       await refreshInstances(projectId);
 
       NotificationService().notifyLifecycleOperation(
@@ -1138,12 +1493,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
   /// Stop instance (REST-first, CLI fallback)
   Future<void> stopInstanceWithMethod(String projectId, String zone, String instanceName) async {
     try {
-      try {
-        await stopInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
-      } catch (e) {
-        debugPrint('REST stop failed, falling back to CLI: $e');
-        await stopInstance(projectId: projectId, zone: zone, instanceName: instanceName);
-      }
+      await stopInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
       await refreshInstances(projectId);
 
       NotificationService().notifyLifecycleOperation(
@@ -1173,12 +1523,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
       // Disconnect all tunnels first
       await disconnectAllForInstance(instanceName);
 
-      try {
-        await suspendInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
-      } catch (e) {
-        debugPrint('REST suspend failed, falling back to CLI: $e');
-        await suspendInstance(projectId: projectId, zone: zone, instanceName: instanceName);
-      }
+      await suspendInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
       await refreshInstances(projectId);
 
       NotificationService().notifyLifecycleOperation(
@@ -1205,12 +1550,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
   /// Resume instance (REST-first, CLI fallback)
   Future<void> resumeInstanceWithMethod(String projectId, String zone, String instanceName) async {
     try {
-      try {
-        await resumeInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
-      } catch (e) {
-        debugPrint('REST resume failed, falling back to CLI: $e');
-        await resumeInstance(projectId: projectId, zone: zone, instanceName: instanceName);
-      }
+      await resumeInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
       await refreshInstances(projectId);
 
       NotificationService().notifyLifecycleOperation(
@@ -1237,12 +1577,7 @@ class ConnectionsNotifier extends Notifier<Map<String, TunnelState>> {
   /// Reset instance (REST-first, CLI fallback)
   Future<void> resetInstanceWithMethod(String projectId, String zone, String instanceName) async {
     try {
-      try {
-        await resetInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
-      } catch (e) {
-        debugPrint('REST reset failed, falling back to CLI: $e');
-        await resetInstance(projectId: projectId, zone: zone, instanceName: instanceName);
-      }
+      await resetInstanceClientLib(projectId: projectId, zone: zone, instanceName: instanceName);
       await refreshInstances(projectId);
 
       NotificationService().notifyLifecycleOperation(
@@ -1582,6 +1917,8 @@ class ProjectAwareInstance {
   List<(String, String)> get labels => instance.labels;
   bool get osLoginEnabled => instance.osLoginEnabled;
   bool get isWindows => instance.isWindows;
+  String? get internalIp => instance.internalIp;
+  String? get externalIp => instance.externalIp;
 
   /// Check if instance has a label with given key (and optionally value)
   bool hasLabel(String key, [String? value]) {
@@ -1735,15 +2072,37 @@ class MultiProjectNotifier extends Notifier<MultiProjectState> {
     // First, try to migrate from legacy single-project storage
     await StorageService().migrateToMultiProject();
 
-    final savedProjects = StorageService().getSelectedProjects();
+    // The selection belongs to the active account. The global list is the
+    // last account's: after signing out of it and into another, loading that
+    // list asked Google for its projects with the new account's token (403/404
+    // on every one) and never showed the new account's own. Asked of Rust, not
+    // of accountProvider, which may still be loading or hold the old account.
+    String? activeEmail;
+    try {
+      final accounts = await listGcloudAccounts();
+      activeEmail =
+          accounts.where((a) => a.status == 'ACTIVE').firstOrNull?.account;
+    } catch (e) {
+      debugPrint('Could not resolve the active account: $e');
+    }
+    if (activeEmail != null) {
+      await StorageService().migrateProjectsToAccount(activeEmail);
+    }
+    final savedProjects =
+        StorageService().getSelectedProjectsForAccount(activeEmail);
+    await StorageService().saveSelectedProjects(savedProjects);
+
     if (savedProjects.isNotEmpty) {
       state = state.copyWith(
         selectedProjectIds: savedProjects.toSet(),
       );
 
-      // Check if user is authenticated before trying to load instances
+      // Check if user is authenticated before trying to load instances.
+      // Engine-aware: `checkGcloudAuth` always shells out to gcloud, so under
+      // the native engine on a gcloud-free machine it is permanently false and
+      // the saved projects would load with their instances never refreshed.
       try {
-        final isAuthenticated = await checkGcloudAuth();
+        final isAuthenticated = (await checkAuthStatus()).authenticated;
         if (isAuthenticated) {
           // Load instances for all saved projects only if authenticated
           await refreshAllProjects();

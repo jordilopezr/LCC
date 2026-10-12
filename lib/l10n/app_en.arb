@@ -43,12 +43,6 @@
     }
   },
   "accountActiveAccountWarning": "This is the active account. All tunnels will be disconnected.",
-  "commonGcpErrorPermissionDenied": "Access denied. Check your GCP permissions.",
-  "commonGcpErrorNotFound": "Resource not found.",
-  "commonGcpErrorUnauthenticated": "Authentication required. Please re-login.",
-  "commonGcpErrorQuotaExceeded": "GCP quota exceeded.",
-  "commonGcpErrorNetwork": "Network error. Check your connection.",
-  "commonGcpErrorUnknown": "An error occurred. Please check your configuration.",
   "accountRemovedSnackbar": "Account {email} removed",
   "@accountRemovedSnackbar": {
     "placeholders": {
@@ -168,6 +162,15 @@
   },
   "doctorCopyCommand": "Copy Command",
   "doctorFix": "Fix",
+  "doctorOpenInConsole": "Open in Cloud Console",
+  "@doctorOpenInConsole": {
+    "description": "Opens the Cloud Console route a remedy offers as its gcloud-free alternative."
+  },
+  "doctorCopyConsoleLink": "Copy link",
+  "@doctorCopyConsoleLink": {
+    "description": "Copies the Cloud Console URL of a remedy to the clipboard."
+  },
+  "doctorConsoleLinkCopied": "Cloud Console link copied to clipboard",
   "dbConnectionTitle": "Database Connection",
   "dbTabNewConnection": "New Connection",
   "dbTabSavedProfiles": "Saved Profiles",
@@ -352,6 +355,39 @@
   "sshfsUnmountAllConfirmMessage": "Are you sure you want to unmount all SSHFS mounts?",
   "settingsTitle": "Settings",
   "settingsAppearanceTitle": "Appearance",
+  "settingsAuthEngineTitle": "Sign-in method",
+  "settingsAuthEngineNative": "LCC signs in (recommended)",
+  "settingsAuthEngineNativeSubtitle": "LCC opens your browser and keeps its own session. No gcloud needed.",
+  "settingsAuthEngineGcloud": "Use the gcloud CLI",
+  "settingsAuthEngineGcloudSubtitle": "LCC uses the session gcloud already has. You keep it signed in yourself with 'gcloud auth login'.",
+  "settingsAuthEngineChangeFailed": "Could not change the sign-in method: {error}",
+  "@settingsAuthEngineChangeFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "settingsAuthEngineNameNative": "LCC's own sign-in",
+  "settingsAuthEngineNameGcloud": "the gcloud CLI",
+  "settingsEngineEnvOverride": "The {variable} environment variable is forcing {engine}, so that is what LCC is using right now. Your choice below is saved, but it will not take effect until that variable is unset.",
+  "@settingsEngineEnvOverride": {
+    "placeholders": {
+      "variable": {"type": "String"},
+      "engine": {"type": "String"}
+    }
+  },
+  "settingsAdvancedTitle": "Advanced",
+  "settingsAdvancedSubtitle": "Diagnostic settings. The native engines are recommended; change these only to work around a problem.",
+  "settingsTunnelEngineTitle": "IAP tunnel engine",
+  "settingsTunnelEngineNative": "Native (recommended)",
+  "settingsTunnelEngineNativeSubtitle": "LCC opens the IAP tunnel itself, with no gcloud process.",
+  "settingsTunnelEngineGcloud": "gcloud CLI",
+  "settingsTunnelEngineGcloudSubtitle": "Uses 'gcloud compute start-iap-tunnel'. Requires gcloud installed.",
+  "settingsSshForwardEngineTitle": "SSH port forward engine",
+  "settingsSshForwardEngineNative": "Native (recommended)",
+  "settingsSshForwardEngineNativeSubtitle": "LCC forwards the port itself, with no ssh process.",
+  "settingsSshForwardEngineGcloud": "gcloud CLI",
+  "settingsSshForwardEngineGcloudSubtitle": "Uses gcloud and the system ssh. Requires gcloud installed.",
+  "settingsEngineAppliesToNewOnly": "Tunnels already open keep the engine they were opened with. This applies to the next one.",
   "settingsAutoRefreshTitle": "Auto-Refresh",
   "settingsEnableAutoRefresh": "Enable Auto-Refresh",
   "settingsAutoRefreshSubtitle": "Automatically refresh instance list",
@@ -456,7 +492,6 @@
   "settingsRdpDescFreeRdp": "CLI-based, widely available",
   "settingsRdpDescKrdc": "KDE default remote desktop client",
   "settingsRdpDescGnome": "Modern GNOME remote desktop app",
-  "settingsRdpDescMstsc": "Windows native remote desktop client",
   "settingsVncDescRemmina": "Feature-rich, supports both RDP and VNC",
   "settingsVncDescTigerVnc": "High-performance VNC viewer",
   "settingsVncDescKrdc": "KDE VNC and RDP client",
@@ -863,14 +898,6 @@
       "folderName": {"type": "String"}
     }
   },
-  "sftpUploadingFolderProgress": "Uploading {current}/{total}: {fileName}…",
-  "@sftpUploadingFolderProgress": {
-    "placeholders": {
-      "current": {"type": "int"},
-      "total": {"type": "int"},
-      "fileName": {"type": "String"}
-    }
-  },
   "sftpErrorUploadFolder": "Failed to upload folder: {error}\n\nSome files may have been uploaded successfully.",
   "@sftpErrorUploadFolder": {
     "placeholders": {
@@ -981,6 +1008,11 @@
   "dashboardInstallInstructionsBody": "Please go to the following site and follow the instructions to install the Google Cloud SDK for your operating system:",
   "dashboardOpenInstructionsButton": "Open Instructions in Browser",
   "dashboardCheckAgainButton": "Check Again",
+  "dashboardKeyringTitle": "Can't read your sign-in from the system keyring",
+  "dashboardKeyringUnreachableBody": "LCC could not reach the system keyring. This usually means no Secret Service (GNOME Keyring or KWallet) is running.",
+  "dashboardKeyringRefusedBody": "The system keyring did not grant access: it is locked, or the unlock was cancelled.",
+  "dashboardKeyringPendingBody": "Waiting for you to unlock the system keyring. If a dialog is asking for your password (it may be behind this window), answer it and then press Check Again.",
+  "dashboardKeyringSessionKept": "Your sign-in is still saved; you do not need to sign in again.",
   "dashboardLaunchingBrowserLogin": "Launching browser for login…",
   "dashboardLoginFailed": "Login Failed: {error}",
   "@dashboardLoginFailed": {
@@ -1075,6 +1107,24 @@
   "appTechStackValue": "Flutter • Rust • Google Cloud Client Libraries",
   "dashboardSearchInstancesHint": "Search instances…",
   "dashboardFilterAll": "All",
+  "dashboardFilterRunning": "Running",
+  "dashboardFilterStopped": "Stopped",
+  "dashboardFilterSuspended": "Suspended",
+  "appErrorNotAuthenticated": "Your session expired. Sign in again.",
+  "appErrorPermissionDenied": "You don't have permission for this operation.",
+  "appErrorNotFound": "The requested resource was not found.",
+  "appErrorNetwork": "Network error. Check your connection and try again.",
+  "appErrorQuotaExceeded": "Quota exceeded. Try again later or request more quota.",
+  "appErrorGcloudNotInstalled": "The gcloud CLI is not installed or was not found.",
+  "appErrorAlreadyExists": "That resource already exists.",
+  "appErrorInvalidInput": "Invalid input.",
+  "appErrorCancelled": "Operation cancelled.",
+  "appErrorGeneric": "Operation failed: {detail}",
+  "@appErrorGeneric": {
+    "placeholders": {
+      "detail": {"type": "String"}
+    }
+  },
   "dashboardAllProjectsHint": "All Projects",
   "dashboardNoProjectsSelected": "No projects selected",
   "dashboardSelectProjectsHint": "Click \"Select Projects\" above to choose GCP projects",
@@ -1133,6 +1183,9 @@
   "dashboardOsLoginChip": "OS Login",
   "dashboardActiveTunnelsTitle": "Active Tunnels",
   "dashboardActionsTitle": "Actions",
+  "dashboardActionsGroupAccess": "Access & connections",
+  "dashboardActionsGroupPower": "Power & state",
+  "dashboardActionsGroupTools": "Tools",
   "dashboardConnectRdpButton": "Connect RDP",
   "dashboardConnectVncButton": "Connect VNC",
   "dashboardConnectSshButton": "Connect SSH",
@@ -1236,6 +1289,30 @@
       "port": {"type": "int"}
     }
   },
+  "customTunnelReady": "Tunnel ready at {address}",
+  "@customTunnelReady": {
+    "placeholders": { "address": {"type": "String"} }
+  },
+  "customTunnelReusedPort": "Reused an existing tunnel on {address}; the requested port {requested} wasn't applied.",
+  "@customTunnelReusedPort": {
+    "placeholders": {
+      "address": { "type": "String" },
+      "requested": { "type": "int" }
+    }
+  },
+  "customTunnelAddressCopied": "Address copied",
+  "customTunnelFailedTitle": "Couldn't create the tunnel",
+  "customTunnelLocalhostHint": "The service may be listening only on 127.0.0.1; IAP can't reach localhost-only services. Bind it to 0.0.0.0 or use SSH forwarding.",
+  "customTunnelRunDoctor": "Run Doctor",
+  "customTunnelModeDirect": "Direct (IAP)",
+  "customTunnelModeSshForward": "SSH forward",
+  "customTunnelSshForwardHint": "For services listening only on 127.0.0.1 on the VM (IAP can't reach them).",
+  "customTunnelLocalPortLabel": "Local port (optional)",
+  "customTunnelLocalPortHint": "Empty = auto-assigned",
+  "tunnelKindSshForward": "SSH forward",
+  "tunnelEngineNative": "Native",
+  "tunnelEngineGcloud": "gcloud",
+  "tunnelEngineTooltip": "Engine used for this connection",
   "appConnectionSettingsTitle": "Connection Settings",
   "appDomainOptionalLabel": "Domain (Optional)",
   "appSaveCredentialsLabel": "Save Credentials",
@@ -1244,6 +1321,11 @@
   "appHeightLabel": "Height",
   "appVncConnectionSettingsTitle": "VNC Connection Settings",
   "appPasswordOptionalLabel": "Password (Optional)",
+  "appVncDisplayLabel": "Display",
+  "appVncDisplayHelper": "Display :{display} \u2192 port {port}",
+  "@appVncDisplayHelper": { "placeholders": { "display": {"type": "int"}, "port": {"type": "int"} } },
+  "appVncDisplayInvalid": "Enter the display ({example}), not the port ({port}).",
+  "@appVncDisplayInvalid": { "placeholders": { "example": {"type": "int"}, "port": {"type": "int"} } },
   "appVncPasswordHelper": "Leave empty if VNC server has no password",
   "appDisplayOptionsLabel": "Display Options",
   "appViewOnlyLabel": "View Only",
@@ -1360,5 +1442,153 @@
   "sessionExpiredReauth": "Re-authenticate",
   "sessionExpiredReauthenticating": "Authenticating…",
   "sessionExpiredReauthOk": "Re-authenticated. Refreshing…",
-  "sessionExpiredReauthFailed": "Re-authentication failed or was cancelled."
+  "sessionExpiredReauthFailed": "Re-authentication failed: {error}",
+  "@sessionExpiredReauthFailed": {
+    "placeholders": {
+      "error": {"type": "String"}
+    }
+  },
+  "tunnelErrorNotAuthenticated": "Not signed in to Google Cloud. Run 'gcloud auth login'.",
+  "tunnelErrorPermissionDenied": "Permission denied. The account needs the IAP-secured Tunnel User role.",
+  "tunnelErrorInstanceNotFound": "The instance no longer exists in this project and zone.",
+  "tunnelErrorInstanceNotRunning": "The instance is not running.",
+  "tunnelErrorFirewallBlocked": "A firewall rule is blocking IAP. Allow ingress from 35.235.240.0/20.",
+  "tunnelErrorRelayUnreachable": "Could not reach the IAP relay. Check the network or proxy settings.",
+  "tunnelErrorProtocolError": "Unexpected response from the IAP relay.",
+  "tunnelErrorBackendUnreachable": "The IAP relay could not reach port {port} on the VM. Check that a firewall rule allows ingress from 35.235.240.0/20 to that port, and that a service is listening on it.",
+  "@tunnelErrorBackendUnreachable": {
+    "placeholders": {
+      "port": {"type": "String"}
+    }
+  },
+  "tunnelErrorLocalPortUnavailable": "No local port available for the tunnel.",
+  "tunnelErrorLocalPortInUse": "Local port {port} is already in use on this machine. Close whatever is holding it, or let the app choose a port.",
+  "@tunnelErrorLocalPortInUse": {
+    "placeholders": {
+      "port": {"type": "String"}
+    }
+  },
+  "tunnelErrorSessionLost": "The connection to the VM dropped, so this forward stopped working. Connect again to restore it.",
+  "tunnelErrorUnknown": "The tunnel could not be established.",
+  "sftpFolderProgressLabel": "{percent}% — {done}/{total} MB, {filesDone}/{filesTotal} files",
+  "@sftpFolderProgressLabel": {
+    "placeholders": {
+      "percent": {"type": "int"},
+      "done": {"type": "int"},
+      "total": {"type": "int"},
+      "filesDone": {"type": "int"},
+      "filesTotal": {"type": "int"}
+    }
+  },
+  "workspaceTerminalConnecting": "Connecting…",
+  "workspaceTerminalDisconnected": "Session ended.",
+  "workspaceTerminalAbandoned": "The connection was cancelled before it could be set up. Close this tab and open it again to retry.",
+  "workspaceReconnect": "Reconnect",
+  "workspaceTerminalError": "Could not open the SSH session: {detail}",
+  "@workspaceTerminalError": { "placeholders": { "detail": {"type": "String"} } },
+  "workspaceNoTabs": "Select a VM to get started",
+  "workspaceCloseTab": "Close tab",
+  "workspaceTabOverview": "Overview",
+  "workspaceTabSsh": "SSH",
+  "workspaceTabSftp": "SFTP",
+  "workspaceTabDoctor": "Doctor",
+  "workspaceTabDiagnostics": "Diagnostics",
+  "workspaceCloseTitle": "Close app?",
+  "workspaceCloseWithSessions": "You have {count} active session(s). Close anyway?",
+  "@workspaceCloseWithSessions": { "placeholders": { "count": {"type": "int"} } },
+  "workspaceCloseWithTunnels": "{count} tunnel(s) are active and will be closed when the app exits. Close anyway?",
+  "@workspaceCloseWithTunnels": { "placeholders": { "count": {"type": "int"} } },
+  "workspaceCloseWithSessionsAndTunnels": "You have {sessions} active session(s) and {tunnels} active tunnel(s). Close anyway?",
+  "@workspaceCloseWithSessionsAndTunnels": { "placeholders": { "sessions": {"type": "int"}, "tunnels": {"type": "int"} } },
+  "workspaceCloseAnyway": "Close anyway",
+  "workspaceScrollTabsLeft": "Scroll tabs left",
+  "workspaceScrollTabsRight": "Scroll tabs right",
+  "workspaceAllTabs": "All tabs",
+  "workspacePinTab": "Pin tab",
+  "workspaceUnpinTab": "Unpin tab",
+  "workspaceCloseOthers": "Close others",
+  "workspaceCloseToRight": "Close tabs to the right",
+  "workspaceNewGroup": "New group from this tab",
+  "workspaceAddToGroup": "Add to group",
+  "workspaceGroupByVm": "Group all tabs of this VM",
+  "workspaceRenameGroup": "Rename group…",
+  "workspaceUngroup": "Ungroup",
+  "workspaceCloseGroup": "Close group",
+  "workspaceRenameGroupTitle": "Rename group",
+  "sftpViewDual": "Dual",
+  "sftpViewClassic": "Classic",
+  "sftpQueueTitle": "Transfer queue",
+  "sftpQueueClearCompleted": "Clear completed",
+  "sftpQueueWaiting": "waiting",
+  "sftpQueueDone": "done",
+  "sftpQueueFailed": "error",
+  "sftpQueueCancel": "Cancel transfer",
+  "sftpQueueRetry": "Retry",
+  "sftpConflictTitle": "Some files already exist",
+  "sftpConflictBody": "{count} file(s) already exist in the destination. What do you want to do?",
+  "@sftpConflictBody": { "placeholders": { "count": {"type": "int"} } },
+  "sftpConflictOverwrite": "Overwrite all",
+  "sftpConflictSkip": "Skip existing",
+  "sftpQueueCancelled": "Cancelled",
+  "notifVmStateChangeTitle": "VM State Changed: {instanceName}",
+  "@notifVmStateChangeTitle": { "placeholders": { "instanceName": { "type": "String" } } },
+  "notifVmStateChangeBody": "{oldState} → {newState}\n{project}/{zone}",
+  "@notifVmStateChangeBody": { "placeholders": { "oldState": {"type":"String"}, "newState": {"type":"String"}, "project": {"type":"String"}, "zone": {"type":"String"} } },
+  "notifTunnelFailedTitle": "IAP Tunnel Failed: {instanceName}",
+  "@notifTunnelFailedTitle": { "placeholders": { "instanceName": {"type":"String"} } },
+  "notifTunnelFailedBody": "Port {port} disconnected\n{project}/{zone}",
+  "@notifTunnelFailedBody": { "placeholders": { "port": {"type":"int"}, "project": {"type":"String"}, "zone": {"type":"String"} } },
+  "notifLifecycleSuccessTitle": "✓ {operation} completed: {instanceName}",
+  "@notifLifecycleSuccessTitle": { "placeholders": { "operation": {"type":"String"}, "instanceName": {"type":"String"} } },
+  "notifLifecycleSuccessBody": "{project}/{zone}",
+  "@notifLifecycleSuccessBody": { "placeholders": { "project": {"type":"String"}, "zone": {"type":"String"} } },
+  "notifLifecycleFailedTitle": "✗ {operation} failed: {instanceName}",
+  "@notifLifecycleFailedTitle": { "placeholders": { "operation": {"type":"String"}, "instanceName": {"type":"String"} } },
+  "notifLifecycleFailedBody": "{error}\n{project}/{zone}",
+  "@notifLifecycleFailedBody": { "placeholders": { "error": {"type":"String"}, "project": {"type":"String"}, "zone": {"type":"String"} } },
+  "notifUnknownError": "Unknown error",
+  "notifTunnelReconnectingTitle": "Tunnel Reconnecting: {instanceName}",
+  "@notifTunnelReconnectingTitle": { "placeholders": { "instanceName": {"type":"String"} } },
+  "notifTunnelReconnectingBody": "Port {port} - Attempt {attempt}/{maxAttempts}\n{project}",
+  "@notifTunnelReconnectingBody": { "placeholders": { "port": {"type":"int"}, "attempt": {"type":"int"}, "maxAttempts": {"type":"int"}, "project": {"type":"String"} } },
+  "notifTunnelReconnectedTitle": "Tunnel Reconnected: {instanceName}",
+  "@notifTunnelReconnectedTitle": { "placeholders": { "instanceName": {"type":"String"} } },
+  "notifTunnelReconnectedBody": "Port {port} successfully restored\n{project}",
+  "@notifTunnelReconnectedBody": { "placeholders": { "port": {"type":"int"}, "project": {"type":"String"} } },
+  "notifTunnelGaveUpTitle": "Tunnel Failed: {instanceName}",
+  "@notifTunnelGaveUpTitle": { "placeholders": { "instanceName": {"type":"String"} } },
+  "notifTunnelGaveUpBody": "Port {port} - Gave up after {maxAttempts} attempts\n{project}",
+  "@notifTunnelGaveUpBody": { "placeholders": { "port": {"type":"int"}, "maxAttempts": {"type":"int"}, "project": {"type":"String"} } },
+  "notifClientFallbackTitle": "{protocol} Client Fallback",
+  "@notifClientFallbackTitle": { "placeholders": { "protocol": {"type":"String"} } },
+  "notifClientFallbackBody": "Your preferred client was unavailable. Using {clientName} instead.",
+  "@notifClientFallbackBody": { "placeholders": { "clientName": {"type":"String"} } },
+  "sshConsentTitle": "Authorise LCC on this project?",
+  "sshConsentBodyInstance": "To open SSH, SFTP and port forwards without gcloud, LCC needs an SSH key authorised on the VMs of {project}. It will add its own key to each VM as you connect to it — never to the project, so no other VM is affected.",
+  "@sshConsentBodyInstance": {
+    "placeholders": { "project": {"type": "String"} }
+  },
+  "sshConsentFingerprint": "Key: {fingerprint}",
+  "@sshConsentFingerprint": {
+    "placeholders": { "fingerprint": {"type": "String"} }
+  },
+  "sshConsentBodyOsLogin": "To open SSH, SFTP and port forwards without gcloud, LCC needs an SSH key authorised for your account. The VMs of {project} use OS Login, where keys belong to the Google account rather than to a VM: authorising this key will let it log in to every OS Login VM your account can reach, in this project and in any other.",
+  "@sshConsentBodyOsLogin": {
+    "placeholders": { "project": { "type": "String" } }
+  },
+  "sshConsentRemovalInstance": "You can remove it any time from the VM's metadata: look for the entry commented 'lightweight-cloud-connector'.",
+  "sshConsentRemovalOsLogin": "The key is stored on your account, not in any VM's metadata, so removing it from a VM will not work. Remove it from your account's OS Login keys instead (`gcloud compute os-login ssh-keys list` / `remove`); it is the one commented 'lightweight-cloud-connector'.",
+  "sshConsentAllow": "Authorise",
+  "sshConsentDeny": "Not now",
+  "sshConsentDenied": "LCC is not authorised to add an SSH key to this project, so SSH, SFTP and port forwards are unavailable. Ask an administrator to authorise your key on the VM, or open the port to 35.235.240.0/20 in the firewall and use a direct (IAP) tunnel instead.",
+  "gcloudCommandTitle": "Run this in a terminal",
+  "gcloudCommandCopy": "Copy command",
+  "gcloudCommandCopied": "Command copied",
+  "gcloudCommandRefresh": "I ran it — refresh",
+  "gcloudCommandAddExplanation": "With the gcloud sign-in method selected, LCC does not sign in for you: gcloud keeps its own session and you maintain it.",
+  "gcloudCommandRemoveExplanation": "With the gcloud sign-in method selected, LCC does not revoke gcloud's credentials. Revoking is done with gcloud itself.",
+  "engineNoticeTitle": "LCC now signs in on its own",
+  "engineNoticeBody": "LCC no longer needs the gcloud CLI to sign in: it opens your browser and keeps its own session. If you would rather keep using gcloud's session, choose it under Sign-in method in Settings — your gcloud accounts are still there.",
+  "engineNoticeGotIt": "Got it",
+  "engineNoticeOpenSettings": "Open Settings"
 }

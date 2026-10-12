@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import '../bridge/api.dart/api.dart';
+import 'app_error.dart';
 import 'gcloud_provider.dart';
 
 /// Non-modal banner shown at the top of the dashboard when the GCP session has
@@ -19,7 +20,7 @@ class _GcpSessionBannerState extends ConsumerState<GcpSessionBanner> {
   bool _busy = false;
 
   bool _isAuthError(AsyncValue<dynamic> v) =>
-      v.hasError && classifyGcpError(v.error) == GcpErrorType.unauthenticated;
+      v.hasError && classifyRustError(v.error) == AppErrorCode.notAuthenticated;
 
   Future<void> _reauth() async {
     setState(() => _busy = true);
@@ -31,9 +32,10 @@ class _GcpSessionBannerState extends ConsumerState<GcpSessionBanner> {
       ref.invalidate(instancesProvider);
       messenger.showSnackBar(
           SnackBar(content: Text(l10n.sessionExpiredReauthOk)));
-    } catch (_) {
-      messenger.showSnackBar(
-          SnackBar(content: Text(l10n.sessionExpiredReauthFailed)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(
+          content: Text(l10n.sessionExpiredReauthFailed(
+              localizedError(l10n, e, standalone: false)))));
     } finally {
       if (mounted) setState(() => _busy = false);
     }

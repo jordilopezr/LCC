@@ -114,27 +114,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'This is the active account. All tunnels will be disconnected.';
 
   @override
-  String get commonGcpErrorPermissionDenied =>
-      'Access denied. Check your GCP permissions.';
-
-  @override
-  String get commonGcpErrorNotFound => 'Resource not found.';
-
-  @override
-  String get commonGcpErrorUnauthenticated =>
-      'Authentication required. Please re-login.';
-
-  @override
-  String get commonGcpErrorQuotaExceeded => 'GCP quota exceeded.';
-
-  @override
-  String get commonGcpErrorNetwork => 'Network error. Check your connection.';
-
-  @override
-  String get commonGcpErrorUnknown =>
-      'An error occurred. Please check your configuration.';
-
-  @override
   String accountRemovedSnackbar(String email) {
     return 'Account $email removed';
   }
@@ -296,6 +275,16 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get doctorFix => 'Fix';
+
+  @override
+  String get doctorOpenInConsole => 'Open in Cloud Console';
+
+  @override
+  String get doctorCopyConsoleLink => 'Copy link';
+
+  @override
+  String get doctorConsoleLinkCopied =>
+      'Cloud Console link copied to clipboard';
 
   @override
   String get dbConnectionTitle => 'Database Connection';
@@ -627,6 +616,84 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsAppearanceTitle => 'Appearance';
 
   @override
+  String get settingsAuthEngineTitle => 'Sign-in method';
+
+  @override
+  String get settingsAuthEngineNative => 'LCC signs in (recommended)';
+
+  @override
+  String get settingsAuthEngineNativeSubtitle =>
+      'LCC opens your browser and keeps its own session. No gcloud needed.';
+
+  @override
+  String get settingsAuthEngineGcloud => 'Use the gcloud CLI';
+
+  @override
+  String get settingsAuthEngineGcloudSubtitle =>
+      'LCC uses the session gcloud already has. You keep it signed in yourself with \'gcloud auth login\'.';
+
+  @override
+  String settingsAuthEngineChangeFailed(String error) {
+    return 'Could not change the sign-in method: $error';
+  }
+
+  @override
+  String get settingsAuthEngineNameNative => 'LCC\'s own sign-in';
+
+  @override
+  String get settingsAuthEngineNameGcloud => 'the gcloud CLI';
+
+  @override
+  String settingsEngineEnvOverride(String variable, String engine) {
+    return 'The $variable environment variable is forcing $engine, so that is what LCC is using right now. Your choice below is saved, but it will not take effect until that variable is unset.';
+  }
+
+  @override
+  String get settingsAdvancedTitle => 'Advanced';
+
+  @override
+  String get settingsAdvancedSubtitle =>
+      'Diagnostic settings. The native engines are recommended; change these only to work around a problem.';
+
+  @override
+  String get settingsTunnelEngineTitle => 'IAP tunnel engine';
+
+  @override
+  String get settingsTunnelEngineNative => 'Native (recommended)';
+
+  @override
+  String get settingsTunnelEngineNativeSubtitle =>
+      'LCC opens the IAP tunnel itself, with no gcloud process.';
+
+  @override
+  String get settingsTunnelEngineGcloud => 'gcloud CLI';
+
+  @override
+  String get settingsTunnelEngineGcloudSubtitle =>
+      'Uses \'gcloud compute start-iap-tunnel\'. Requires gcloud installed.';
+
+  @override
+  String get settingsSshForwardEngineTitle => 'SSH port forward engine';
+
+  @override
+  String get settingsSshForwardEngineNative => 'Native (recommended)';
+
+  @override
+  String get settingsSshForwardEngineNativeSubtitle =>
+      'LCC forwards the port itself, with no ssh process.';
+
+  @override
+  String get settingsSshForwardEngineGcloud => 'gcloud CLI';
+
+  @override
+  String get settingsSshForwardEngineGcloudSubtitle =>
+      'Uses gcloud and the system ssh. Requires gcloud installed.';
+
+  @override
+  String get settingsEngineAppliesToNewOnly =>
+      'Tunnels already open keep the engine they were opened with. This applies to the next one.';
+
+  @override
   String get settingsAutoRefreshTitle => 'Auto-Refresh';
 
   @override
@@ -844,9 +911,6 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsRdpDescGnome => 'Modern GNOME remote desktop app';
-
-  @override
-  String get settingsRdpDescMstsc => 'Windows native remote desktop client';
 
   @override
   String get settingsVncDescRemmina =>
@@ -1564,11 +1628,6 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
-  String sftpUploadingFolderProgress(int current, int total, String fileName) {
-    return 'Uploading $current/$total: $fileName…';
-  }
-
-  @override
   String sftpErrorUploadFolder(String error) {
     return 'Failed to upload folder: $error\n\nSome files may have been uploaded successfully.';
   }
@@ -1737,6 +1796,26 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardCheckAgainButton => 'Check Again';
 
   @override
+  String get dashboardKeyringTitle =>
+      'Can\'t read your sign-in from the system keyring';
+
+  @override
+  String get dashboardKeyringUnreachableBody =>
+      'LCC could not reach the system keyring. This usually means no Secret Service (GNOME Keyring or KWallet) is running.';
+
+  @override
+  String get dashboardKeyringRefusedBody =>
+      'The system keyring did not grant access: it is locked, or the unlock was cancelled.';
+
+  @override
+  String get dashboardKeyringPendingBody =>
+      'Waiting for you to unlock the system keyring. If a dialog is asking for your password (it may be behind this window), answer it and then press Check Again.';
+
+  @override
+  String get dashboardKeyringSessionKept =>
+      'Your sign-in is still saved; you do not need to sign in again.';
+
+  @override
   String get dashboardLaunchingBrowserLogin => 'Launching browser for login…';
 
   @override
@@ -1884,6 +1963,51 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dashboardFilterAll => 'All';
 
   @override
+  String get dashboardFilterRunning => 'Running';
+
+  @override
+  String get dashboardFilterStopped => 'Stopped';
+
+  @override
+  String get dashboardFilterSuspended => 'Suspended';
+
+  @override
+  String get appErrorNotAuthenticated => 'Your session expired. Sign in again.';
+
+  @override
+  String get appErrorPermissionDenied =>
+      'You don\'t have permission for this operation.';
+
+  @override
+  String get appErrorNotFound => 'The requested resource was not found.';
+
+  @override
+  String get appErrorNetwork =>
+      'Network error. Check your connection and try again.';
+
+  @override
+  String get appErrorQuotaExceeded =>
+      'Quota exceeded. Try again later or request more quota.';
+
+  @override
+  String get appErrorGcloudNotInstalled =>
+      'The gcloud CLI is not installed or was not found.';
+
+  @override
+  String get appErrorAlreadyExists => 'That resource already exists.';
+
+  @override
+  String get appErrorInvalidInput => 'Invalid input.';
+
+  @override
+  String get appErrorCancelled => 'Operation cancelled.';
+
+  @override
+  String appErrorGeneric(String detail) {
+    return 'Operation failed: $detail';
+  }
+
+  @override
   String get dashboardAllProjectsHint => 'All Projects';
 
   @override
@@ -2007,6 +2131,15 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get dashboardActionsTitle => 'Actions';
+
+  @override
+  String get dashboardActionsGroupAccess => 'Access & connections';
+
+  @override
+  String get dashboardActionsGroupPower => 'Power & state';
+
+  @override
+  String get dashboardActionsGroupTools => 'Tools';
 
   @override
   String get dashboardConnectRdpButton => 'Connect RDP';
@@ -2175,6 +2308,57 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String customTunnelReady(String address) {
+    return 'Tunnel ready at $address';
+  }
+
+  @override
+  String customTunnelReusedPort(String address, int requested) {
+    return 'Reused an existing tunnel on $address; the requested port $requested wasn\'t applied.';
+  }
+
+  @override
+  String get customTunnelAddressCopied => 'Address copied';
+
+  @override
+  String get customTunnelFailedTitle => 'Couldn\'t create the tunnel';
+
+  @override
+  String get customTunnelLocalhostHint =>
+      'The service may be listening only on 127.0.0.1; IAP can\'t reach localhost-only services. Bind it to 0.0.0.0 or use SSH forwarding.';
+
+  @override
+  String get customTunnelRunDoctor => 'Run Doctor';
+
+  @override
+  String get customTunnelModeDirect => 'Direct (IAP)';
+
+  @override
+  String get customTunnelModeSshForward => 'SSH forward';
+
+  @override
+  String get customTunnelSshForwardHint =>
+      'For services listening only on 127.0.0.1 on the VM (IAP can\'t reach them).';
+
+  @override
+  String get customTunnelLocalPortLabel => 'Local port (optional)';
+
+  @override
+  String get customTunnelLocalPortHint => 'Empty = auto-assigned';
+
+  @override
+  String get tunnelKindSshForward => 'SSH forward';
+
+  @override
+  String get tunnelEngineNative => 'Native';
+
+  @override
+  String get tunnelEngineGcloud => 'gcloud';
+
+  @override
+  String get tunnelEngineTooltip => 'Engine used for this connection';
+
+  @override
   String get appConnectionSettingsTitle => 'Connection Settings';
 
   @override
@@ -2197,6 +2381,19 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appPasswordOptionalLabel => 'Password (Optional)';
+
+  @override
+  String get appVncDisplayLabel => 'Display';
+
+  @override
+  String appVncDisplayHelper(int display, int port) {
+    return 'Display :$display → port $port';
+  }
+
+  @override
+  String appVncDisplayInvalid(int example, int port) {
+    return 'Enter the display ($example), not the port ($port).';
+  }
 
   @override
   String get appVncPasswordHelper =>
@@ -2391,6 +2588,374 @@ class AppLocalizationsEn extends AppLocalizations {
   String get sessionExpiredReauthOk => 'Re-authenticated. Refreshing…';
 
   @override
-  String get sessionExpiredReauthFailed =>
-      'Re-authentication failed or was cancelled.';
+  String sessionExpiredReauthFailed(String error) {
+    return 'Re-authentication failed: $error';
+  }
+
+  @override
+  String get tunnelErrorNotAuthenticated =>
+      'Not signed in to Google Cloud. Run \'gcloud auth login\'.';
+
+  @override
+  String get tunnelErrorPermissionDenied =>
+      'Permission denied. The account needs the IAP-secured Tunnel User role.';
+
+  @override
+  String get tunnelErrorInstanceNotFound =>
+      'The instance no longer exists in this project and zone.';
+
+  @override
+  String get tunnelErrorInstanceNotRunning => 'The instance is not running.';
+
+  @override
+  String get tunnelErrorFirewallBlocked =>
+      'A firewall rule is blocking IAP. Allow ingress from 35.235.240.0/20.';
+
+  @override
+  String get tunnelErrorRelayUnreachable =>
+      'Could not reach the IAP relay. Check the network or proxy settings.';
+
+  @override
+  String get tunnelErrorProtocolError =>
+      'Unexpected response from the IAP relay.';
+
+  @override
+  String tunnelErrorBackendUnreachable(String port) {
+    return 'The IAP relay could not reach port $port on the VM. Check that a firewall rule allows ingress from 35.235.240.0/20 to that port, and that a service is listening on it.';
+  }
+
+  @override
+  String get tunnelErrorLocalPortUnavailable =>
+      'No local port available for the tunnel.';
+
+  @override
+  String tunnelErrorLocalPortInUse(String port) {
+    return 'Local port $port is already in use on this machine. Close whatever is holding it, or let the app choose a port.';
+  }
+
+  @override
+  String get tunnelErrorSessionLost =>
+      'The connection to the VM dropped, so this forward stopped working. Connect again to restore it.';
+
+  @override
+  String get tunnelErrorUnknown => 'The tunnel could not be established.';
+
+  @override
+  String sftpFolderProgressLabel(
+    int percent,
+    int done,
+    int total,
+    int filesDone,
+    int filesTotal,
+  ) {
+    return '$percent% — $done/$total MB, $filesDone/$filesTotal files';
+  }
+
+  @override
+  String get workspaceTerminalConnecting => 'Connecting…';
+
+  @override
+  String get workspaceTerminalDisconnected => 'Session ended.';
+
+  @override
+  String get workspaceTerminalAbandoned =>
+      'The connection was cancelled before it could be set up. Close this tab and open it again to retry.';
+
+  @override
+  String get workspaceReconnect => 'Reconnect';
+
+  @override
+  String workspaceTerminalError(String detail) {
+    return 'Could not open the SSH session: $detail';
+  }
+
+  @override
+  String get workspaceNoTabs => 'Select a VM to get started';
+
+  @override
+  String get workspaceCloseTab => 'Close tab';
+
+  @override
+  String get workspaceTabOverview => 'Overview';
+
+  @override
+  String get workspaceTabSsh => 'SSH';
+
+  @override
+  String get workspaceTabSftp => 'SFTP';
+
+  @override
+  String get workspaceTabDoctor => 'Doctor';
+
+  @override
+  String get workspaceTabDiagnostics => 'Diagnostics';
+
+  @override
+  String get workspaceCloseTitle => 'Close app?';
+
+  @override
+  String workspaceCloseWithSessions(int count) {
+    return 'You have $count active session(s). Close anyway?';
+  }
+
+  @override
+  String workspaceCloseWithTunnels(int count) {
+    return '$count tunnel(s) are active and will be closed when the app exits. Close anyway?';
+  }
+
+  @override
+  String workspaceCloseWithSessionsAndTunnels(int sessions, int tunnels) {
+    return 'You have $sessions active session(s) and $tunnels active tunnel(s). Close anyway?';
+  }
+
+  @override
+  String get workspaceCloseAnyway => 'Close anyway';
+
+  @override
+  String get workspaceScrollTabsLeft => 'Scroll tabs left';
+
+  @override
+  String get workspaceScrollTabsRight => 'Scroll tabs right';
+
+  @override
+  String get workspaceAllTabs => 'All tabs';
+
+  @override
+  String get workspacePinTab => 'Pin tab';
+
+  @override
+  String get workspaceUnpinTab => 'Unpin tab';
+
+  @override
+  String get workspaceCloseOthers => 'Close others';
+
+  @override
+  String get workspaceCloseToRight => 'Close tabs to the right';
+
+  @override
+  String get workspaceNewGroup => 'New group from this tab';
+
+  @override
+  String get workspaceAddToGroup => 'Add to group';
+
+  @override
+  String get workspaceGroupByVm => 'Group all tabs of this VM';
+
+  @override
+  String get workspaceRenameGroup => 'Rename group…';
+
+  @override
+  String get workspaceUngroup => 'Ungroup';
+
+  @override
+  String get workspaceCloseGroup => 'Close group';
+
+  @override
+  String get workspaceRenameGroupTitle => 'Rename group';
+
+  @override
+  String get sftpViewDual => 'Dual';
+
+  @override
+  String get sftpViewClassic => 'Classic';
+
+  @override
+  String get sftpQueueTitle => 'Transfer queue';
+
+  @override
+  String get sftpQueueClearCompleted => 'Clear completed';
+
+  @override
+  String get sftpQueueWaiting => 'waiting';
+
+  @override
+  String get sftpQueueDone => 'done';
+
+  @override
+  String get sftpQueueFailed => 'error';
+
+  @override
+  String get sftpQueueCancel => 'Cancel transfer';
+
+  @override
+  String get sftpQueueRetry => 'Retry';
+
+  @override
+  String get sftpConflictTitle => 'Some files already exist';
+
+  @override
+  String sftpConflictBody(int count) {
+    return '$count file(s) already exist in the destination. What do you want to do?';
+  }
+
+  @override
+  String get sftpConflictOverwrite => 'Overwrite all';
+
+  @override
+  String get sftpConflictSkip => 'Skip existing';
+
+  @override
+  String get sftpQueueCancelled => 'Cancelled';
+
+  @override
+  String notifVmStateChangeTitle(String instanceName) {
+    return 'VM State Changed: $instanceName';
+  }
+
+  @override
+  String notifVmStateChangeBody(
+    String oldState,
+    String newState,
+    String project,
+    String zone,
+  ) {
+    return '$oldState → $newState\n$project/$zone';
+  }
+
+  @override
+  String notifTunnelFailedTitle(String instanceName) {
+    return 'IAP Tunnel Failed: $instanceName';
+  }
+
+  @override
+  String notifTunnelFailedBody(int port, String project, String zone) {
+    return 'Port $port disconnected\n$project/$zone';
+  }
+
+  @override
+  String notifLifecycleSuccessTitle(String operation, String instanceName) {
+    return '✓ $operation completed: $instanceName';
+  }
+
+  @override
+  String notifLifecycleSuccessBody(String project, String zone) {
+    return '$project/$zone';
+  }
+
+  @override
+  String notifLifecycleFailedTitle(String operation, String instanceName) {
+    return '✗ $operation failed: $instanceName';
+  }
+
+  @override
+  String notifLifecycleFailedBody(String error, String project, String zone) {
+    return '$error\n$project/$zone';
+  }
+
+  @override
+  String get notifUnknownError => 'Unknown error';
+
+  @override
+  String notifTunnelReconnectingTitle(String instanceName) {
+    return 'Tunnel Reconnecting: $instanceName';
+  }
+
+  @override
+  String notifTunnelReconnectingBody(
+    int port,
+    int attempt,
+    int maxAttempts,
+    String project,
+  ) {
+    return 'Port $port - Attempt $attempt/$maxAttempts\n$project';
+  }
+
+  @override
+  String notifTunnelReconnectedTitle(String instanceName) {
+    return 'Tunnel Reconnected: $instanceName';
+  }
+
+  @override
+  String notifTunnelReconnectedBody(int port, String project) {
+    return 'Port $port successfully restored\n$project';
+  }
+
+  @override
+  String notifTunnelGaveUpTitle(String instanceName) {
+    return 'Tunnel Failed: $instanceName';
+  }
+
+  @override
+  String notifTunnelGaveUpBody(int port, int maxAttempts, String project) {
+    return 'Port $port - Gave up after $maxAttempts attempts\n$project';
+  }
+
+  @override
+  String notifClientFallbackTitle(String protocol) {
+    return '$protocol Client Fallback';
+  }
+
+  @override
+  String notifClientFallbackBody(String clientName) {
+    return 'Your preferred client was unavailable. Using $clientName instead.';
+  }
+
+  @override
+  String get sshConsentTitle => 'Authorise LCC on this project?';
+
+  @override
+  String sshConsentBodyInstance(String project) {
+    return 'To open SSH, SFTP and port forwards without gcloud, LCC needs an SSH key authorised on the VMs of $project. It will add its own key to each VM as you connect to it — never to the project, so no other VM is affected.';
+  }
+
+  @override
+  String sshConsentFingerprint(String fingerprint) {
+    return 'Key: $fingerprint';
+  }
+
+  @override
+  String sshConsentBodyOsLogin(String project) {
+    return 'To open SSH, SFTP and port forwards without gcloud, LCC needs an SSH key authorised for your account. The VMs of $project use OS Login, where keys belong to the Google account rather than to a VM: authorising this key will let it log in to every OS Login VM your account can reach, in this project and in any other.';
+  }
+
+  @override
+  String get sshConsentRemovalInstance =>
+      'You can remove it any time from the VM\'s metadata: look for the entry commented \'lightweight-cloud-connector\'.';
+
+  @override
+  String get sshConsentRemovalOsLogin =>
+      'The key is stored on your account, not in any VM\'s metadata, so removing it from a VM will not work. Remove it from your account\'s OS Login keys instead (`gcloud compute os-login ssh-keys list` / `remove`); it is the one commented \'lightweight-cloud-connector\'.';
+
+  @override
+  String get sshConsentAllow => 'Authorise';
+
+  @override
+  String get sshConsentDeny => 'Not now';
+
+  @override
+  String get sshConsentDenied =>
+      'LCC is not authorised to add an SSH key to this project, so SSH, SFTP and port forwards are unavailable. Ask an administrator to authorise your key on the VM, or open the port to 35.235.240.0/20 in the firewall and use a direct (IAP) tunnel instead.';
+
+  @override
+  String get gcloudCommandTitle => 'Run this in a terminal';
+
+  @override
+  String get gcloudCommandCopy => 'Copy command';
+
+  @override
+  String get gcloudCommandCopied => 'Command copied';
+
+  @override
+  String get gcloudCommandRefresh => 'I ran it — refresh';
+
+  @override
+  String get gcloudCommandAddExplanation =>
+      'With the gcloud sign-in method selected, LCC does not sign in for you: gcloud keeps its own session and you maintain it.';
+
+  @override
+  String get gcloudCommandRemoveExplanation =>
+      'With the gcloud sign-in method selected, LCC does not revoke gcloud\'s credentials. Revoking is done with gcloud itself.';
+
+  @override
+  String get engineNoticeTitle => 'LCC now signs in on its own';
+
+  @override
+  String get engineNoticeBody =>
+      'LCC no longer needs the gcloud CLI to sign in: it opens your browser and keeps its own session. If you would rather keep using gcloud\'s session, choose it under Sign-in method in Settings — your gcloud accounts are still there.';
+
+  @override
+  String get engineNoticeGotIt => 'Got it';
+
+  @override
+  String get engineNoticeOpenSettings => 'Open Settings';
 }

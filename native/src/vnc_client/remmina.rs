@@ -1,4 +1,5 @@
 use super::utils::*;
+use crate::child_reaper::SpawnReaped;
 use super::VncSettings;
 use std::fs::File;
 use std::io::Write;
@@ -31,7 +32,7 @@ pub fn launch(port: u16, instance_name: &str, settings: &VncSettings) -> Result<
             .arg(path)
             .stdout(Stdio::null())
             .stderr(Stdio::null())
-            .spawn();
+            .spawn_reaped();
 
         if native.is_ok() {
             tracing::info!("Native Remmina launched successfully");
@@ -50,7 +51,7 @@ pub fn launch(port: u16, instance_name: &str, settings: &VncSettings) -> Result<
             .arg("@@")
             .stdout(Stdio::inherit())
             .stderr(Stdio::inherit())
-            .spawn();
+            .spawn_reaped();
 
         if flatpak.is_ok() {
             tracing::info!("Flatpak Remmina launched (file mode)");
@@ -68,7 +69,7 @@ pub fn launch(port: u16, instance_name: &str, settings: &VncSettings) -> Result<
         .args(["run", "org.remmina.Remmina", "-c", &uri])
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
-        .spawn();
+        .spawn_reaped();
 
     match flatpak_uri {
         Ok(_) => {
@@ -99,9 +100,14 @@ fn create_remmina_config(
         instance_name, port, quality, viewonly
     );
 
-    // Add password if provided
-    if let Some(p) = &settings.password {
-        content.push_str(&format!("password={}\n", p));
+    // SECURITY: the VNC password is intentionally NOT written to the config
+    // file. Remmina prompts for it at connection time, so no plaintext
+    // credential is persisted to disk (matches the RDP path and FreeRDP).
+    if settings.password.is_some() {
+        tracing::info!(
+            "Password provided but not stored in Remmina VNC config for security; \
+             Remmina will prompt for it at connection time."
+        );
     }
 
     // Add display settings

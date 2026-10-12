@@ -1,13 +1,11 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../bridge/api.dart/api.dart';
-import '../bridge/api.dart/gcloud.dart';
 import '../bridge/api.dart/gcp_rest_client.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 
 /// Dialog to manually add an instance by project, zone, and name.
-/// First tries REST API, then falls back to gcloud CLI.
+/// Looks up an instance via the REST API.
 class ManualInstanceDialog extends ConsumerStatefulWidget {
   const ManualInstanceDialog({super.key});
 
@@ -60,7 +58,7 @@ class _ManualInstanceDialogState extends ConsumerState<ManualInstanceDialog> {
     final zone = _zoneController.text.trim();
     final instanceName = _instanceController.text.trim();
 
-    // First try REST API (Client Libraries)
+    // Look up the instance via the REST API.
     try {
       final instance = await getInstanceClientLib(
         projectId: projectId,
@@ -71,37 +69,6 @@ class _ManualInstanceDialogState extends ConsumerState<ManualInstanceDialog> {
       setState(() {
         _foundInstance = instance;
         _usedMethod = 'REST API';
-        _isLoading = false;
-      });
-      return;
-    } catch (e) {
-      // REST API failed, try gcloud CLI as fallback
-      debugPrint('REST API failed: $e, trying gcloud CLI...');
-    }
-
-    // Fallback to gcloud CLI
-    try {
-      final gcloudInstance = await getInstanceGcloud(
-        projectId: projectId,
-        zone: zone,
-        instanceName: instanceName,
-      );
-
-      // Convert GcpInstance to GcpInstanceClientLib for consistency
-      setState(() {
-        _foundInstance = GcpInstanceClientLib(
-          name: gcloudInstance.name,
-          status: gcloudInstance.status,
-          zone: gcloudInstance.zone,
-          machineType: gcloudInstance.machineType,
-          cpuCount: gcloudInstance.cpuCount,
-          memoryMb: gcloudInstance.memoryMb,
-          diskGb: gcloudInstance.diskGb,
-          labels: const [],
-          osLoginEnabled: false,
-          isWindows: false,
-        );
-        _usedMethod = 'gcloud CLI';
         _isLoading = false;
       });
     } catch (e) {
@@ -129,7 +96,13 @@ class _ManualInstanceDialogState extends ConsumerState<ManualInstanceDialog> {
         children: [
           Icon(Icons.add_circle_outline, color: Colors.blue.shade700),
           const SizedBox(width: 8),
-          Text(l10n.manualInstanceTitle),
+          Expanded(
+            child: Text(
+              l10n.manualInstanceTitle,
+              overflow: TextOverflow.ellipsis,
+              maxLines: 1,
+            ),
+          ),
         ],
       ),
       content: SizedBox(

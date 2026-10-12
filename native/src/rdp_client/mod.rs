@@ -2,7 +2,6 @@ pub mod remmina;
 pub mod freerdp;
 pub mod krdc;
 pub mod gnome_connections;
-pub mod mstsc;
 pub mod utils;
 
 use anyhow::{Result, anyhow};
@@ -18,7 +17,6 @@ pub enum RdpClientType {
     FreeRdp,
     Krdc,
     GnomeConnections,
-    Mstsc,
 }
 
 impl RdpClientType {
@@ -29,27 +27,22 @@ impl RdpClientType {
             RdpClientType::FreeRdp => "FreeRDP (xfreerdp)",
             RdpClientType::Krdc => "KRDC",
             RdpClientType::GnomeConnections => "GNOME Connections",
-            RdpClientType::Mstsc => "Microsoft Remote Desktop (mstsc)",
         }
     }
 
-    /// Get default fallback priority order
+    /// Get default fallback priority order.
+    ///
+    /// No Windows branch: LCC has no Windows build — no CI job, no packaging
+    /// script — so `mstsc` was an option that could only ever render greyed
+    /// out, backed by a launcher that returned "only supported on Windows".
+    /// If Windows becomes a target, this list grows again.
     pub fn fallback_order() -> Vec<RdpClientType> {
-        #[cfg(target_os = "windows")]
-        {
-            vec![
-                RdpClientType::Mstsc,        // Windows native
-            ]
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            vec![
-                RdpClientType::Remmina,      // Most feature-complete
-                RdpClientType::FreeRdp,      // Widely available, CLI-based
-                RdpClientType::Krdc,         // KDE default
-                RdpClientType::GnomeConnections, // GNOME default
-            ]
-        }
+        vec![
+            RdpClientType::Remmina,      // Most feature-complete
+            RdpClientType::FreeRdp,      // Widely available, CLI-based
+            RdpClientType::Krdc,         // KDE default
+            RdpClientType::GnomeConnections, // GNOME default
+        ]
     }
 
     /// Check if this client is available on the system
@@ -59,7 +52,6 @@ impl RdpClientType {
             RdpClientType::FreeRdp => freerdp::is_available(),
             RdpClientType::Krdc => krdc::is_available(),
             RdpClientType::GnomeConnections => gnome_connections::is_available(),
-            RdpClientType::Mstsc => mstsc::is_available(),
         }
     }
 }
@@ -92,12 +84,7 @@ impl Default for RdpSettings {
             fullscreen: false,
             // SECURITY: Default to validating certificates
             ignore_certificate: false,
-            // Default to Mstsc on Windows, Remmina elsewhere
-            client_type: if cfg!(target_os = "windows") {
-                RdpClientType::Mstsc
-            } else {
-                RdpClientType::Remmina
-            },
+            client_type: RdpClientType::Remmina,
         }
     }
 }
@@ -197,7 +184,6 @@ fn try_launch_client(
         RdpClientType::FreeRdp => freerdp::launch(port, instance_name, settings),
         RdpClientType::Krdc => krdc::launch(port, instance_name, settings),
         RdpClientType::GnomeConnections => gnome_connections::launch(port, instance_name, settings),
-        RdpClientType::Mstsc => mstsc::launch(port, instance_name, settings),
     }
 }
 
@@ -208,26 +194,28 @@ mod tests {
     #[test]
     fn test_fallback_order() {
         let order = RdpClientType::fallback_order();
-        #[cfg(target_os = "windows")]
-        {
-            assert_eq!(order[0], RdpClientType::Mstsc);
-            assert_eq!(order.len(), 1);
-        }
-        #[cfg(not(target_os = "windows"))]
-        {
-            assert_eq!(order[0], RdpClientType::Remmina);
-            assert_eq!(order.len(), 4);
+        assert_eq!(order[0], RdpClientType::Remmina);
+        assert_eq!(order.len(), 4);
+    }
+
+    /// Every client offered can actually run on a platform LCC ships for.
+    /// `mstsc` could not: it was listed, greyed out forever, and its launcher
+    /// returned an error by construction off Windows.
+    #[test]
+    fn no_client_is_offered_that_this_build_cannot_launch() {
+        for client in RdpClientType::fallback_order() {
+            assert!(
+                !client.display_name().to_lowercase().contains("mstsc"),
+                "{} cannot launch on any platform LCC builds for",
+                client.display_name()
+            );
         }
     }
 
     #[test]
     fn test_rdp_settings_default() {
         let settings = RdpSettings::default();
-        #[cfg(target_os = "windows")]
-        assert_eq!(settings.client_type, RdpClientType::Mstsc);
-        #[cfg(not(target_os = "windows"))]
         assert_eq!(settings.client_type, RdpClientType::Remmina);
-        
         assert_eq!(settings.fullscreen, false);
         assert_eq!(settings.ignore_certificate, false);
     }

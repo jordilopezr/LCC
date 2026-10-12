@@ -72,6 +72,7 @@ native/target/
 !README.es.md
 !NEXT_STEPS.md
 !CHANGELOG.md
+!SECURITY.md
 !docs/**/*.md
 
 # AI Agents & Tools
@@ -92,3 +93,8 @@ native/target/
 
 # Agent workflow scratch (task briefs, reports, review diffs, progress ledger)
 /.superpowers/
+
+# The OAuth client secret is supplied at build time, never committed: a secret
+# in a public repository is one that credential scanners find and providers
+# revoke. See native/build.rs.
+native/oauth_client_secret.txt

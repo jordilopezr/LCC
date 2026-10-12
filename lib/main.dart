@@ -1,31 +1,34 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:window_manager/window_manager.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import 'src/bridge/api.dart/api.dart';
 import 'src/bridge/api.dart/gcloud.dart';
-import 'src/bridge/api.dart/rdp_client.dart';
-import 'src/bridge/api.dart/vnc_client.dart';
 import 'src/bridge/api.dart/frb_generated.dart';
 import 'src/features/gcloud_provider.dart';
-import 'src/features/sftp_browser.dart';
+import 'src/features/dashboard_gate.dart';
+import 'src/features/keyring_problem_screen.dart';
 import 'src/features/settings_dialog.dart';
 import 'src/features/settings_provider.dart';
 import 'src/features/diagnostics_panel.dart';
 import 'src/features/connectivity_doctor.dart';
-import 'src/features/database_connection_panel.dart';
 import 'src/features/windows_credentials_dialog.dart';
-import 'src/features/windows_credentials_provider.dart';
-import 'src/features/sshfs_mount_dialog.dart';
 import 'src/features/sshfs_mount_provider.dart';
 import 'src/features/manual_instance_dialog.dart';
 import 'src/features/account_management_dialog.dart';
+import 'src/features/gcloud_command_dialog.dart';
 import 'src/features/tunnel_manager_dialog.dart';
 import 'src/features/snapshot_manager_dialog.dart';
 import 'src/features/snapshot_provider.dart';
 import 'src/features/gcp_session_banner.dart';
+import 'src/features/engine_change_notice.dart';
 import 'src/services/storage_service.dart';
 import 'src/services/notification_service.dart';
+import 'src/features/app_error.dart';
+import 'src/features/workspace/overview_tab.dart';
+import 'src/features/workspace/workspace_panel.dart';
+import 'src/features/workspace/workspace_provider.dart';
 import 'src/version.dart';
 
 /// Helper: Get all active tunnels for a given instance
@@ -52,12 +55,20 @@ bool hasAnyActiveTunnel(
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Intercept the window close button so we can warn about live SSH/SFTP
+  // sessions before the app actually exits (desktop platforms only).
+  if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+    await windowManager.ensureInitialized();
+    await windowManager.setPreventClose(true);
+  }
+
   await StorageService().init();
   await RustLib.init();
 
   // Initialize structured logging system
   try {
-    await initLoggingSystem();
+    await initLoggingSystem(appVersion: versionLine());
     debugPrint('✓ Logging system initialized');
   } catch (e) {
     debugPrint('⚠️  Failed to initialize logging: $e');
@@ -90,15 +101,128 @@ Future<void> main() async {
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends ConsumerWidget {
+class MyApp extends ConsumerStatefulWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends ConsumerState<MyApp> with WindowListener {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+      windowManager.addListener(this);
+    }
+  }
+
+  @override
+  void dispose() {
+    if (Platform.isLinux || Platform.isMacOS || Platform.isWindows) {
+      windowManager.removeListener(this);
+    }
+    super.dispose();
+  }
+
+  /// The single way this app exits, so that the log line below is on every
+  /// clean path out.
+  ///
+  /// A crash writes nothing — it cannot — which is what makes the line's
+  /// *absence* the evidence: a log that ends without "Shutting down" did not
+  /// end here. That distinction cost a debugging session once, when an exit
+  /// with live tunnels looked identical to a normal quit.
+  ///
+  /// `reason` names the branch, because the three are not equally interesting:
+  /// the one taken with live sessions is where the trouble was reported.
+  /// True once the exit is under way, so the line below is written once.
+  ///
+  /// `windowManager.destroy()` makes the close event fire again before the
+  /// process is gone, so this ran twice and logged twice — 5 ms apart, same
+  /// reason, same uptime. Only stderr showed it: `log_shutdown` drops the log
+  /// writer's guard to force the flush, so the second line never reached the
+  /// file. A duplicate that only half the sinks can see is worse than either
+  /// a clean duplicate or none.
+  bool _closing = false;
+
+  Future<void> _closeApp(String reason) async {
+    if (_closing) return;
+    _closing = true;
+    try {
+      await logShutdown(reason: reason);
+    } catch (e) {
+      // Never let bookkeeping stop the user from closing the window.
+      debugPrint('Could not log the shutdown: $e');
+    }
+    await windowManager.destroy();
+  }
+
+  @override
+  void onWindowClose() async {
+    // Count what the close would actually interrupt. Sessions are the tabs
+    // that hold a tunnel of their own; tunnels are the ones opened from the
+    // manager, which nothing used to ask about because they outlived the app
+    // — a leak, since fixed. They die with it now, so they are asked about.
+    final sessions = ref.read(workspaceProvider.notifier).liveSessionCount;
+    final tunnels = activeTunnelCount(ref.read(activeConnectionsProvider));
+    final warning = closeWarning(sessions: sessions, tunnels: tunnels);
+
+    if (warning == CloseWarning.none) {
+      await _closeApp('window_close_idle');
+      return;
+    }
+
+    final context = _navigatorKey.currentContext;
+    if (context == null) {
+      // No context to show a dialog with — fall back to exiting.
+      await _closeApp('window_close_no_context');
+      return;
+    }
+
+    final l10n = AppLocalizations.of(context);
+    final message = switch (warning) {
+      CloseWarning.sessionsOnly => l10n.workspaceCloseWithSessions(sessions),
+      CloseWarning.tunnelsOnly => l10n.workspaceCloseWithTunnels(tunnels),
+      CloseWarning.both =>
+        l10n.workspaceCloseWithSessionsAndTunnels(sessions, tunnels),
+      CloseWarning.none => '', // unreachable: handled above
+    };
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(l10n.workspaceCloseTitle),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              l10n.workspaceCloseAnyway,
+              style: const TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _closeApp('window_close_confirmed_with_sessions');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final appThemeMode = ref.watch(themeModeProvider);
     final appLocale = ref.watch(localeProvider);
 
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: AppLocalizations.localizationsDelegates,
@@ -107,7 +231,11 @@ class MyApp extends ConsumerWidget {
       themeMode: _toThemeMode(appThemeMode),
       theme: _buildLightTheme(),
       darkTheme: _buildDarkTheme(),
-      home: const DashboardScreen(),
+      builder: (context, child) {
+        NotificationService().updateLocalizations(AppLocalizations.of(context));
+        return child ?? const SizedBox.shrink();
+      },
+      home: const _EngineChangeNoticeHost(child: DashboardScreen()),
     );
   }
 
@@ -159,6 +287,33 @@ class MyApp extends ConsumerWidget {
       scaffoldBackgroundColor: const Color(0xFF121212),
     );
   }
+}
+
+/// Wraps [DashboardScreen] just to fire [maybeShowEngineChangeNotice] after
+/// the first frame. It sits under the [Navigator] `MaterialApp` builds (so
+/// `showDialog` has somewhere to go) and mounts regardless of sign-in state
+/// — after an upgrade the user lands on the login screen, and that is
+/// exactly when the notice needs to appear.
+class _EngineChangeNoticeHost extends StatefulWidget {
+  const _EngineChangeNoticeHost({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_EngineChangeNoticeHost> createState() => _EngineChangeNoticeHostState();
+}
+
+class _EngineChangeNoticeHostState extends State<_EngineChangeNoticeHost> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) maybeShowEngineChangeNotice(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class DashboardScreen extends ConsumerWidget {
@@ -319,7 +474,11 @@ class DashboardScreen extends ConsumerWidget {
           Expanded(
             child: statusAsync.when(
         data: (status) {
-          if (status['installed'] != true) {
+          final gate = dashboardGateFor(status);
+          // Only the gcloud engine needs gcloud on disk; under the native
+          // engine this screen would hide a working session (no project
+          // list, no instances, no workspace).
+          if (gate == DashboardGate.gcloudRequired) {
             return Center(
               child: SingleChildScrollView(
                 child: Padding(
@@ -410,24 +569,63 @@ class DashboardScreen extends ConsumerWidget {
               ),
             );
           }
-          if (status['authenticated'] != true) {
+          // NOT COVERED BY ANY TEST (checked by mutation): disabling this
+          // branch leaves the suite green. The order is tested in
+          // dashboardGateFor and the screen on its own; this wiring is covered
+          // only by the QA with the keyring down or locked.
+          if (gate == DashboardGate.keyring) {
+            return KeyringProblemScreen(
+              problem: keyringProblemIn(status)!,
+              onCheckAgain: () {
+                // The status, not the project list: invalidating the status
+                // re-arms Riverpod's retries; invalidating projectsProvider
+                // alone gets one attempt and no retries (measured).
+                // With the unlock prompt still open, this shows the spinner
+                // for about 3 s and comes back to the same Pending screen:
+                // the check joins the read still waiting on that prompt
+                // instead of opening another one. That is correct.
+                ref.invalidate(gcloudStatusProvider);
+                ref.invalidate(multiProjectProvider);
+              },
+            );
+          }
+          if (gate == DashboardGate.signIn) {
             return Center(
               child: ElevatedButton.icon(
                 onPressed: () async {
+                  if (await engineFor(slot: 'auth') == 'gcloud') {
+                    if (!context.mounted) return;
+                    await showGcloudCommandDialog(
+                      context,
+                      command: 'gcloud auth login',
+                      explanation: l10n.gcloudCommandAddExplanation,
+                      onRefresh: () async {
+                        ref.invalidate(gcloudStatusProvider);
+                        ref.invalidate(multiProjectProvider);
+                      },
+                    );
+                    return;
+                  }
                   try {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text(l10n.dashboardLaunchingBrowserLogin),
                       ),
                     );
-                    await gcloudLogin();
+                    await reauthenticate();
                     ref.invalidate(gcloudStatusProvider);
                     // Invalidate multi-project provider to reload instances after login
                     ref.invalidate(multiProjectProvider);
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text(l10n.dashboardLoginFailed('$e'))),
+                        SnackBar(
+                          content: Text(
+                            l10n.dashboardLoginFailed(
+                              localizedError(l10n, e, standalone: false),
+                            ),
+                          ),
+                        ),
                       );
                     }
                   }
@@ -442,12 +640,16 @@ class DashboardScreen extends ConsumerWidget {
             children: [
               SizedBox(width: 300, child: ResourceTree()),
               VerticalDivider(width: 1),
-              Expanded(child: InstanceDetailPane()),
+              Expanded(child: WorkspacePanel()),
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text(l10n.commonErrorPrefix('$err'))),
+        error: (err, _) => Center(
+          child: Text(
+            l10n.commonErrorPrefix(localizedError(l10n, err, standalone: false)),
+          ),
+        ),
             ), // statusAsync.when
           ),   // Expanded
         ],
@@ -540,7 +742,9 @@ class DashboardScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.appExportLogsFailed('$e')),
+            content: Text(
+              l10n.appExportLogsFailed(localizedError(l10n, e, standalone: false)),
+            ),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
@@ -618,7 +822,13 @@ class DashboardScreen extends ConsumerWidget {
           if (context.mounted) {
             ScaffoldMessenger.of(
               context,
-            ).showSnackBar(SnackBar(content: Text(l10n.appLogoutError('$e'))));
+            ).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.appLogoutError(localizedError(l10n, e, standalone: false)),
+            ),
+          ),
+        );
           }
         }
       } else if (result == 'all' && context.mounted) {
@@ -656,7 +866,7 @@ class DashboardScreen extends ConsumerWidget {
   Future<void> _performFullLogout(BuildContext context, WidgetRef ref) async {
     final l10n = AppLocalizations.of(context);
     try {
-      await gcloudLogout();
+      await logOutAll();
       await StorageService().clearSessionData();
       ref.invalidate(gcloudStatusProvider);
       ref.invalidate(activeConnectionsProvider);
@@ -675,7 +885,13 @@ class DashboardScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text(l10n.appLogoutError('$e'))));
+        ).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n.appLogoutError(localizedError(l10n, e, standalone: false)),
+            ),
+          ),
+        );
       }
     }
   }
@@ -1066,24 +1282,27 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
         ),
         const SizedBox(height: 8),
         // Filters row
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
           child: Row(
             children: [
-              _buildFilterChip('All', l10n.dashboardFilterAll),
-              const SizedBox(width: 8),
-              _buildFilterChip('RUNNING', 'RUNNING'),
-              const SizedBox(width: 8),
-              _buildFilterChip('STOPPED', 'STOPPED'),
-              const SizedBox(width: 8),
-              _buildFilterChip('SUSPENDED', 'SUSPENDED'),
+              // Status filters as compact icon toggles (hover for the label).
+              // Replaces the old text chips, which overflowed the narrow sidebar.
+              _buildFilterIconButton(
+                  'All', Icons.select_all, l10n.dashboardFilterAll, Colors.blueGrey),
+              _buildFilterIconButton('RUNNING', Icons.play_circle,
+                  l10n.dashboardFilterRunning, Colors.green),
+              _buildFilterIconButton('STOPPED', Icons.stop_circle,
+                  l10n.dashboardFilterStopped, Colors.redAccent),
+              _buildFilterIconButton('SUSPENDED', Icons.pause_circle,
+                  l10n.dashboardFilterSuspended, Colors.orange),
               // Project filter dropdown (only if multiple projects)
               if (multiProjectState.selectedProjectIds.length > 1) ...[
-                const SizedBox(width: 12),
+                const SizedBox(width: 4),
                 const VerticalDivider(width: 1),
-                const SizedBox(width: 8),
-                _buildProjectFilterDropdown(multiProjectState, l10n),
+                const SizedBox(width: 4),
+                Flexible(
+                    child: _buildProjectFilterDropdown(multiProjectState, l10n)),
               ],
             ],
           ),
@@ -1153,26 +1372,38 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
     );
   }
 
-  Widget _buildFilterChip(String label, String displayLabel) {
+  /// Compact status-filter toggle rendered as an icon with a hover tooltip.
+  /// Selected state shows a filled accent background; unselected shows the
+  /// status color. Icons keep the filter row inside the narrow sidebar where
+  /// the old text chips overflowed.
+  Widget _buildFilterIconButton(
+      String label, IconData icon, String tooltip, Color color) {
     final isSelected = _filterStatus == label;
-    return FilterChip(
-      label: Text(
-        displayLabel,
-        style: TextStyle(
-          fontSize: 12,
-          color: isSelected ? Colors.white : Colors.black87,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2.0),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          color: isSelected ? Colors.blueAccent : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              setState(() {
+                _filterStatus = label;
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(6.0),
+              child: Icon(
+                icon,
+                size: 22,
+                color: isSelected ? Colors.white : color,
+              ),
+            ),
+          ),
         ),
       ),
-      selected: isSelected,
-      onSelected: (bool selected) {
-        setState(() {
-          _filterStatus = label;
-        });
-      },
-      checkmarkColor: Colors.white,
-      selectedColor: Colors.blueAccent,
-      visualDensity: VisualDensity.compact,
-      padding: EdgeInsets.zero,
     );
   }
 
@@ -1459,6 +1690,7 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
                     ref
                         .read(multiProjectSelectedInstanceProvider.notifier)
                         .select(pai);
+                    ref.read(workspaceProvider.notifier).openOverview(pai);
                   },
                 );
               }).toList(),
@@ -1748,6 +1980,7 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
                   ref
                       .read(multiProjectSelectedInstanceProvider.notifier)
                       .select(pai);
+                  ref.read(workspaceProvider.notifier).openOverview(pai);
                 },
               ),
             );
@@ -1755,6 +1988,67 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
         );
       }).toList(),
     );
+  }
+
+  /// VNC from the right-click menu, saying so when no viewer appears.
+  ///
+  /// The Overview tab's own button opens a dialog with the Doctor in it; here
+  /// there is no dialog to hang one off, so the reason goes in a snack bar.
+  /// What must not happen is the press ending in silence, which is how a
+  /// project missing a firewall rule for 5900 looked for an afternoon.
+  ///
+  /// It takes a messenger and an `l10n` rather than a `BuildContext` on
+  /// purpose: it runs after the menu has been awaited, and reading either one
+  /// off a context on the far side of that gap is the mistake this signature
+  /// makes impossible.
+  Future<void> _launchVncFromMenu(
+    ScaffoldMessengerState messenger,
+    AppLocalizations l10n,
+    ConnectionsNotifier connections,
+    ProjectAwareInstance pai,
+  ) async {
+    // On the display remembered for this VM. With no display, the menu used
+    // to tunnel 5900 whatever the VM served on, and saved 0 over the user's.
+    final (launched, port) = await connections.launchVncRemembered(
+        pai.projectId, pai.zone, pai.name);
+    if (!launched) _showMenuLaunchFailure(messenger, l10n, pai.name, port);
+  }
+
+  /// RDP from the context menu, reported the same way as VNC: `launchRDP`
+  /// used to return in silence when its tunnel did not come up.
+  Future<void> _launchRdpFromMenu(
+    ScaffoldMessengerState messenger,
+    AppLocalizations l10n,
+    ConnectionsNotifier connections,
+    ProjectAwareInstance pai,
+  ) async {
+    final launched =
+        await connections.launchRDP(pai.projectId, pai.zone, pai.name);
+    if (!launched) _showMenuLaunchFailure(messenger, l10n, pai.name, 3389);
+  }
+
+  /// Why a launch from the context menu produced no client, read from the
+  /// tunnel entry on `remotePort`. A snack bar, because the menu has no dialog
+  /// to hang the Doctor off.
+  ///
+  /// NOT COVERED BY ANY TEST (checked by mutation): dropping the call to this
+  /// from either menu path leaves every test green, because no test pumps the
+  /// dashboard's context menu. The Overview buttons, which share the launch
+  /// functions, are covered.
+  void _showMenuLaunchFailure(
+    ScaffoldMessengerState messenger,
+    AppLocalizations l10n,
+    String instanceName,
+    int remotePort,
+  ) {
+    final failed = ref.read(activeConnectionsProvider)[
+        makeTunnelKey(instanceName, remotePort)];
+    messenger.showSnackBar(SnackBar(
+      content: Text(failed?.errorCode != null
+          ? tunnelErrorMessage(l10n, failed!.errorCode!, detail: failed.error)
+          : localizedError(l10n, failed?.error ?? '')),
+      duration: const Duration(seconds: 8),
+    ));
   }
 
   /// Show context menu on right-click for quick actions
@@ -1920,6 +2214,9 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
       ),
     );
 
+    // Captured before the menu is awaited: see _launchVncFromMenu.
+    final messenger = ScaffoldMessenger.of(context);
+
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -1931,7 +2228,9 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
       items: items,
     ).then((value) {
       if (value == null) return;
-      // Select the instance first
+      // Select the instance first so the chosen action targets it. A
+      // right-click action is not a "view this VM" gesture, so it must not
+      // open an Overview tab — only the row taps do that.
       ref.read(multiProjectSelectedInstanceProvider.notifier).select(pai);
 
       final connectionsNotifier = ref.read(activeConnectionsProvider.notifier);
@@ -1944,9 +2243,9 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
             instanceName: pai.name,
           );
         case 'rdp':
-          connectionsNotifier.launchRDP(pai.projectId, pai.zone, pai.name);
+          _launchRdpFromMenu(messenger, l10n, connectionsNotifier, pai);
         case 'vnc':
-          connectionsNotifier.launchVNC(pai.projectId, pai.zone, pai.name);
+          _launchVncFromMenu(messenger, l10n, connectionsNotifier, pai);
         case 'sftp':
           // Open SFTP via tunnel
           ScaffoldMessenger.of(
@@ -2042,29 +2341,13 @@ class _ResourceTreeState extends ConsumerState<ResourceTree> {
 class InstanceDetailPane extends ConsumerWidget {
   const InstanceDetailPane({super.key});
 
-  /// Get a consistent color for a project based on its ID
-  Color _getProjectColor(String projectId) {
-    final hash = projectId.hashCode;
-    final colors = [
-      Colors.blue,
-      Colors.green,
-      Colors.orange,
-      Colors.purple,
-      Colors.teal,
-      Colors.pink,
-      Colors.indigo,
-      Colors.amber,
-      Colors.cyan,
-      Colors.deepOrange,
-    ];
-    return colors[hash.abs() % colors.length];
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Use multi-project provider - ProjectAwareInstance contains both instance and projectId
+    // Thin wrapper kept for backward compatibility until the workspace panel
+    // (Task 7) replaces this in the root layout. The actual content now
+    // lives in OverviewTab, parameterized by an explicit target instead of
+    // reading the globally-selected instance here.
     final selectedInstance = ref.watch(multiProjectSelectedInstanceProvider);
-    final connections = ref.watch(activeConnectionsProvider);
     final l10n = AppLocalizations.of(context);
 
     if (selectedInstance == null) {
@@ -2083,2015 +2366,7 @@ class InstanceDetailPane extends ConsumerWidget {
       );
     }
 
-    // Get project ID from the ProjectAwareInstance
-    final selectedProject = selectedInstance.projectId;
-    final projectColor = _getProjectColor(selectedProject);
-
-    // Get ALL tunnels for this instance
-    final activeTunnels = getTunnelsForInstance(
-      connections,
-      selectedInstance.name,
-    );
-    final isConnected = activeTunnels.any((t) => t.value.status == 'connected');
-    final isConnecting = activeTunnels.any(
-      (t) => t.value.status == 'connecting',
-    );
-    // final errorTunnels = activeTunnels.where((t) => t.value.error != null).toList();
-    final isRunning = selectedInstance.status == "RUNNING";
-    final isSuspended = selectedInstance.status == "SUSPENDED";
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(24.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.computer, size: 48, color: Colors.blueAccent),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      selectedInstance.name,
-                      style: Theme.of(context).textTheme.headlineSmall,
-                    ),
-                    const SizedBox(height: 4),
-                    // Project indicator row
-                    Row(
-                      children: [
-                        Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: projectColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          selectedProject,
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade700,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(4),
-                            border: Border.all(color: Colors.grey.shade400),
-                          ),
-                          child: Text(
-                            selectedInstance.machineType,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontFamily: 'monospace',
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          "${selectedInstance.zone}  •  ${selectedInstance.status}",
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Instance Resources Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.blue.shade200),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.memory, size: 18, color: Colors.blue.shade700),
-                    const SizedBox(width: 8),
-                    Text(
-                      l10n.dashboardInstanceResourcesTitle,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.blue.shade900,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _ResourceChip(
-                        icon: Icons.developer_board,
-                        label: l10n.dashboardCpuLabel,
-                        value: selectedInstance.cpuCount != null
-                            ? l10n.dashboardVcpusValue(
-                                selectedInstance.cpuCount!,
-                              )
-                            : l10n.diagValueNa,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _ResourceChip(
-                        icon: Icons.memory,
-                        label: l10n.dashboardRamLabel,
-                        value: selectedInstance.memoryMb != null
-                            ? l10n.dashboardSizeGbValue(
-                                (selectedInstance.memoryMb! / 1024)
-                                    .toStringAsFixed(1),
-                              )
-                            : l10n.diagValueNa,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _ResourceChip(
-                        icon: Icons.storage,
-                        label: l10n.dashboardDiskLabel,
-                        value: selectedInstance.diskGb != null
-                            ? l10n.diagSizeGb(selectedInstance.diskGb!)
-                            : l10n.diagValueNa,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // OS Login & Windows indicators
-          if (selectedInstance.osLoginEnabled || selectedInstance.isWindows)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 4,
-                children: [
-                  if (selectedInstance.osLoginEnabled)
-                    Chip(
-                      avatar: Icon(
-                        Icons.security,
-                        size: 16,
-                        color: Colors.green.shade700,
-                      ),
-                      label: Text(
-                        l10n.dashboardOsLoginChip,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      backgroundColor: Colors.green.shade50,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  if (selectedInstance.isWindows)
-                    Chip(
-                      avatar: Icon(
-                        Icons.desktop_windows,
-                        size: 16,
-                        color: Colors.blue.shade700,
-                      ),
-                      label: const Text(
-                        'Windows',
-                        style: TextStyle(fontSize: 12),
-                      ),
-                      backgroundColor: Colors.blue.shade50,
-                      visualDensity: VisualDensity.compact,
-                    ),
-                ],
-              ),
-            ),
-
-          // Labels section
-          if (selectedInstance.labels.isNotEmpty) ...[
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.label_outline,
-                        size: 16,
-                        color: Colors.grey.shade700,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        l10n.diagLabelsTitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.grey.shade800,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 4,
-                    children: selectedInstance.labels.map((label) {
-                      return Chip(
-                        label: Text(
-                          '${label.$1}: ${label.$2}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            fontFamily: 'monospace',
-                          ),
-                        ),
-                        visualDensity: VisualDensity.compact,
-                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        padding: EdgeInsets.zero,
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-          ],
-
-          const SizedBox(height: 20),
-
-          // Show all active tunnels for this instance
-          if (activeTunnels.isNotEmpty) ...[
-            Text(
-              l10n.dashboardActiveTunnelsTitle,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            ...activeTunnels.map((tunnelEntry) {
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildTunnelDashboard(
-                  context,
-                  tunnelEntry.value,
-                  tunnelEntry.key,
-                  selectedInstance.name,
-                  ref,
-                ),
-              );
-            }),
-          ],
-
-          const SizedBox(height: 32),
-          Text(
-            l10n.dashboardActionsTitle,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-
-          Wrap(
-            spacing: 16.0,
-            runSpacing: 16.0,
-            children: [
-              _ActionButton(
-                icon: Icons.desktop_windows,
-                label: l10n.dashboardConnectRdpButton,
-                onPressed: (isRunning && !isConnecting)
-                    ? () async {
-                        final settings = await _showConnectionSettingsDialog(
-                          context,
-                          selectedInstance.name,
-                          ref,
-                        );
-                        if (settings != null) {
-                          ref
-                              .read(activeConnectionsProvider.notifier)
-                              .launchRDP(
-                                selectedProject,
-                                selectedInstance.zone,
-                                selectedInstance.name,
-                                settings: settings,
-                              );
-                          // Add to connection history
-                          ref
-                              .read(connectionHistoryProvider.notifier)
-                              .addEntry(
-                                ConnectionHistoryEntry(
-                                  instanceName: selectedInstance.name,
-                                  projectId: selectedProject,
-                                  zone: selectedInstance.zone,
-                                  connectionType: 'rdp',
-                                  timestamp: DateTime.now(),
-                                ),
-                              );
-                        }
-                      }
-                    : null,
-              ),
-              _ActionButton(
-                icon: Icons.remove_red_eye,
-                label: l10n.dashboardConnectVncButton,
-                backgroundColor: Colors.green.shade50,
-                foregroundColor: Colors.green.shade700,
-                onPressed: (isRunning && !isConnecting)
-                    ? () async {
-                        final settings = await _showVncConnectionSettingsDialog(
-                          context,
-                          selectedInstance.name,
-                          ref,
-                        );
-                        if (settings != null) {
-                          ref
-                              .read(activeConnectionsProvider.notifier)
-                              .launchVNC(
-                                selectedProject,
-                                selectedInstance.zone,
-                                selectedInstance.name,
-                                settings: settings,
-                              );
-                          // Add to connection history
-                          ref
-                              .read(connectionHistoryProvider.notifier)
-                              .addEntry(
-                                ConnectionHistoryEntry(
-                                  instanceName: selectedInstance.name,
-                                  projectId: selectedProject,
-                                  zone: selectedInstance.zone,
-                                  connectionType: 'vnc',
-                                  timestamp: DateTime.now(),
-                                ),
-                              );
-                        }
-                      }
-                    : null,
-              ),
-              _ActionButton(
-                icon: Icons.terminal,
-                label: l10n.dashboardConnectSshButton,
-                onPressed: (!isRunning || isConnecting)
-                    ? null
-                    : () async {
-                        try {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(l10n.dashboardLaunchingTerminal),
-                            ),
-                          );
-                          await launchSsh(
-                            projectId: selectedProject,
-                            zone: selectedInstance.zone,
-                            instanceName: selectedInstance.name,
-                          );
-                          // Add to connection history
-                          ref
-                              .read(connectionHistoryProvider.notifier)
-                              .addEntry(
-                                ConnectionHistoryEntry(
-                                  instanceName: selectedInstance.name,
-                                  projectId: selectedProject,
-                                  zone: selectedInstance.zone,
-                                  connectionType: 'ssh',
-                                  timestamp: DateTime.now(),
-                                ),
-                              );
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(l10n.dashboardSshError('$e'))),
-                            );
-                          }
-                        }
-                      },
-              ),
-              _ActionButton(
-                icon: Icons.folder_open,
-                label: l10n.dashboardOpenSftpButton,
-                onPressed: (!isRunning || isConnecting)
-                    ? null
-                    : () async {
-                        try {
-                          // Check for existing SSH tunnel (port 22)
-                          final activeTunnels = getTunnelsForInstance(
-                            connections,
-                            selectedInstance.name,
-                          );
-                          int? tunnelPort;
-
-                          // Look for a tunnel mapped to remote port 22
-                          for (var t in activeTunnels) {
-                            if (t.value.remotePort == 22 &&
-                                t.value.status == 'connected') {
-                              tunnelPort = t.value.port;
-                              break;
-                            }
-                          }
-
-                          if (tunnelPort == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(l10n.dashboardOpeningTunnelSftp),
-                              ),
-                            );
-                            // Create new tunnel to port 22
-                            final newPort = await ref
-                                .read(activeConnectionsProvider.notifier)
-                                .connect(
-                                  selectedProject,
-                                  selectedInstance.zone,
-                                  selectedInstance.name,
-                                  remotePort: 22,
-                                );
-
-                            if (newPort == null) {
-                              // Tunnel creation failed - provide explicit error feedback
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      l10n.dashboardSftpTunnelFailed,
-                                    ),
-                                    backgroundColor: Colors.red,
-                                    duration: const Duration(seconds: 8),
-                                    action: SnackBarAction(
-                                      label: l10n.commonRetry,
-                                      textColor: Colors.white,
-                                      onPressed: () {
-                                        // User can click to retry
-                                      },
-                                    ),
-                                  ),
-                                );
-                              }
-                              return; // Exit without opening dialog
-                            }
-
-                            tunnelPort = newPort;
-                          }
-
-                          // At this point, tunnelPort is guaranteed to be non-null
-                          if (context.mounted) {
-                            // Get current username
-                            final username = await getUsername();
-
-                            if (context.mounted) {
-                              // Add to connection history
-                              ref
-                                  .read(connectionHistoryProvider.notifier)
-                                  .addEntry(
-                                    ConnectionHistoryEntry(
-                                      instanceName: selectedInstance.name,
-                                      projectId: selectedProject,
-                                      zone: selectedInstance.zone,
-                                      connectionType: 'sftp',
-                                      timestamp: DateTime.now(),
-                                    ),
-                                  );
-                              // Open integrated SFTP browser dialog
-                              showDialog(
-                                context: context,
-                                builder: (ctx) => SftpBrowserDialog(
-                                  host: 'localhost',
-                                  port:
-                                      tunnelPort!, // Safe: checked for null above
-                                  username: username,
-                                  instanceName: selectedInstance.name,
-                                ),
-                              );
-                            }
-                          }
-                        } on StateError catch (e) {
-                          // State management errors (Riverpod/Provider issues)
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(l10n.dashboardStateError('$e')),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 6),
-                              ),
-                            );
-                          }
-                        } on Exception catch (e) {
-                          // Expected runtime errors (network, permissions, etc.)
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  l10n.dashboardSftpBrowserFailed('$e'),
-                                ),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 5),
-                              ),
-                            );
-                          }
-                        } catch (e, stackTrace) {
-                          // Unexpected errors - these are bugs that need fixing!
-                          debugPrint("═══ UNEXPECTED SFTP ERROR ═══");
-                          debugPrint("Error: $e");
-                          debugPrint("Type: ${e.runtimeType}");
-                          debugPrint("Stack: $stackTrace");
-                          debugPrint("════════════════════════════");
-
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(l10n.dashboardUnexpectedError),
-                                backgroundColor: Colors.red,
-                                duration: const Duration(seconds: 8),
-                              ),
-                            );
-                          }
-                        }
-                      },
-              ),
-              _ActionButton(
-                icon: Icons.settings_ethernet,
-                label: l10n.dashboardCustomTunnelButton,
-                backgroundColor: Colors.purple.shade50,
-                foregroundColor: Colors.purple.shade700,
-                onPressed: (!isRunning || isConnecting)
-                    ? null
-                    : () async {
-                        final selectedPort = await _showCustomTunnelDialog(
-                          context,
-                        );
-                        if (selectedPort != null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                l10n.dbCreatingTunnel(selectedPort),
-                              ),
-                            ),
-                          );
-                          await ref
-                              .read(activeConnectionsProvider.notifier)
-                              .connect(
-                                selectedProject,
-                                selectedInstance.zone,
-                                selectedInstance.name,
-                                remotePort: selectedPort,
-                              );
-                        }
-                      },
-              ),
-              // Database connection button (Sprint 4) — Pro only
-              _ActionButton(
-                icon: Icons.storage,
-                label: l10n.dashboardDatabaseButton,
-                backgroundColor: Colors.deepPurple.shade50,
-                foregroundColor: Colors.deepPurple.shade700,
-                onPressed: (isRunning && !isConnecting)
-                    ? () {
-                        showDatabaseConnectionPanel(
-                          context,
-                          projectId: selectedProject,
-                          zone: selectedInstance.zone,
-                          instanceName: selectedInstance.name,
-                        );
-                      }
-                    : null,
-              ),
-              // SSHFS Mount button (Sprint 6) — Pro only
-              if (!Platform.isWindows)
-                _ActionButton(
-                  icon: Icons.folder_shared,
-                  label: l10n.dashboardMenuMountSshfs,
-                  backgroundColor: Colors.teal.shade50,
-                  foregroundColor: Colors.teal.shade700,
-                  onPressed: (isRunning && !isConnecting)
-                      ? () async {
-                          // Check for existing SSH tunnel (port 22)
-                          final activeTunnels = getTunnelsForInstance(
-                            connections,
-                            selectedInstance.name,
-                          );
-                          int? tunnelPort;
-
-                          // Look for an existing SSH tunnel
-                          for (final tunnel in activeTunnels) {
-                            if (tunnel.value.remotePort == 22 &&
-                                tunnel.value.status == 'connected') {
-                              tunnelPort = tunnel.value.port;
-                              break;
-                            }
-                          }
-
-                          // If no SSH tunnel exists, create one
-                          if (tunnelPort == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  l10n.dashboardCreatingSshTunnelSshfs,
-                                ),
-                              ),
-                            );
-                            final newPort = await ref
-                                .read(activeConnectionsProvider.notifier)
-                                .connect(
-                                  selectedProject,
-                                  selectedInstance.zone,
-                                  selectedInstance.name,
-                                  remotePort: 22,
-                                );
-                            if (newPort == null) {
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(
-                                    content: Text(
-                                      l10n.dashboardSshfsTunnelFailed,
-                                    ),
-                                    backgroundColor: Colors.red,
-                                  ),
-                                );
-                              }
-                              return;
-                            }
-                            tunnelPort = newPort;
-                          }
-
-                          if (context.mounted && tunnelPort != null) {
-                            showSshfsMountDialog(
-                              context,
-                              ref: ref,
-                              projectId: selectedProject,
-                              zone: selectedInstance.zone,
-                              instanceName: selectedInstance.name,
-                              tunnelPort: tunnelPort,
-                            );
-                          }
-                        }
-                      : null,
-                ),
-              // Windows Password button (Sprint 5) — Pro only
-              _ActionButton(
-                icon: Icons.vpn_key,
-                label: l10n.winCredTitle,
-                backgroundColor: Colors.blue.shade50,
-                foregroundColor: Colors.blue.shade700,
-                onPressed: (isRunning && !isConnecting)
-                    ? () {
-                        showWindowsCredentialsDialog(
-                          context,
-                          ref: ref,
-                          projectId: selectedProject,
-                          zone: selectedInstance.zone,
-                          instanceName: selectedInstance.name,
-                        );
-                      }
-                    : null,
-              ),
-              // Diagnostics button (Sprint 3) — Pro only
-              _ActionButton(
-                icon: Icons.build_circle_outlined,
-                label: l10n.diagTabDiagnostics,
-                backgroundColor: Colors.orange.shade50,
-                foregroundColor: Colors.orange.shade700,
-                onPressed: (true)
-                    ? () {
-                        showDiagnosticsPanel(
-                          context,
-                          projectId: selectedProject,
-                          zone: selectedInstance.zone,
-                          instanceName: selectedInstance.name,
-                        );
-                      }
-                    : null,
-              ),
-              // Connectivity Doctor button (Sprint 7) — Pro only
-              _ActionButton(
-                icon: Icons.medical_services_outlined,
-                label: l10n.dashboardMenuDoctor,
-                backgroundColor: Colors.teal.shade50,
-                foregroundColor: Colors.teal.shade700,
-                onPressed: (true)
-                    ? () {
-                        showConnectivityDoctor(
-                          context,
-                          projectId: selectedProject,
-                          zone: selectedInstance.zone,
-                          instanceName: selectedInstance.name,
-                        );
-                      }
-                    : null,
-              ),
-              _ActionButton(
-                icon: Icons.camera_alt_outlined,
-                label: l10n.snapshotTabList,
-                backgroundColor: Colors.indigo.shade50,
-                foregroundColor: Colors.indigo.shade700,
-                onPressed: (true)
-                    ? () {
-                        showSnapshotManager(
-                          context,
-                          projectId: selectedProject,
-                          zone: selectedInstance.zone,
-                          instanceName: selectedInstance.name,
-                        );
-                      }
-                    : null,
-              ),
-              _ActionButton(
-                icon: isConnected ? Icons.link_off : Icons.network_check,
-                label: isConnected
-                    ? l10n.dashboardDisconnectAllTunnelsButton
-                    : l10n.dashboardTestIapConnectionButton,
-                backgroundColor: isConnected
-                    ? Colors.red.shade50
-                    : Colors.blue.shade50,
-                foregroundColor: isConnected
-                    ? Colors.red
-                    : Colors.blue.shade700,
-                onPressed: (isConnecting)
-                    ? null
-                    : () async {
-                        if (isConnected) {
-                          await ref
-                              .read(activeConnectionsProvider.notifier)
-                              .disconnectAllForInstance(selectedInstance.name);
-                        } else {
-                          // Test IAP connectivity
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                l10n.dashboardTestingIapConnection,
-                              ),
-                              duration: const Duration(seconds: 2),
-                            ),
-                          );
-                          ref
-                              .read(activeConnectionsProvider.notifier)
-                              .connect(
-                                selectedProject,
-                                selectedInstance.zone,
-                                selectedInstance.name,
-                              );
-                        }
-                      },
-              ),
-              // VM Lifecycle Management buttons
-              _ActionButton(
-                icon: Icons.play_arrow,
-                label: l10n.dashboardStartInstanceButton,
-                backgroundColor: Colors.green.shade50,
-                foregroundColor: Colors.green.shade700,
-                onPressed: (isRunning || isConnecting)
-                    ? null
-                    : () async {
-                        try {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                l10n.dashboardStartingInstanceProgress,
-                              ),
-                            ),
-                          );
-                          await ref
-                              .read(activeConnectionsProvider.notifier)
-                              .startInstanceWithMethod(
-                                selectedProject,
-                                selectedInstance.zone,
-                                selectedInstance.name,
-                              );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  l10n.clientTestInstanceStartedSuccess,
-                                ),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  l10n.dashboardStartInstanceFailed('$e'),
-                                ),
-                              ),
-                            );
-                          }
-                        }
-                      },
-              ),
-              _ActionButton(
-                icon: Icons.stop,
-                label: l10n.dashboardStopInstanceButton,
-                backgroundColor: Colors.orange.shade50,
-                foregroundColor: Colors.orange.shade700,
-                onPressed: (!isRunning || isConnecting)
-                    ? null
-                    : () async {
-                        final confirmed = await _showConfirmationDialog(
-                          context,
-                          title: l10n.dashboardStopInstanceButton,
-                          message: l10n.dashboardStopInstanceConfirm(
-                            selectedInstance.name,
-                          ),
-                          confirmText: l10n.dashboardMenuStop,
-                          isDestructive: true,
-                        );
-                        if (confirmed == true) {
-                          try {
-                            // Disconnect all tunnels first
-                            await ref
-                                .read(activeConnectionsProvider.notifier)
-                                .disconnectAllForInstance(
-                                  selectedInstance.name,
-                                );
-
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.dashboardStoppingInstanceProgress,
-                                  ),
-                                ),
-                              );
-                            }
-
-                            await ref
-                                .read(activeConnectionsProvider.notifier)
-                                .stopInstanceWithMethod(
-                                  selectedProject,
-                                  selectedInstance.zone,
-                                  selectedInstance.name,
-                                );
-
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.clientTestInstanceStoppedSuccess,
-                                  ),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.dashboardStopInstanceFailed('$e'),
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      },
-              ),
-              _ActionButton(
-                icon: Icons.restart_alt,
-                label: l10n.dashboardResetInstanceButton,
-                backgroundColor: Colors.red.shade50,
-                foregroundColor: Colors.red.shade700,
-                onPressed: (!isRunning || isConnecting)
-                    ? null
-                    : () async {
-                        final confirmed = await _showConfirmationDialog(
-                          context,
-                          title: l10n.dashboardResetInstanceButton,
-                          message: l10n.dashboardResetInstanceConfirm(
-                            selectedInstance.name,
-                          ),
-                          confirmText: l10n.dashboardMenuReset,
-                          isDestructive: true,
-                        );
-                        if (confirmed == true) {
-                          try {
-                            // Disconnect all tunnels first
-                            await ref
-                                .read(activeConnectionsProvider.notifier)
-                                .disconnectAllForInstance(
-                                  selectedInstance.name,
-                                );
-
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.dashboardResettingInstanceProgress,
-                                  ),
-                                ),
-                              );
-                            }
-
-                            await ref
-                                .read(activeConnectionsProvider.notifier)
-                                .resetInstanceWithMethod(
-                                  selectedProject,
-                                  selectedInstance.zone,
-                                  selectedInstance.name,
-                                );
-
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.clientTestInstanceResetSuccess,
-                                  ),
-                                ),
-                              );
-                              // Wait a bit before refreshing to allow GCP to update status
-                              await Future.delayed(const Duration(seconds: 3));
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.dashboardResetInstanceFailed('$e'),
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      },
-              ),
-              // Suspend Instance button (Sprint 10)
-              _ActionButton(
-                icon: Icons.pause_circle_outline,
-                label: l10n.dashboardSuspendInstanceButton,
-                backgroundColor: Colors.amber.shade50,
-                foregroundColor: Colors.amber.shade800,
-                onPressed: (!isRunning || isConnecting)
-                    ? null
-                    : () async {
-                        final confirmed = await _showConfirmationDialog(
-                          context,
-                          title: l10n.dashboardSuspendInstanceButton,
-                          message: l10n.dashboardSuspendInstanceConfirm(
-                            selectedInstance.name,
-                          ),
-                          confirmText: l10n.dashboardMenuSuspend,
-                          isDestructive: false,
-                        );
-                        if (confirmed == true) {
-                          try {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.dashboardSuspendingInstanceProgress,
-                                  ),
-                                ),
-                              );
-                            }
-
-                            await ref
-                                .read(activeConnectionsProvider.notifier)
-                                .suspendInstanceWithMethod(
-                                  selectedProject,
-                                  selectedInstance.zone,
-                                  selectedInstance.name,
-                                );
-
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.dashboardInstanceSuspendedSuccess,
-                                  ),
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    l10n.dashboardSuspendInstanceFailed('$e'),
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        }
-                      },
-              ),
-              // Resume Instance button (Sprint 10)
-              _ActionButton(
-                icon: Icons.play_circle_outline,
-                label: l10n.dashboardResumeInstanceButton,
-                backgroundColor: Colors.green.shade50,
-                foregroundColor: Colors.green.shade700,
-                onPressed: (!isSuspended || isConnecting)
-                    ? null
-                    : () async {
-                        try {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                l10n.dashboardResumingInstanceProgress,
-                              ),
-                            ),
-                          );
-                          await ref
-                              .read(activeConnectionsProvider.notifier)
-                              .resumeInstanceWithMethod(
-                                selectedProject,
-                                selectedInstance.zone,
-                                selectedInstance.name,
-                              );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  l10n.dashboardInstanceResumedSuccess,
-                                ),
-                              ),
-                            );
-                          }
-                        } catch (e) {
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(
-                                  l10n.dashboardResumeInstanceFailed('$e'),
-                                ),
-                              ),
-                            );
-                          }
-                        }
-                      },
-              ),
-            ],
-          ),
-
-          if (isConnecting)
-            const Padding(
-              padding: EdgeInsets.only(top: 20),
-              child: LinearProgressIndicator(),
-            ),
-        ],
-      ),
-    );
-  }
-
-  /// Show Custom Tunnel Dialog to select port
-  Future<int?> _showCustomTunnelDialog(BuildContext context) async {
-    final l10n = AppLocalizations.of(context);
-    int? selectedPort;
-    final customPortController = TextEditingController();
-    bool isCustomPort = false;
-
-    // Common service presets
-    final Map<String, int> servicePresets = {
-      'RDP (Remote Desktop)': 3389,
-      'SSH': 22,
-      'PostgreSQL': 5432,
-      'MySQL/MariaDB': 3306,
-      'HTTP': 8080,
-      'HTTPS': 443,
-      'MongoDB': 27017,
-      'Redis': 6379,
-    };
-
-    if (!context.mounted) return null;
-
-    return showDialog<int>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Row(
-                children: [
-                  const Icon(Icons.settings_ethernet, color: Colors.blue),
-                  const SizedBox(width: 8),
-                  Text(l10n.appCustomTunnelTitle),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      l10n.appCustomTunnelDescription,
-                      style: const TextStyle(fontSize: 14, color: Colors.grey),
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Service Preset Chips
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: servicePresets.entries.map((entry) {
-                        final isSelected =
-                            selectedPort == entry.value && !isCustomPort;
-                        return ChoiceChip(
-                          label: Text(
-                            '${entry.key}\n:${entry.value}',
-                            textAlign: TextAlign.center,
-                          ),
-                          selected: isSelected,
-                          onSelected: (selected) {
-                            setState(() {
-                              if (selected) {
-                                selectedPort = entry.value;
-                                isCustomPort = false;
-                                customPortController.clear();
-                              } else {
-                                selectedPort = null;
-                              }
-                            });
-                          },
-                          selectedColor: Colors.blue.shade100,
-                          labelStyle: TextStyle(
-                            fontSize: 12,
-                            color: isSelected
-                                ? Colors.blue.shade900
-                                : Colors.black87,
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    const SizedBox(height: 8),
-
-                    // Custom Port Input
-                    TextField(
-                      controller: customPortController,
-                      decoration: InputDecoration(
-                        labelText: l10n.appCustomPortLabel,
-                        hintText: l10n.appCustomPortHint,
-                        prefixIcon: const Icon(Icons.edit),
-                        border: const OutlineInputBorder(),
-                        filled: isCustomPort,
-                        fillColor: isCustomPort ? Colors.blue.shade50 : null,
-                      ),
-                      keyboardType: TextInputType.number,
-                      onChanged: (value) {
-                        setState(() {
-                          final port = int.tryParse(value);
-                          if (port != null && port >= 1 && port <= 65535) {
-                            selectedPort = port;
-                            isCustomPort = true;
-                          } else {
-                            if (isCustomPort) selectedPort = null;
-                          }
-                        });
-                      },
-                    ),
-
-                    if (selectedPort != null) ...[
-                      const SizedBox(height: 12),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade50,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.green.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle,
-                              color: Colors.green,
-                              size: 20,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              l10n.appSelectedPortLabel(selectedPort!),
-                              style: const TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, null),
-                  child: Text(l10n.commonCancel),
-                ),
-                ElevatedButton(
-                  onPressed: selectedPort == null
-                      ? null
-                      : () => Navigator.pop(context, selectedPort),
-                  child: Text(l10n.commonConnect),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<RdpSettings?> _showConnectionSettingsDialog(
-    BuildContext context,
-    String instanceName,
-    WidgetRef ref,
-  ) async {
-    final l10n = AppLocalizations.of(context);
-    final userController = TextEditingController();
-    final passController = TextEditingController();
-    final domainController = TextEditingController();
-    bool fullscreen = false;
-    bool saveCredentials = false;
-
-    // Default resolution
-    int width = 1920;
-    int height = 1080;
-
-    // Load saved credentials
-    final saved = await StorageService().getRdpCredentials(instanceName);
-    if (saved['username'] != null) {
-      userController.text = saved['username']!;
-      saveCredentials = true;
-    }
-    if (saved['password'] != null) passController.text = saved['password']!;
-    if (saved['domain'] != null) domainController.text = saved['domain']!;
-
-    if (!context.mounted) return null;
-
-    return showDialog<RdpSettings>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(l10n.appConnectionSettingsTitle),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: userController,
-                      decoration: InputDecoration(
-                        labelText: l10n.commonUsernameLabel,
-                      ),
-                    ),
-                    TextField(
-                      controller: passController,
-                      decoration: InputDecoration(
-                        labelText: l10n.winCredPasswordWord,
-                      ),
-                      obscureText: true,
-                    ),
-                    TextField(
-                      controller: domainController,
-                      decoration: InputDecoration(
-                        labelText: l10n.appDomainOptionalLabel,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    CheckboxListTile(
-                      title: Text(l10n.appSaveCredentialsLabel),
-                      value: saveCredentials,
-                      onChanged: (val) =>
-                          setState(() => saveCredentials = val ?? false),
-                      controlAffinity: ListTileControlAffinity.leading,
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    const Divider(),
-                    SwitchListTile(
-                      title: Text(l10n.appFullscreenLabel),
-                      value: fullscreen,
-                      onChanged: (val) => setState(() => fullscreen = val),
-                    ),
-                    if (!fullscreen)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              initialValue: width.toString(),
-                              decoration: InputDecoration(
-                                labelText: l10n.appWidthLabel,
-                              ),
-                              keyboardType: TextInputType.number,
-                              onChanged: (v) => width = int.tryParse(v) ?? 1920,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              initialValue: height.toString(),
-                              decoration: InputDecoration(
-                                labelText: l10n.appHeightLabel,
-                              ),
-                              keyboardType: TextInputType.number,
-                              onChanged: (v) =>
-                                  height = int.tryParse(v) ?? 1080,
-                            ),
-                          ),
-                        ],
-                      ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, null), // Cancel
-                  child: Text(l10n.commonCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (saveCredentials) {
-                      await StorageService().saveRdpCredentials(
-                        instanceName: instanceName,
-                        username: userController.text,
-                        password: passController.text,
-                        domain: domainController.text,
-                      );
-                    } else {
-                      await StorageService().clearRdpCredentials(instanceName);
-                    }
-
-                    if (context.mounted) {
-                      Navigator.pop(
-                        context,
-                        RdpSettings(
-                          username: userController.text.isNotEmpty
-                              ? userController.text
-                              : null,
-                          password: passController.text.isNotEmpty
-                              ? passController.text
-                              : null,
-                          domain: domainController.text.isNotEmpty
-                              ? domainController.text
-                              : null,
-                          fullscreen: fullscreen,
-                          width: fullscreen ? null : width,
-                          height: fullscreen ? null : height,
-                          ignoreCertificate: false,
-                          clientType: ref.read(rdpClientProvider),
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(l10n.commonConnect),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Future<VncSettings?> _showVncConnectionSettingsDialog(
-    BuildContext context,
-    String instanceName,
-    WidgetRef ref,
-  ) async {
-    final l10n = AppLocalizations.of(context);
-    final passController = TextEditingController();
-    bool fullscreen = false;
-    bool viewOnly = false;
-    VncQuality quality = VncQuality.auto;
-
-    // Default resolution
-    int width = 1920;
-    int height = 1080;
-
-    if (!context.mounted) return null;
-
-    return showDialog<VncSettings>(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Row(
-                children: [
-                  const Icon(Icons.remove_red_eye, color: Colors.green),
-                  const SizedBox(width: 8),
-                  Text(l10n.appVncConnectionSettingsTitle),
-                ],
-              ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: passController,
-                      decoration: InputDecoration(
-                        labelText: l10n.appPasswordOptionalLabel,
-                        helperText: l10n.appVncPasswordHelper,
-                      ),
-                      obscureText: true,
-                    ),
-                    const SizedBox(height: 16),
-                    const Divider(),
-                    Text(
-                      l10n.appDisplayOptionsLabel,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    SwitchListTile(
-                      title: Text(l10n.appFullscreenLabel),
-                      value: fullscreen,
-                      onChanged: (val) => setState(() => fullscreen = val),
-                    ),
-                    if (!fullscreen)
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              initialValue: width.toString(),
-                              decoration: InputDecoration(
-                                labelText: l10n.appWidthLabel,
-                              ),
-                              keyboardType: TextInputType.number,
-                              onChanged: (v) => width = int.tryParse(v) ?? 1920,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              initialValue: height.toString(),
-                              decoration: InputDecoration(
-                                labelText: l10n.appHeightLabel,
-                              ),
-                              keyboardType: TextInputType.number,
-                              onChanged: (v) =>
-                                  height = int.tryParse(v) ?? 1080,
-                            ),
-                          ),
-                        ],
-                      ),
-                    const SizedBox(height: 8),
-                    SwitchListTile(
-                      title: Text(l10n.appViewOnlyLabel),
-                      subtitle: Text(
-                        l10n.appViewOnlyHelper,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                      value: viewOnly,
-                      onChanged: (val) => setState(() => viewOnly = val),
-                    ),
-                    const SizedBox(height: 8),
-                    const Divider(),
-                    Text(
-                      l10n.appQualityLabel,
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<VncQuality>(
-                      value: quality,
-                      decoration: InputDecoration(
-                        labelText: l10n.appConnectionQualityLabel,
-                        border: const OutlineInputBorder(),
-                      ),
-                      items: [
-                        DropdownMenuItem(
-                          value: VncQuality.auto,
-                          child: Text(l10n.appQualityAuto),
-                        ),
-                        DropdownMenuItem(
-                          value: VncQuality.high,
-                          child: Text(l10n.appQualityHigh),
-                        ),
-                        DropdownMenuItem(
-                          value: VncQuality.medium,
-                          child: Text(l10n.appQualityMedium),
-                        ),
-                        DropdownMenuItem(
-                          value: VncQuality.low,
-                          child: Text(l10n.appQualityLow),
-                        ),
-                      ],
-                      onChanged: (val) =>
-                          setState(() => quality = val ?? VncQuality.auto),
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, null), // Cancel
-                  child: Text(l10n.commonCancel),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (context.mounted) {
-                      Navigator.pop(
-                        context,
-                        VncSettings(
-                          password: passController.text.isNotEmpty
-                              ? passController.text
-                              : null,
-                          fullscreen: fullscreen,
-                          width: fullscreen ? null : width,
-                          height: fullscreen ? null : height,
-                          viewOnly: viewOnly,
-                          quality: quality,
-                          clientType: ref.read(vncClientProvider),
-                        ),
-                      );
-                    }
-                  },
-                  child: Text(l10n.commonConnect),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-  }
-
-  /// Build comprehensive tunnel status dashboard with metrics
-  Widget _buildTunnelDashboard(
-    BuildContext context,
-    TunnelState tunnel,
-    String tunnelKey,
-    String instanceName,
-    WidgetRef ref,
-  ) {
-    final l10n = AppLocalizations.of(context);
-    // Determine health status color and icon
-    final bool isHealthy = tunnel.status == 'connected' && tunnel.error == null;
-    final bool isError = tunnel.status == 'error';
-    final bool isReconnecting = tunnel.status == 'reconnecting';
-
-    final Color statusColor;
-    final Color bgColor;
-    final Color borderColor;
-    final IconData statusIcon;
-    final String statusText;
-
-    if (isReconnecting) {
-      statusColor = Colors.orange;
-      bgColor = Colors.orange.shade50;
-      borderColor = Colors.orange.shade200;
-      statusIcon = Icons.autorenew;
-      statusText = l10n.tunnelStatusReconnecting;
-    } else if (isError) {
-      statusColor = Colors.red;
-      bgColor = Colors.red.shade50;
-      borderColor = Colors.red.shade200;
-      statusIcon = Icons.error;
-      statusText = l10n.dashboardTunnelUnhealthy;
-    } else if (isHealthy) {
-      statusColor = Colors.green;
-      bgColor = Colors.green.shade50;
-      borderColor = Colors.green.shade200;
-      statusIcon = Icons.check_circle;
-      statusText = l10n.tunnelStatusHealthy;
-    } else {
-      statusColor = Colors.orange;
-      bgColor = Colors.orange.shade50;
-      borderColor = Colors.orange.shade200;
-      statusIcon = Icons.warning;
-      statusText = l10n.dashboardTunnelDegraded;
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: bgColor,
-        border: Border.all(color: borderColor, width: 1.5),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header with status
-          Row(
-            children: [
-              Icon(statusIcon, color: statusColor, size: 28),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(
-                          l10n.dashboardTunnelPortLabel(
-                            '${tunnel.remotePort ?? "?"}',
-                          ),
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: statusColor.withValues(alpha: 0.9),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        // Status badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                isHealthy
-                                    ? Icons.favorite
-                                    : Icons.warning_amber,
-                                size: 12,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                statusText,
-                                style: const TextStyle(
-                                  fontSize: 11,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    if (tunnel.port != null)
-                      Text(
-                        'localhost:${tunnel.port}',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: statusColor.withValues(alpha: 0.7),
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              // Disconnect button
-              IconButton(
-                icon: const Icon(Icons.close, color: Colors.red),
-                tooltip: l10n.dashboardDisconnectTunnelTooltip,
-                onPressed: () async {
-                  await ref
-                      .read(activeConnectionsProvider.notifier)
-                      .disconnect(instanceName, tunnel.remotePort!);
-                },
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 16),
-          const Divider(height: 1),
-          const SizedBox(height: 16),
-
-          // Metrics Grid
-          Row(
-            children: [
-              // Uptime metric
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.schedule,
-                  label: l10n.dashboardUptimeLabel,
-                  value: tunnel.uptime(l10n),
-                  color: statusColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Last health check metric
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.health_and_safety,
-                  label: l10n.dashboardLastCheckLabel,
-                  value: tunnel.lastCheckRelative(l10n),
-                  color: statusColor,
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Latency metric
-              Expanded(
-                child: _MetricCard(
-                  icon: Icons.speed,
-                  label: l10n.dashboardLatencyLabel,
-                  value: tunnel.latencyMs != null
-                      ? '${tunnel.latencyMs}ms'
-                      : l10n.diagValueNa,
-                  color: tunnel.latencyMs != null
-                      ? (tunnel.latencyMs! < 50
-                            ? Colors.green
-                            : (tunnel.latencyMs! < 200
-                                  ? Colors.orange
-                                  : Colors.red))
-                      : Colors.grey,
-                ),
-              ),
-            ],
-          ),
-
-          // Reconnection progress (if reconnecting)
-          if (isReconnecting) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: Colors.orange.shade200),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.orange,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      l10n.dashboardAttemptLabel(
-                        tunnel.reconnectAttempts + 1,
-                        tunnel.maxReconnectAttempts,
-                      ),
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.orange,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      ref
-                          .read(activeConnectionsProvider.notifier)
-                          .retryConnection(tunnelKey);
-                    },
-                    child: Text(
-                      l10n.tunnelRetryNow,
-                      style: const TextStyle(fontSize: 11),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-
-          // Retry button for error state
-          if (isError && tunnel.projectId != null && tunnel.zone != null) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                icon: const Icon(Icons.refresh, size: 16),
-                label: Text(l10n.dashboardRetryConnectionButton),
-                onPressed: () {
-                  ref
-                      .read(activeConnectionsProvider.notifier)
-                      .retryConnection(tunnelKey);
-                },
-              ),
-            ),
-          ],
-
-          const SizedBox(height: 12),
-
-          // Monitoring info
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.05),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.autorenew,
-                  size: 14,
-                  color: Colors.black.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    l10n.dashboardAutoMonitoringLabel(
-                      tunnel.autoReconnectEnabled
-                          ? l10n.dashboardOnState
-                          : l10n.dashboardOffState,
-                    ),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: Colors.black.withValues(alpha: 0.6),
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<bool?> _showConfirmationDialog(
-    BuildContext context, {
-    required String title,
-    required String message,
-    required String confirmText,
-    bool isDestructive = false,
-  }) async {
-    final l10n = AppLocalizations.of(context);
-    return showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: Row(
-            children: [
-              Icon(
-                isDestructive ? Icons.warning : Icons.help_outline,
-                color: isDestructive ? Colors.orange : Colors.blue,
-              ),
-              const SizedBox(width: 8),
-              Text(title),
-            ],
-          ),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: Text(l10n.commonCancel),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isDestructive ? Colors.red : Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-              child: Text(confirmText),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-/// Metric card widget for tunnel dashboard
-class _MetricCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-  final Color color;
-
-  const _MetricCard({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.7),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.2)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: color.withValues(alpha: 0.7)),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.black.withValues(alpha: 0.6),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: color.withValues(alpha: 0.9),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ResourceChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String value;
-
-  const _ResourceChip({
-    required this.icon,
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 16, color: Colors.grey.shade600),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'monospace',
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onPressed;
-  final Color? backgroundColor;
-  final Color? foregroundColor;
-
-  const _ActionButton({
-    required this.icon,
-    required this.label,
-    this.onPressed,
-    this.backgroundColor,
-    this.foregroundColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final button = ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-        backgroundColor: backgroundColor,
-        foregroundColor: foregroundColor,
-      ),
-      onPressed: onPressed,
-      icon: Icon(icon),
-      label: Text(label),
-    );
-    return button;
+    return OverviewTab(target: selectedInstance);
   }
 }
 
@@ -4149,7 +2424,9 @@ class ProjectSelector extends ConsumerWidget {
         );
       },
       loading: () => const LinearProgressIndicator(),
-      error: (err, _) => Text(l10n.appErrorLoadingProjects('$err')),
+      error: (err, _) => Text(
+        l10n.appErrorLoadingProjects(localizedError(l10n, err, standalone: false)),
+      ),
     );
   }
 }
@@ -4488,7 +2765,11 @@ class _ProjectManagementDialogState
                         color: Colors.red,
                       ),
                       const SizedBox(height: 8),
-                      Text(l10n.appErrorLoadingProjects('$err')),
+                      Text(
+                        l10n.appErrorLoadingProjects(
+                          localizedError(l10n, err, standalone: false),
+                        ),
+                      ),
                     ],
                   ),
                 ),

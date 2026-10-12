@@ -66,10 +66,18 @@ jobs:
           IMAGE: ${{ matrix.image }}
           SCRIPTS: ${{ matrix.scripts }}
           VERSION: ${{ steps.ver.outputs.version }}
+          # Supplied to the build, never committed: a client secret sitting in a
+          # public repository is one that credential scanners find and providers
+          # revoke, which would break sign-in for everyone on a release. Absent,
+          # the build has no native sign-in and falls back to the gcloud auth
+          # engine. See native/build.rs.
+          LCC_OAUTH_CLIENT_SECRET: ${{ secrets.LCC_OAUTH_CLIENT_SECRET }}
         run: |
           podman run --rm \
             -e VERSION="$VERSION" \
             -e SCRIPTS="$SCRIPTS" \
+            -e LCC_OAUTH_CLIENT_SECRET="$LCC_OAUTH_CLIENT_SECRET" \
+            -e LCC_REQUIRE_OAUTH_SECRET=1 \
             -v "$PWD:/workspace/src" \
             -w /workspace/src \
             "lcc-builder-$IMAGE" \

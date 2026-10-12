@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/sshfs_mount.dart';
+import 'ssh_consent_dialog.dart';
 import 'sshfs_mount_provider.dart';
 
 /// Show the SSHFS mount dialog
@@ -71,13 +72,25 @@ class _SshfsMountDialogState extends ConsumerState<SshfsMountDialog>
     _loadDefaults();
   }
 
+  /// What the field was prefilled with, so `_mount` can tell an untouched field
+  /// from one the user deliberately changed.
+  String _prefilledUsername = '';
+
   Future<void> _loadDefaults() async {
-    // Load username from GCP account
+    // Resolve the account this VM actually expects. This used to mangle the
+    // e-mail, which produces the right answer only by coincidence on the
+    // metadata path and the wrong one under OS Login — and a plausible wrong
+    // value in an editable field is worse than an empty one, because the user
+    // "corrects" it.
     try {
-      final email = await getGcloudAccountEmail();
+      final username = await sshUsernameFor(
+        projectId: widget.projectId,
+        zone: widget.zone,
+        instanceName: widget.instanceName,
+      );
       if (mounted) {
-        final userPart = email.split('@').first;
-        _usernameController.text = userPart.replaceAll('.', '_');
+        _prefilledUsername = username;
+        _usernameController.text = username;
       }
     } catch (_) {
       _usernameController.text = '';
@@ -642,6 +655,30 @@ class _SshfsMountDialogState extends ConsumerState<SshfsMountDialog>
 
     ref.read(sshfsMountProvider.notifier).clearMessages();
 
+    // Same consent gate as SFTP, the terminal and the port forward: mounting
+    // may require authorising LCC's key on the user's VM, and that is not
+    // something to do silently. Gated here rather than on open, because the
+    // probe raises a tunnel and would put a dialog on top of this one.
+    final outcome = await ensureSshAccess(
+      context,
+      projectId: widget.projectId,
+      zone: widget.zone,
+      instance: widget.instanceName,
+    );
+    if (!mounted) return;
+    if (outcome is! SshAccessGranted) {
+      final message = outcome is SshAccessRefused
+          ? l10n.sshConsentDenied
+          : l10n.workspaceTerminalAbandoned;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+      return;
+    }
+
+    // An untouched field follows the resolved account; a field the user
+    // deliberately changed is theirs to own.
+    final effectiveUsername =
+        username == _prefilledUsername ? outcome.username : username;
+
     final options = SshfsMountOptions(
       readOnly: _readOnly,
       cache: _cache,
@@ -651,14 +688,16 @@ class _SshfsMountDialogState extends ConsumerState<SshfsMountDialog>
       allowOther: false,
       followSymlinks: true,
       sshPort: null,
-      identityFile: null,
+      // Without this, sshfs cannot present the key LCC just authorised: it
+      // lives outside ~/.ssh, so the system `ssh` has no way to find it.
+      identityFile: outcome.keyPath,
     );
 
     final result = await ref.read(sshfsMountProvider.notifier).mount(
       projectId: widget.projectId,
       zone: widget.zone,
       instanceName: widget.instanceName,
-      username: username,
+      username: effectiveUsername,
       remotePath: remotePath,
       localMountPoint: localPath,
       tunnelPort: widget.tunnelPort,
