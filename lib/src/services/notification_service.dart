@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -38,8 +40,20 @@ class NotificationService {
       defaultIcon: AssetsLinuxIcon('assets/icon.png'),
     );
 
+    // macOS: the plugin refuses to initialize without these. Permissions are
+    // NOT requested here: by default initialize() awaits the user's answer to
+    // the system prompt, and main() awaits initialize() before runApp(), so the
+    // window would not appear until the prompt is answered. Requested below,
+    // without awaiting.
+    const initializationSettingsMacOS = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+
     final initializationSettings = InitializationSettings(
       linux: initializationSettingsLinux,
+      macOS: initializationSettingsMacOS,
     );
 
     try {
@@ -49,6 +63,18 @@ class NotificationService {
       );
       _initialized = true;
       print('[NotificationService] Initialized successfully');
+
+      // Fire-and-forget: shows the macOS prompt once (no-op afterwards).
+      unawaited(
+        _notifications
+            .resolvePlatformSpecificImplementation<
+                MacOSFlutterLocalNotificationsPlugin>()
+            ?.requestPermissions(alert: true, sound: true)
+            .catchError((Object e) {
+          print('[NotificationService] Permission request failed: $e');
+          return false;
+        }),
+      );
     } catch (e) {
       print('[NotificationService] Failed to initialize: $e');
       // Fallback: disable notifications if initialization fails
@@ -257,6 +283,7 @@ class NotificationService {
 
       final notificationDetails = NotificationDetails(
         linux: linuxDetails,
+        macOS: const DarwinNotificationDetails(),
       );
 
       await _notifications.show(

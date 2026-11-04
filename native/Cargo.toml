@@ -65,3 +65,11 @@ keyring = { version = "3", features = ["async-secret-service", "tokio", "crypto-
 # Already in the dependency tree transitively, so this adds no build cost.
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"
+
+# macOS: ssh2 -> libssh2-sys -> openssl-sys needs OpenSSL. macOS doesn't ship
+# OpenSSL headers, so build it from source (vendored) and link it statically:
+# no Homebrew dependency to build, and no external libssl in the .app.
+[target.'cfg(target_os = "macos")'.dependencies]
+openssl = { version = "0.10", features = ["vendored"] }
+# Credentials in the macOS Keychain (Security.framework, no C deps beyond the SDK).
+keyring = { version = "3", features = ["apple-native"] }

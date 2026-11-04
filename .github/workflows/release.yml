@@ -104,9 +104,99 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  build-macos:
+    name: Build (macos)
+    # Apple Silicon runner. Flutter builds a Universal Binary (arm64 + x86_64);
+    # macos/build_rust.sh compiles the Rust crate for both and lipo's them into
+    # native.framework.
+    runs-on: macos-15
+    env:
+      # Same version as packaging/podman/Containerfile.*, so macOS and Linux
+      # resolve the committed pubspec.lock identically.
+      FLUTTER_VERSION: '3.41.1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Derive version
+        id: ver
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          VERSION_INPUT: ${{ github.event.inputs.version }}
+        run: |
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            V="$VERSION_INPUT"
+          else
+            V="${GITHUB_REF_NAME#v}"
+          fi
+          if ! printf '%s' "$V" | grep -qE '^[A-Za-z0-9._-]+$'; then
+            echo "::error::Invalid version '$V' (allowed characters: A-Z a-z 0-9 . _ -)"
+            exit 1
+          fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Building version: $V"
+
+      # Installed from Google's release bucket, like the Linux containers do,
+      # rather than through a third-party setup action.
+      - name: Install Flutter
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/flutter.zip" \
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_arm64_${FLUTTER_VERSION}-stable.zip"
+          unzip -q "$RUNNER_TEMP/flutter.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+
+      - name: Rust targets
+        run: |
+          rustup update stable --no-self-update
+          rustup default stable
+          rustup target add aarch64-apple-darwin x86_64-apple-darwin
+
+      - name: Build app
+        env:
+          # See the Linux job and native/build.rs.
+          LCC_OAUTH_CLIENT_SECRET: ${{ secrets.LCC_OAUTH_CLIENT_SECRET }}
+          LCC_REQUIRE_OAUTH_SECRET: '1'
+        run: |
+          flutter --version
+          flutter config --no-analytics
+          flutter pub get
+          flutter build macos --release
+
+      - name: Verify Universal Binary
+        run: |
+          APP="build/macos/Build/Products/Release/linux_cloud_connector.app"
+          for bin in "$APP/Contents/MacOS/linux_cloud_connector" \
+                     "$APP/Contents/Frameworks/native.framework/native"; do
+            archs=$(lipo -archs "$bin")
+            echo "$bin: $archs"
+            case "$archs" in *arm64*x86_64*|*x86_64*arm64*) ;; *)
+              echo "::error::$bin is not universal ($archs)"; exit 1 ;;
+            esac
+          done
+          codesign --verify --deep --strict "$APP"
+
+      # Ad-hoc signed, not notarized: Gatekeeper warns on first launch
+      # (right-click > Open). Developer ID signing + notarization can be added
+      # here once an Apple Developer certificate is available as a secret.
+      - name: Package
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          mkdir -p out
+          ditto -c -k --sequesterRsrc --keepParent \
+            "build/macos/Build/Products/Release/linux_cloud_connector.app" \
+            "out/lightweight-cloud-connector_${VERSION}_macos-universal.zip"
+          ls -lh out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-macos
+          path: out/*
+          if-no-files-found: error
+          retention-days: 7
+
   release:
     name: Attest & release
-    needs: build
+    needs: [build, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
