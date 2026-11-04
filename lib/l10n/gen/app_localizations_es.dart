@@ -1935,7 +1935,7 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get appTagline =>
-      'Una herramienta nativa para simplificar las conexiones IAP de Google Cloud en Linux.';
+      'Una herramienta nativa para simplificar las conexiones IAP de Google Cloud en Linux y macOS.';
 
   @override
   String get appEditionsCalverTitle => 'Ediciones de LCC — CalVer';

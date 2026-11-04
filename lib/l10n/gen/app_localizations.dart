@@ -3341,7 +3341,7 @@ abstract class AppLocalizations {
   /// No description provided for @appTagline.
   ///
   /// In en, this message translates to:
-  /// **'A native tool to simplify Google Cloud IAP connections on Linux.'**
+  /// **'A native tool to simplify Google Cloud IAP connections on Linux and macOS.'**
   String get appTagline;
 
   /// No description provided for @appEditionsCalverTitle.

@@ -1085,7 +1085,7 @@
     }
   },
   "appCopyright": "© 2026 Jordi Lopez Reyes",
-  "appTagline": "A native tool to simplify Google Cloud IAP connections on Linux.",
+  "appTagline": "A native tool to simplify Google Cloud IAP connections on Linux and macOS.",
   "appEditionsCalverTitle": "LCC Editions — CalVer",
   "appEditionsCalverBody": "Editions follow a half-year cadence (YYH#):\n  • 26H1 — First half of 2026\n  • 26H2 — Second half of 2026 (current)\nBuilds provide continuous fixes between editions.",
   "appWhatsNewTitle": "What's new in Edition {edition}:",

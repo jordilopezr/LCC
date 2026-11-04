@@ -553,7 +553,7 @@
   "dashboardAutoRefreshEnabledSnackbar": "Actualización automática activada (intervalo de {seconds}s)",
   "appAddedInstanceSnackbar": "Instancia añadida: {name}",
   "appCopyright": "© 2026 Jordi Lopez Reyes",
-  "appTagline": "Una herramienta nativa para simplificar las conexiones IAP de Google Cloud en Linux.",
+  "appTagline": "Una herramienta nativa para simplificar las conexiones IAP de Google Cloud en Linux y macOS.",
   "appEditionsCalverTitle": "Ediciones de LCC — CalVer",
   "appEditionsCalverBody": "Las ediciones siguen un ciclo semestral (AAHn):\n  • 26H1 — Primer semestre de 2026\n  • 26H2 — Segundo semestre de 2026 (actual)\nLas compilaciones aportan correcciones continuas entre ediciones.",
   "appWhatsNewTitle": "Novedades de la edición {edition}:",
