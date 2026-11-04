@@ -17,6 +17,10 @@ class StorageService {
     _secureStorage = const FlutterSecureStorage(
       aOptions: AndroidOptions(encryptedSharedPreferences: true),
       // Linux uses libsecret by default, which is what we want.
+      // macOS: the default Data Protection keychain requires a keychain-access-
+      // groups entitlement signed with an Apple Team ID (fails with -34018 on
+      // ad-hoc/local builds). The classic login keychain needs neither.
+      mOptions: MacOsOptions(usesDataProtectionKeychain: false),
     );
     
     _sharedPrefs = await SharedPreferences.getInstance();

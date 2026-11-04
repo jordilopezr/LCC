@@ -153,9 +153,15 @@ fn supervised_command(program: &std::path::Path, args: &[String]) -> Command {
     let mut cmd = Command::new("/bin/sh");
     cmd.arg("-c").arg(DEATH_TRAP).arg("sh").arg(program).args(args);
     cmd.process_group(0);
+    // PR_SET_PDEATHSIG is Linux-only. On macOS there is no equivalent: the child
+    // is still torn down by killpg on an orderly shutdown, but not if the app
+    // is killed abruptly.
+    #[cfg(not(target_os = "linux"))]
+    let _ = parent;
     // SAFETY: runs between fork and exec, so it may only call async-signal-safe
     // functions. `prctl` and `getppid` are; the `_exit` on the race below is the
     // one legal way out of that window.
+    #[cfg(target_os = "linux")]
     unsafe {
         cmd.pre_exec(move || {
             if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) != 0 {
