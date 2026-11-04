@@ -8,7 +8,7 @@ Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal perform
 
 ![Release](https://img.shields.io/badge/Release-26H2-brightgreen)
 ![Build](https://img.shields.io/badge/Build-20260731.1-blue)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20(coming%20soon)-blue)
+![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS-blue)
 ![License](https://img.shields.io/badge/License-GPLv3%2B-purple)
 ![Preview](https://img.shields.io/badge/Preview-27H1%20build%2020261012.50-orange)
 
@@ -192,9 +192,13 @@ flutter_rust_bridge_codegen generate --rust-input crate::api --rust-root native 
 # Linux
 flutter run -d linux
 
-# macOS (coming soon)
+# macOS (needs Xcode, CocoaPods and Rust; the Xcode build compiles the Rust crate itself)
 flutter run -d macos
 ```
+
+> **macOS:** a prebuilt Universal Binary (Apple Silicon + Intel) is attached to each release as
+> `lightweight-cloud-connector_<version>_macos-universal.zip`. It is ad-hoc signed and not notarized:
+> on first launch, right-click the app and choose **Open**.
 
 > **Windows:** LCC does not support Windows as a host platform, and there are no plans to add it.
 > To connect to GCP VMs via IAP from Windows, we recommend
@@ -267,12 +271,15 @@ There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
 ## Roadmap
 
 ### Next
-- [ ] macOS support (Intel/Apple Silicon)
+- [ ] macOS: Developer ID signing and notarization, and the native macOS RDP/VNC clients
 - [ ] Google Cloud Storage (GCS) browser
 - [ ] Secret Manager integration (read-only)
 - [ ] Cloud Monitoring API dashboard
 - [ ] Finish the 27H1 Preview manual QA (see *Known gaps* below) before a stable 27H1
 - [ ] SSH host key verification for the native SSH client
+
+### Included in 27H1 Preview (build 20261104.54)
+- [x] macOS support: Universal Binary (Intel/Apple Silicon) built and attested by the release workflow
 
 ### Included in 27H1 Preview (build 20261012.50)
 - [x] Native Rust IAP tunnel engine, with automatic fallback to `gcloud`
@@ -314,6 +321,23 @@ _Developed and reviewed, not yet merged into a published release:_
 - [x] Multi-language support (i18n): full interface in Spanish and English
 
 ## Changelog
+
+### 27H1 Preview — build 20261104.54 — Preview
+
+**macOS support.** Otherwise the same code as build 20261012.50, so that build's
+*Known gaps* still apply.
+
+- LCC builds for macOS as a Universal Binary (Apple Silicon arm64 + Intel x86_64); the release workflow attaches it as `lightweight-cloud-connector_<version>_macos-universal.zip`, with the same build-provenance and SBOM attestations as the Linux artifacts
+- Credentials are kept in the macOS Keychain
+- The App Sandbox is off: LCC launches gcloud, ssh and RDP/VNC clients and reads `~/.ssh` and `~/.config/gcloud`, which the sandbox forbids. LCC is distributed outside the App Store
+- The About panel says Linux and macOS
+
+#### Known gaps (macOS)
+
+- **Not notarized.** The app is ad-hoc signed, so Gatekeeper warns on first launch (right-click > Open). Developer ID signing and notarization need an Apple Developer account
+- **Not yet run on a real Mac.** CI builds, packages and code-sign-verifies it; nobody has confirmed sign-in, tunnels and clients on a Mac yet
+- **RDP/VNC clients:** LCC looks for the same clients it uses on Linux (FreeRDP, TigerVNC…). The native macOS clients (Windows App, Screen Sharing) are not integrated yet
+- **An abruptly killed app** leaves its gcloud tunnel processes running; macOS has no parent-death signal. Quitting normally cleans them up
 
 ### 27H1 Preview — build 20261012.50 — Preview
 

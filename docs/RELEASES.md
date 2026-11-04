@@ -60,6 +60,8 @@ for the current SBOM.
 
 ## Not covered by CI
 
-- **macOS** builds/notarization (built manually with `scripts/build_macos.sh`;
-  real macOS trust needs a paid Apple Developer ID + notarization).
+- **macOS notarization.** CI builds the macOS Universal Binary (job `build-macos`,
+  on the `macos-15-intel` runner) and attests it like the Linux artifacts, but
+  signs it ad-hoc: real macOS trust needs a paid Apple Developer ID +
+  notarization.
 - **Arch** — `packaging/arch/PKGBUILD` remains a source recipe users build.
