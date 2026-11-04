@@ -106,10 +106,11 @@ jobs:
 
   build-macos:
     name: Build (macos)
-    # Apple Silicon runner. Flutter builds a Universal Binary (arm64 + x86_64);
-    # macos/build_rust.sh compiles the Rust crate for both and lipo's them into
-    # native.framework.
-    runs-on: macos-15
+    # Intel runner: the macos-15 (arm64) pool had no capacity and cancelled the
+    # job unstarted twice. The output is the same either way: Flutter builds a
+    # Universal Binary (arm64 + x86_64), and macos/build_rust.sh compiles the
+    # Rust crate for both and lipo's them into native.framework.
+    runs-on: macos-15-intel
     env:
       # Same version as packaging/podman/Containerfile.*, so macOS and Linux
       # resolve the committed pubspec.lock identically.
@@ -136,11 +137,12 @@ jobs:
           echo "Building version: $V"
 
       # Installed from Google's release bucket, like the Linux containers do,
-      # rather than through a third-party setup action.
+      # rather than through a third-party setup action. The x64 SDK, matching
+      # the runner.
       - name: Install Flutter
         run: |
           curl -fsSL -o "$RUNNER_TEMP/flutter.zip" \
-            "https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_arm64_${FLUTTER_VERSION}-stable.zip"
+            "https://storage.googleapis.com/flutter_infra_release/releases/stable/macos/flutter_macos_${FLUTTER_VERSION}-stable.zip"
           unzip -q "$RUNNER_TEMP/flutter.zip" -d "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
 
