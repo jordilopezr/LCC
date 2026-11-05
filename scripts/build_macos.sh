@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# build_macos.sh — Compila linux_cloud_connector para macOS
+# build_macos.sh — Compila Lightweight Cloud Connector para macOS
 #
 # Produce un Universal Binary que corre nativamente en:
 #   • Apple Silicon (arm64)  — MacBooks M1/M2/M3/M4
@@ -120,10 +120,10 @@ BUILD_TIME=$((BUILD_END - BUILD_START))
 # ── Verificación de arquitecturas ─────────────────────────────────────────────
 header "Verificando Universal Binary"
 
-APP_PATH="build/macos/Build/Products/Release/linux_cloud_connector.app"
-[ "$BUILD_MODE" = "debug" ] && APP_PATH="build/macos/Build/Products/Debug/linux_cloud_connector.app"
+APP_PATH="build/macos/Build/Products/Release/Lightweight Cloud Connector.app"
+[ "$BUILD_MODE" = "debug" ] && APP_PATH="build/macos/Build/Products/Debug/Lightweight Cloud Connector.app"
 
-MAIN_BIN="$APP_PATH/Contents/MacOS/linux_cloud_connector"
+MAIN_BIN="$APP_PATH/Contents/MacOS/Lightweight Cloud Connector"
 
 if [ ! -f "$MAIN_BIN" ]; then
     die "Binario no encontrado en $MAIN_BIN"
@@ -180,5 +180,5 @@ echo -e "  Arquitecturas: arm64 (Apple Silicon) + x86_64 (Intel)"
 echo -e "  Tiempo     : ${BUILD_TIME}s"
 echo ""
 echo -e "  Para ejecutar:"
-echo -e "  ${CYAN}open $APP_PATH${NC}"
+echo -e "  ${CYAN}open \"$APP_PATH\"${NC}"
 echo ""

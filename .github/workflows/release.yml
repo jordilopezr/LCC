@@ -165,8 +165,8 @@ jobs:
 
       - name: Verify Universal Binary
         run: |
-          APP="build/macos/Build/Products/Release/linux_cloud_connector.app"
-          for bin in "$APP/Contents/MacOS/linux_cloud_connector" \
+          APP="build/macos/Build/Products/Release/Lightweight Cloud Connector.app"
+          for bin in "$APP/Contents/MacOS/Lightweight Cloud Connector" \
                      "$APP/Contents/Frameworks/native.framework/native"; do
             archs=$(lipo -archs "$bin")
             echo "$bin: $archs"
@@ -185,7 +185,7 @@ jobs:
         run: |
           mkdir -p out
           ditto -c -k --sequesterRsrc --keepParent \
-            "build/macos/Build/Products/Release/linux_cloud_connector.app" \
+            "build/macos/Build/Products/Release/Lightweight Cloud Connector.app" \
             "out/lightweight-cloud-connector_${VERSION}_macos-universal.zip"
           ls -lh out
 

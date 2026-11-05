@@ -354,6 +354,16 @@ async fn exchange_code(code: &str, verifier: &str, redirect_uri: &str) -> Result
 /// Run the full interactive sign-in: open the browser, capture the loopback
 /// redirect and exchange the code for tokens.
 pub async fn interactive_login() -> Result<OAuthTokens> {
+    // Google requires the secret for this client type, so a build without it
+    // can only fail at the very end, after the user has signed in. Say so
+    // before sending them to the browser.
+    if OAUTH_CLIENT_SECRET.is_empty() {
+        return Err(anyhow!(
+            "This build has no OAuth client secret, so native sign-in cannot work. \
+             Rebuild with LCC_OAUTH_CLIENT_SECRET or native/oauth_client_secret.txt, \
+             or switch the sign-in engine to gcloud in Settings."
+        ));
+    }
     let (verifier, challenge) = generate_pkce();
     let state = generate_state();
 
