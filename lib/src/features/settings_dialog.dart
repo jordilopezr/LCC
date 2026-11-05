@@ -10,6 +10,7 @@ import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/rdp_client.dart';
 import '../bridge/api.dart/vnc_client.dart';
 import '../version.dart';
+import '../utils/open_external.dart';
 
 /// Settings dialog for configuring app preferences
 class SettingsDialog extends ConsumerStatefulWidget {
@@ -389,7 +390,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   style: const TextStyle(fontSize: 12),
                 ),
                 isThreeLine: true,
-                onTap: () => Process.run('xdg-open', ['https://buymeacoffee.com/jordimlopezr']),
+                onTap: () => openExternal('https://buymeacoffee.com/jordimlopezr'),
                 mouseCursor: SystemMouseCursors.click,
               ),
 
@@ -570,7 +571,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      l10n.settingsNoRdpClients,
+                      Platform.isMacOS ? l10n.settingsNoRdpClientsMac : l10n.settingsNoRdpClients,
                       style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
@@ -590,7 +591,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ),
-            ...RdpClientType.values.map((client) {
+            ...rdpClientsForPlatform().map((client) {
               final isAvailable = availableClients.contains(client);
               final displayName = ref.read(rdpClientProvider.notifier).displayName(client);
 
@@ -693,7 +694,7 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
                 style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ),
-            ...VncClientType.values.map((client) {
+            ...vncClientsForPlatform().map((client) {
               final isAvailable = availableClients.contains(client);
               final displayName = ref.read(vncClientProvider.notifier).displayName(client);
 
@@ -853,6 +854,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         return l10n.settingsRdpDescKrdc;
       case RdpClientType.gnomeConnections:
         return l10n.settingsRdpDescGnome;
+      case RdpClientType.windowsApp:
+        return l10n.settingsRdpDescWindowsApp;
     }
   }
 
@@ -866,6 +869,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         return l10n.settingsVncDescKrdc;
       case VncClientType.vinagre:
         return l10n.settingsVncDescVinagre;
+      case VncClientType.screenSharing:
+        return l10n.settingsVncDescScreenSharing;
     }
   }
 
@@ -879,6 +884,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         return Icons.computer;
       case RdpClientType.gnomeConnections:
         return Icons.devices;
+      case RdpClientType.windowsApp:
+        return Icons.laptop_mac;
     }
   }
 
@@ -892,6 +899,8 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
         return Icons.computer;
       case VncClientType.vinagre:
         return Icons.remove_red_eye;
+      case VncClientType.screenSharing:
+        return Icons.screen_share;
     }
   }
 }

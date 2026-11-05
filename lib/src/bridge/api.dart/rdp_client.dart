@@ -7,7 +7,15 @@ import 'package:linux_cloud_connector/src/bridge/api.dart/frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// RDP Client Type - Auto-synced to Dart via Flutter Rust Bridge
-enum RdpClientType { remmina, freeRdp, krdc, gnomeConnections }
+enum RdpClientType {
+  remmina,
+  freeRdp,
+  krdc,
+  gnomeConnections,
+
+  /// Microsoft Windows App (formerly Microsoft Remote Desktop), macOS only
+  windowsApp,
+}
 
 /// Result of RDP launch attempt
 class RdpLaunchResult {

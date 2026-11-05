@@ -30,6 +30,7 @@ import 'src/features/workspace/overview_tab.dart';
 import 'src/features/workspace/workspace_panel.dart';
 import 'src/features/workspace/workspace_provider.dart';
 import 'src/version.dart';
+import 'src/utils/open_external.dart';
 
 /// Helper: Get all active tunnels for a given instance
 List<MapEntry<String, TunnelState>> getTunnelsForInstance(
@@ -545,9 +546,7 @@ class DashboardScreen extends ConsumerWidget {
                           children: [
                             OutlinedButton.icon(
                               onPressed: () {
-                                Process.run('xdg-open', [
-                                  'https://docs.cloud.google.com/sdk/docs/install-sdk',
-                                ]);
+                                openExternal('https://docs.cloud.google.com/sdk/docs/install-sdk');
                               },
                               icon: const Icon(Icons.open_in_new),
                               label: Text(l10n.dashboardOpenInstructionsButton),
@@ -1129,7 +1128,7 @@ class DashboardScreen extends ConsumerWidget {
                 MouseRegion(
                   cursor: SystemMouseCursors.click,
                   child: GestureDetector(
-                    onTap: () => Process.run('xdg-open', ['https://github.com/jordilopezr/LCC']),
+                    onTap: () => openExternal('https://github.com/jordilopezr/LCC'),
                     child: const Text(
                       "https://github.com/jordilopezr/LCC",
                       style: TextStyle(
@@ -1152,7 +1151,7 @@ class DashboardScreen extends ConsumerWidget {
                 MouseRegion(
                   cursor: SystemMouseCursors.click,
                   child: GestureDetector(
-                    onTap: () => Process.run('xdg-open', ['https://buymeacoffee.com/jordimlopezr']),
+                    onTap: () => openExternal('https://buymeacoffee.com/jordimlopezr'),
                     child: const Text(
                       "https://buymeacoffee.com/jordimlopezr",
                       style: TextStyle(

@@ -7,7 +7,15 @@ import 'package:linux_cloud_connector/src/bridge/api.dart/frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
 /// VNC Client Type - Auto-synced to Dart via Flutter Rust Bridge
-enum VncClientType { remmina, tigerVnc, krdc, vinagre }
+enum VncClientType {
+  remmina,
+  tigerVnc,
+  krdc,
+  vinagre,
+
+  /// macOS built-in Screen Sharing, macOS only
+  screenSharing,
+}
 
 /// Result of VNC launch attempt
 class VncLaunchResult {

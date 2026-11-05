@@ -2,6 +2,7 @@ pub mod remmina;
 pub mod freerdp;
 pub mod krdc;
 pub mod gnome_connections;
+pub mod windows_app;
 pub mod utils;
 
 use anyhow::{Result, anyhow};
@@ -17,6 +18,8 @@ pub enum RdpClientType {
     FreeRdp,
     Krdc,
     GnomeConnections,
+    /// Microsoft Windows App (formerly Microsoft Remote Desktop), macOS only
+    WindowsApp,
 }
 
 impl RdpClientType {
@@ -27,6 +30,7 @@ impl RdpClientType {
             RdpClientType::FreeRdp => "FreeRDP (xfreerdp)",
             RdpClientType::Krdc => "KRDC",
             RdpClientType::GnomeConnections => "GNOME Connections",
+            RdpClientType::WindowsApp => "Windows App",
         }
     }
 
@@ -37,12 +41,22 @@ impl RdpClientType {
     /// out, backed by a launcher that returned "only supported on Windows".
     /// If Windows becomes a target, this list grows again.
     pub fn fallback_order() -> Vec<RdpClientType> {
+        // macOS has none of the Linux clients: Microsoft's own app is the one
+        // that works there, and the only one offered.
+        if cfg!(target_os = "macos") {
+            return vec![RdpClientType::WindowsApp];
+        }
         vec![
             RdpClientType::Remmina,      // Most feature-complete
             RdpClientType::FreeRdp,      // Widely available, CLI-based
             RdpClientType::Krdc,         // KDE default
             RdpClientType::GnomeConnections, // GNOME default
         ]
+    }
+
+    /// The client a fresh install starts with on this platform.
+    pub fn platform_default() -> RdpClientType {
+        Self::fallback_order()[0]
     }
 
     /// Check if this client is available on the system
@@ -52,6 +66,7 @@ impl RdpClientType {
             RdpClientType::FreeRdp => freerdp::is_available(),
             RdpClientType::Krdc => krdc::is_available(),
             RdpClientType::GnomeConnections => gnome_connections::is_available(),
+            RdpClientType::WindowsApp => windows_app::is_available(),
         }
     }
 }
@@ -84,7 +99,7 @@ impl Default for RdpSettings {
             fullscreen: false,
             // SECURITY: Default to validating certificates
             ignore_certificate: false,
-            client_type: RdpClientType::Remmina,
+            client_type: RdpClientType::platform_default(),
         }
     }
 }
@@ -168,7 +183,12 @@ pub fn launch_rdp_client(
 
     // All attempts failed
     Err(anyhow!(
-        "No RDP clients available. Please install one of: Remmina, FreeRDP, KRDC, or GNOME Connections"
+        "{}",
+        if cfg!(target_os = "macos") {
+            "No RDP client available. Install Windows App from the Mac App Store"
+        } else {
+            "No RDP clients available. Please install one of: Remmina, FreeRDP, KRDC, or GNOME Connections"
+        }
     ))
 }
 
@@ -184,6 +204,7 @@ fn try_launch_client(
         RdpClientType::FreeRdp => freerdp::launch(port, instance_name, settings),
         RdpClientType::Krdc => krdc::launch(port, instance_name, settings),
         RdpClientType::GnomeConnections => gnome_connections::launch(port, instance_name, settings),
+        RdpClientType::WindowsApp => windows_app::launch(port, instance_name, settings),
     }
 }
 
@@ -194,8 +215,12 @@ mod tests {
     #[test]
     fn test_fallback_order() {
         let order = RdpClientType::fallback_order();
-        assert_eq!(order[0], RdpClientType::Remmina);
-        assert_eq!(order.len(), 4);
+        if cfg!(target_os = "macos") {
+            assert_eq!(order, vec![RdpClientType::WindowsApp]);
+        } else {
+            assert_eq!(order[0], RdpClientType::Remmina);
+            assert_eq!(order.len(), 4);
+        }
     }
 
     /// Every client offered can actually run on a platform LCC ships for.
@@ -215,7 +240,7 @@ mod tests {
     #[test]
     fn test_rdp_settings_default() {
         let settings = RdpSettings::default();
-        assert_eq!(settings.client_type, RdpClientType::Remmina);
+        assert_eq!(settings.client_type, RdpClientType::platform_default());
         assert_eq!(settings.fullscreen, false);
         assert_eq!(settings.ignore_certificate, false);
     }

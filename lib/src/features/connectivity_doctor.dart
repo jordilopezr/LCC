@@ -7,6 +7,7 @@ import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/doctor.dart';
 import 'app_error.dart';
+import '../utils/open_external.dart';
 
 /// Connectivity Doctor View - Sprint 7
 ///
@@ -507,7 +508,7 @@ class _DoctorCheckTile extends StatelessWidget {
                     children: [
                       OutlinedButton.icon(
                         onPressed: () =>
-                            Process.run('xdg-open', [consoleUrl]),
+                            openExternal(consoleUrl),
                         icon: const Icon(Icons.open_in_new, size: 14),
                         label: Text(l10n.doctorOpenInConsole),
                         style: OutlinedButton.styleFrom(

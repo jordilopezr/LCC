@@ -8,6 +8,7 @@ import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/diagnostics.dart';
 import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import 'app_error.dart';
+import '../utils/open_external.dart';
 
 /// Parameters for the diagnostics panel
 class DiagnosticsParams {
@@ -192,7 +193,7 @@ class _SerialConsoleTabState extends ConsumerState<SerialConsoleTab> {
               label: l10n.diagOpenAction,
               onPressed: () {
                 // Open file manager at location
-                Process.run('xdg-open', [directory.path]);
+                openExternal(directory.path);
               },
             ),
           ),

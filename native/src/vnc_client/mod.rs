@@ -2,6 +2,7 @@ pub mod remmina;
 pub mod tigervnc;
 pub mod krdc;
 pub mod vinagre;
+pub mod screen_sharing;
 pub mod utils;
 
 use anyhow::{Result, anyhow};
@@ -14,6 +15,8 @@ pub enum VncClientType {
     TigerVnc,
     Krdc,
     Vinagre,
+    /// macOS built-in Screen Sharing, macOS only
+    ScreenSharing,
 }
 
 impl VncClientType {
@@ -24,6 +27,7 @@ impl VncClientType {
             VncClientType::TigerVnc => "TigerVNC (vncviewer)",
             VncClientType::Krdc => "KRDC",
             VncClientType::Vinagre => "Vinagre",
+            VncClientType::ScreenSharing => "Screen Sharing",
         }
     }
 
@@ -35,7 +39,11 @@ impl VncClientType {
                 VncClientType::TigerVnc,     // Lightweight, popular
             ]
         }
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(target_os = "macos")]
+        {
+            vec![VncClientType::ScreenSharing]
+        }
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {
             vec![
                 VncClientType::Remmina,      // Most feature-complete
@@ -53,6 +61,7 @@ impl VncClientType {
             VncClientType::TigerVnc => tigervnc::is_available(),
             VncClientType::Krdc => krdc::is_available(),
             VncClientType::Vinagre => vinagre::is_available(),
+            VncClientType::ScreenSharing => screen_sharing::is_available(),
         }
     }
 }
@@ -92,11 +101,7 @@ impl Default for VncSettings {
             view_only: false,
             quality: VncQuality::Medium,
             // Default to TigerVnc on Windows, Remmina elsewhere
-            client_type: if cfg!(target_os = "windows") {
-                VncClientType::TigerVnc
-            } else {
-                VncClientType::Remmina
-            },
+            client_type: VncClientType::fallback_order()[0],
         }
     }
 }
@@ -180,7 +185,12 @@ pub fn launch_vnc_client(
 
     // All attempts failed
     Err(anyhow!(
-        "No VNC clients available. Please install one of: Remmina, TigerVNC, KRDC, or Vinagre"
+        "{}",
+        if cfg!(target_os = "macos") {
+            "Screen Sharing could not be opened"
+        } else {
+            "No VNC clients available. Please install one of: Remmina, TigerVNC, KRDC, or Vinagre"
+        }
     ))
 }
 
@@ -196,6 +206,7 @@ fn try_launch_client(
         VncClientType::TigerVnc => tigervnc::launch(port, instance_name, settings),
         VncClientType::Krdc => krdc::launch(port, instance_name, settings),
         VncClientType::Vinagre => vinagre::launch(port, instance_name, settings),
+        VncClientType::ScreenSharing => screen_sharing::launch(port, instance_name, settings),
     }
 }
 
@@ -211,7 +222,9 @@ mod tests {
             assert_eq!(order[0], VncClientType::TigerVnc);
             assert_eq!(order.len(), 1);
         }
-        #[cfg(not(target_os = "windows"))]
+        #[cfg(target_os = "macos")]
+        assert_eq!(order, vec![VncClientType::ScreenSharing]);
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
         {
             assert_eq!(order[0], VncClientType::Remmina);
             assert_eq!(order.len(), 4);
@@ -221,10 +234,7 @@ mod tests {
     #[test]
     fn test_vnc_settings_default() {
         let settings = VncSettings::default();
-        #[cfg(target_os = "windows")]
-        assert_eq!(settings.client_type, VncClientType::TigerVnc);
-        #[cfg(not(target_os = "windows"))]
-        assert_eq!(settings.client_type, VncClientType::Remmina);
+        assert_eq!(settings.client_type, VncClientType::fallback_order()[0]);
         assert_eq!(settings.fullscreen, false);
         assert_eq!(settings.view_only, false);
         assert_eq!(settings.quality, VncQuality::Medium);

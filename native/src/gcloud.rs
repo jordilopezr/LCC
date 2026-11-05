@@ -440,7 +440,9 @@ pub fn launch_sftp_browser(port: u16, username: Option<String>) -> anyhow::Resul
     // Use xdg-open to launch default file manager (or explorer on Windows)
     #[cfg(target_os = "windows")]
     let cmd_name = "explorer";
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    let cmd_name = "/usr/bin/open";
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     let cmd_name = "xdg-open";
 
     Command::new(cmd_name)

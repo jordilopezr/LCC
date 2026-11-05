@@ -5090,6 +5090,7 @@ impl SseDecode for crate::rdp_client::RdpClientType {
             1 => crate::rdp_client::RdpClientType::FreeRdp,
             2 => crate::rdp_client::RdpClientType::Krdc,
             3 => crate::rdp_client::RdpClientType::GnomeConnections,
+            4 => crate::rdp_client::RdpClientType::WindowsApp,
             _ => unreachable!("Invalid variant for RdpClientType: {}", inner),
         };
     }
@@ -5425,6 +5426,7 @@ impl SseDecode for crate::vnc_client::VncClientType {
             1 => crate::vnc_client::VncClientType::TigerVnc,
             2 => crate::vnc_client::VncClientType::Krdc,
             3 => crate::vnc_client::VncClientType::Vinagre,
+            4 => crate::vnc_client::VncClientType::ScreenSharing,
             _ => unreachable!("Invalid variant for VncClientType: {}", inner),
         };
     }
@@ -6210,6 +6212,7 @@ impl flutter_rust_bridge::IntoDart for crate::rdp_client::RdpClientType {
             Self::FreeRdp => 1.into_dart(),
             Self::Krdc => 2.into_dart(),
             Self::GnomeConnections => 3.into_dart(),
+            Self::WindowsApp => 4.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -6571,6 +6574,7 @@ impl flutter_rust_bridge::IntoDart for crate::vnc_client::VncClientType {
             Self::TigerVnc => 1.into_dart(),
             Self::Krdc => 2.into_dart(),
             Self::Vinagre => 3.into_dart(),
+            Self::ScreenSharing => 4.into_dart(),
             _ => unreachable!(),
         }
     }
@@ -7371,6 +7375,7 @@ impl SseEncode for crate::rdp_client::RdpClientType {
                 crate::rdp_client::RdpClientType::FreeRdp => 1,
                 crate::rdp_client::RdpClientType::Krdc => 2,
                 crate::rdp_client::RdpClientType::GnomeConnections => 3,
+                crate::rdp_client::RdpClientType::WindowsApp => 4,
                 _ => {
                     unimplemented!("");
                 }
@@ -7608,6 +7613,7 @@ impl SseEncode for crate::vnc_client::VncClientType {
                 crate::vnc_client::VncClientType::TigerVnc => 1,
                 crate::vnc_client::VncClientType::Krdc => 2,
                 crate::vnc_client::VncClientType::Vinagre => 3,
+                crate::vnc_client::VncClientType::ScreenSharing => 4,
                 _ => {
                     unimplemented!("");
                 }
