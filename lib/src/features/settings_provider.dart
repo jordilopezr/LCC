@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/legacy.dart'; // For StateProvider
@@ -172,6 +173,8 @@ RdpClientType parseRdpClientName(String name) {
       return RdpClientType.krdc;
     case 'gnome_connections':
       return RdpClientType.gnomeConnections;
+    case 'windows_app':
+      return RdpClientType.windowsApp;
     case 'remmina':
     default:
       return RdpClientType.remmina;
@@ -241,7 +244,8 @@ class RdpClientNotifier extends Notifier<RdpClientType> {
   @override
   RdpClientType build() {
     _loadClient();
-    return RdpClientType.remmina; // Default for backward compatibility
+    // Remmina on Linux (backward compatibility); macOS has only Windows App.
+    return Platform.isMacOS ? RdpClientType.windowsApp : RdpClientType.remmina;
   }
 
   Future<void> _loadClient() async {
@@ -269,6 +273,8 @@ class RdpClientNotifier extends Notifier<RdpClientType> {
         return 'krdc';
       case RdpClientType.gnomeConnections:
         return 'gnome_connections';
+      case RdpClientType.windowsApp:
+        return 'windows_app';
     }
   }
 
@@ -285,9 +291,21 @@ class RdpClientNotifier extends Notifier<RdpClientType> {
         return 'KRDC';
       case RdpClientType.gnomeConnections:
         return 'GNOME Connections';
+      case RdpClientType.windowsApp:
+        return 'Windows App';
     }
   }
 }
+
+/// The RDP clients this platform can run, in the order the settings list them.
+List<RdpClientType> rdpClientsForPlatform() => Platform.isMacOS
+    ? const [RdpClientType.windowsApp]
+    : RdpClientType.values.where((c) => c != RdpClientType.windowsApp).toList();
+
+/// The VNC clients this platform can run, in the order the settings list them.
+List<VncClientType> vncClientsForPlatform() => Platform.isMacOS
+    ? const [VncClientType.screenSharing]
+    : VncClientType.values.where((c) => c != VncClientType.screenSharing).toList();
 
 /// Provider for available RDP clients on system
 final availableRdpClientsProvider = FutureProvider<List<RdpClientType>>((ref) async {
@@ -312,7 +330,8 @@ class VncClientNotifier extends Notifier<VncClientType> {
   @override
   VncClientType build() {
     _loadClient();
-    return VncClientType.remmina; // Default for backward compatibility
+    // Remmina on Linux (backward compatibility); macOS uses Screen Sharing.
+    return Platform.isMacOS ? VncClientType.screenSharing : VncClientType.remmina;
   }
 
   Future<void> _loadClient() async {
@@ -340,6 +359,8 @@ class VncClientNotifier extends Notifier<VncClientType> {
         return 'krdc';
       case VncClientType.vinagre:
         return 'vinagre';
+      case VncClientType.screenSharing:
+        return 'screen_sharing';
     }
   }
 
@@ -351,6 +372,8 @@ class VncClientNotifier extends Notifier<VncClientType> {
         return VncClientType.krdc;
       case 'vinagre':
         return VncClientType.vinagre;
+      case 'screen_sharing':
+        return VncClientType.screenSharing;
       case 'remmina':
       default:
         return VncClientType.remmina;
@@ -368,6 +391,8 @@ class VncClientNotifier extends Notifier<VncClientType> {
         return 'KRDC';
       case VncClientType.vinagre:
         return 'Vinagre';
+      case VncClientType.screenSharing:
+        return Platform.isMacOS ? 'Screen Sharing (macOS)' : 'Screen Sharing';
     }
   }
 }

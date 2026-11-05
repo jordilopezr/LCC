@@ -926,6 +926,17 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsVncDescVinagre => 'GNOME VNC viewer';
 
   @override
+  String get settingsRdpDescWindowsApp =>
+      'Microsoft\'s RDP client for Mac (free on the Mac App Store)';
+
+  @override
+  String get settingsVncDescScreenSharing => 'VNC viewer built into macOS';
+
+  @override
+  String get settingsNoRdpClientsMac =>
+      'No RDP client detected. Install Windows App (Microsoft) from the Mac App Store.';
+
+  @override
   String commonEditionLabel(String version) {
     return 'Edition $version';
   }

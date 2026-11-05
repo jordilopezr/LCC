@@ -1222,6 +1222,7 @@ mod reaper_tests {
     /// is the signal the trap above is written to catch. Arming it on this
     /// process is the only way to read it back — `PR_GET_PDEATHSIG` answers
     /// only about the caller — so it is restored before returning.
+    #[cfg(target_os = "linux")] // prctl is Linux-only, like the arming itself
     #[test]
     fn the_parent_death_signal_is_actually_armed() {
         let mut armed: libc::c_int = -1;

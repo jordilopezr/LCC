@@ -93,8 +93,8 @@ pub fn cleanup_old_config_files() -> Result<usize> {
     for entry in entries.flatten() {
         let path = entry.path();
 
-        // Only process .remmina files (our temporary configs)
-        if path.extension().and_then(|e| e.to_str()) != Some("remmina") {
+        // Only process our temporary configs: .remmina (Linux), .rdp (macOS)
+        if !matches!(path.extension().and_then(|e| e.to_str()), Some("remmina" | "rdp")) {
             continue;
         }
 
@@ -143,15 +143,18 @@ pub fn cleanup_old_config_files() -> Result<usize> {
 /// * `instance_name` - The name of the instance whose config should be removed
 pub fn remove_config_file(instance_name: &str) -> Result<()> {
     let config_dir = get_config_dir()?;
-    let file_path = config_dir.join(format!("iap_{}.remmina", instance_name));
 
-    if file_path.exists() {
-        std::fs::remove_file(&file_path)
-            .map_err(|e| anyhow!("Failed to remove config file: {}", e))?;
-        tracing::debug!(
-            instance_name = instance_name,
-            "Removed temporary config file"
-        );
+    // .remmina on Linux, .rdp for Windows App on macOS.
+    for ext in ["remmina", "rdp"] {
+        let file_path = config_dir.join(format!("iap_{}.{}", instance_name, ext));
+        if file_path.exists() {
+            std::fs::remove_file(&file_path)
+                .map_err(|e| anyhow!("Failed to remove config file: {}", e))?;
+            tracing::debug!(
+                instance_name = instance_name,
+                "Removed temporary config file"
+            );
+        }
     }
 
     Ok(())

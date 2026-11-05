@@ -373,10 +373,12 @@ pub async fn interactive_login() -> Result<OAuthTokens> {
     // itself echoes back over the same redirect, not a bearer credential.
     println!("Sign in at (listening on 127.0.0.1:{}):", port);
     println!("  {}", auth_url);
-    std::process::Command::new("xdg-open")
+    // macOS has no xdg-open: `open` hands the URL to the default browser.
+    let opener = if cfg!(target_os = "macos") { "/usr/bin/open" } else { "xdg-open" };
+    std::process::Command::new(opener)
         .arg(&auth_url)
         .spawn()
-        .map_err(|e| anyhow!("Failed to open the browser (xdg-open): {}", e))?;
+        .map_err(|e| anyhow!("Failed to open the browser ({}): {}", opener, e))?;
 
     // The listener is dropped when this scope ends, on every path.
     let code = tokio::time::timeout(REDIRECT_TIMEOUT, await_redirect_code(listener, &state))

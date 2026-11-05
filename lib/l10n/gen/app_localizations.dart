@@ -1694,6 +1694,24 @@ abstract class AppLocalizations {
   /// **'GNOME VNC viewer'**
   String get settingsVncDescVinagre;
 
+  /// No description provided for @settingsRdpDescWindowsApp.
+  ///
+  /// In en, this message translates to:
+  /// **'Microsoft\'s RDP client for Mac (free on the Mac App Store)'**
+  String get settingsRdpDescWindowsApp;
+
+  /// No description provided for @settingsVncDescScreenSharing.
+  ///
+  /// In en, this message translates to:
+  /// **'VNC viewer built into macOS'**
+  String get settingsVncDescScreenSharing;
+
+  /// No description provided for @settingsNoRdpClientsMac.
+  ///
+  /// In en, this message translates to:
+  /// **'No RDP client detected. Install Windows App (Microsoft) from the Mac App Store.'**
+  String get settingsNoRdpClientsMac;
+
   /// No description provided for @commonEditionLabel.
   ///
   /// In en, this message translates to:

@@ -496,6 +496,9 @@
   "settingsVncDescTigerVnc": "High-performance VNC viewer",
   "settingsVncDescKrdc": "KDE VNC and RDP client",
   "settingsVncDescVinagre": "GNOME VNC viewer",
+  "settingsRdpDescWindowsApp": "Microsoft's RDP client for Mac (free on the Mac App Store)",
+  "settingsVncDescScreenSharing": "VNC viewer built into macOS",
+  "settingsNoRdpClientsMac": "No RDP client detected. Install Windows App (Microsoft) from the Mac App Store.",
   "commonEditionLabel": "Edition {version}",
   "@commonEditionLabel": {
     "placeholders": {

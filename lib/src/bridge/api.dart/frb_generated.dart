@@ -5275,7 +5275,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_String(deserializer);
+    var inner = sse_decode_String(deserializer);
     return AnyhowException(inner);
   }
 
@@ -5290,24 +5290,24 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   String sse_decode_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_list_prim_u_8_strict(deserializer);
+    var inner = sse_decode_list_prim_u_8_strict(deserializer);
     return utf8.decoder.convert(inner);
   }
 
   @protected
   AuditLogEntry sse_decode_audit_log_entry(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_insertId = sse_decode_String(deserializer);
-    final var_timestamp = sse_decode_String(deserializer);
-    final var_severity = sse_decode_String(deserializer);
-    final var_logName = sse_decode_String(deserializer);
-    final var_resourceType = sse_decode_String(deserializer);
-    final var_methodName = sse_decode_opt_String(deserializer);
-    final var_principalEmail = sse_decode_opt_String(deserializer);
-    final var_statusCode = sse_decode_opt_box_autoadd_i_32(deserializer);
-    final var_statusMessage = sse_decode_opt_String(deserializer);
-    final var_resourceName = sse_decode_opt_String(deserializer);
-    final var_requestSummary = sse_decode_opt_String(deserializer);
+    var var_insertId = sse_decode_String(deserializer);
+    var var_timestamp = sse_decode_String(deserializer);
+    var var_severity = sse_decode_String(deserializer);
+    var var_logName = sse_decode_String(deserializer);
+    var var_resourceType = sse_decode_String(deserializer);
+    var var_methodName = sse_decode_opt_String(deserializer);
+    var var_principalEmail = sse_decode_opt_String(deserializer);
+    var var_statusCode = sse_decode_opt_box_autoadd_i_32(deserializer);
+    var var_statusMessage = sse_decode_opt_String(deserializer);
+    var var_resourceName = sse_decode_opt_String(deserializer);
+    var var_requestSummary = sse_decode_opt_String(deserializer);
     return AuditLogEntry(
       insertId: var_insertId,
       timestamp: var_timestamp,
@@ -5326,10 +5326,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   AuthStatus sse_decode_auth_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_gcloudInstalled = sse_decode_bool(deserializer);
-    final var_authenticated = sse_decode_bool(deserializer);
-    final var_gcloudRequired = sse_decode_bool(deserializer);
-    final var_keyringProblem = sse_decode_opt_box_autoadd_keyring_problem(
+    var var_gcloudInstalled = sse_decode_bool(deserializer);
+    var var_authenticated = sse_decode_bool(deserializer);
+    var var_gcloudRequired = sse_decode_bool(deserializer);
+    var var_keyringProblem = sse_decode_opt_box_autoadd_keyring_problem(
       deserializer,
     );
     return AuthStatus(
@@ -5351,7 +5351,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_db_client_type(deserializer);
+    return (sse_decode_db_client_type(deserializer));
   }
 
   @protected
@@ -5359,7 +5359,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_db_connection_settings(deserializer);
+    return (sse_decode_db_connection_settings(deserializer));
   }
 
   @protected
@@ -5367,19 +5367,19 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_doctor_report(deserializer);
+    return (sse_decode_doctor_report(deserializer));
   }
 
   @protected
   int sse_decode_box_autoadd_i_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_i_32(deserializer);
+    return (sse_decode_i_32(deserializer));
   }
 
   @protected
   PlatformInt64 sse_decode_box_autoadd_i_64(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_i_64(deserializer);
+    return (sse_decode_i_64(deserializer));
   }
 
   @protected
@@ -5387,7 +5387,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_keyring_problem(deserializer);
+    return (sse_decode_keyring_problem(deserializer));
   }
 
   @protected
@@ -5395,7 +5395,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_rdp_settings(deserializer);
+    return (sse_decode_rdp_settings(deserializer));
   }
 
   @protected
@@ -5403,13 +5403,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_ssh_credential(deserializer);
+    return (sse_decode_ssh_credential(deserializer));
   }
 
   @protected
   SshfsMount sse_decode_box_autoadd_sshfs_mount(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_sshfs_mount(deserializer);
+    return (sse_decode_sshfs_mount(deserializer));
   }
 
   @protected
@@ -5417,25 +5417,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_sshfs_mount_options(deserializer);
+    return (sse_decode_sshfs_mount_options(deserializer));
   }
 
   @protected
   int sse_decode_box_autoadd_u_16(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_u_16(deserializer);
+    return (sse_decode_u_16(deserializer));
   }
 
   @protected
   int sse_decode_box_autoadd_u_32(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_u_32(deserializer);
+    return (sse_decode_u_32(deserializer));
   }
 
   @protected
   int sse_decode_box_autoadd_u_8(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_u_8(deserializer);
+    return (sse_decode_u_8(deserializer));
   }
 
   @protected
@@ -5443,7 +5443,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_vnc_settings(deserializer);
+    return (sse_decode_vnc_settings(deserializer));
   }
 
   @protected
@@ -5451,20 +5451,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    return sse_decode_windows_credential(deserializer);
+    return (sse_decode_windows_credential(deserializer));
   }
 
   @protected
   DatabaseType sse_decode_database_type(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DatabaseType.values[inner];
   }
 
   @protected
   DbClientType sse_decode_db_client_type(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DbClientType.values[inner];
   }
 
@@ -5473,13 +5473,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_databaseType = sse_decode_database_type(deserializer);
-    final var_host = sse_decode_String(deserializer);
-    final var_port = sse_decode_u_16(deserializer);
-    final var_databaseName = sse_decode_opt_String(deserializer);
-    final var_username = sse_decode_opt_String(deserializer);
-    final var_instanceName = sse_decode_String(deserializer);
-    final var_clientType = sse_decode_opt_box_autoadd_db_client_type(
+    var var_databaseType = sse_decode_database_type(deserializer);
+    var var_host = sse_decode_String(deserializer);
+    var var_port = sse_decode_u_16(deserializer);
+    var var_databaseName = sse_decode_opt_String(deserializer);
+    var var_username = sse_decode_opt_String(deserializer);
+    var var_instanceName = sse_decode_String(deserializer);
+    var var_clientType = sse_decode_opt_box_autoadd_db_client_type(
       deserializer,
     );
     return DbConnectionSettings(
@@ -5496,8 +5496,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DbLaunchResult sse_decode_db_launch_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_clientUsed = sse_decode_db_client_type(deserializer);
-    final var_fallbackOccurred = sse_decode_bool(deserializer);
+    var var_clientUsed = sse_decode_db_client_type(deserializer);
+    var var_fallbackOccurred = sse_decode_bool(deserializer);
     return DbLaunchResult(
       clientUsed: var_clientUsed,
       fallbackOccurred: var_fallbackOccurred,
@@ -5507,12 +5507,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   DiskStatus sse_decode_disk_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_diskType = sse_decode_opt_String(deserializer);
-    final var_sizeGb = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_isBoot = sse_decode_bool(deserializer);
-    final var_autoDelete = sse_decode_bool(deserializer);
-    final var_mode = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_diskType = sse_decode_opt_String(deserializer);
+    var var_sizeGb = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_isBoot = sse_decode_bool(deserializer);
+    var var_autoDelete = sse_decode_bool(deserializer);
+    var var_mode = sse_decode_String(deserializer);
     return DiskStatus(
       name: var_name,
       diskType: var_diskType,
@@ -5528,7 +5528,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DoctorCheckCategory.values[inner];
   }
 
@@ -5537,16 +5537,16 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_checkId = sse_decode_String(deserializer);
-    final var_name = sse_decode_String(deserializer);
-    final var_category = sse_decode_doctor_check_category(deserializer);
-    final var_status = sse_decode_doctor_check_status(deserializer);
-    final var_message = sse_decode_String(deserializer);
-    final var_details = sse_decode_opt_String(deserializer);
-    final var_suggestion = sse_decode_opt_String(deserializer);
-    final var_fixCommand = sse_decode_opt_String(deserializer);
-    final var_fixActionId = sse_decode_opt_String(deserializer);
-    final var_durationMs = sse_decode_u_64(deserializer);
+    var var_checkId = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_category = sse_decode_doctor_check_category(deserializer);
+    var var_status = sse_decode_doctor_check_status(deserializer);
+    var var_message = sse_decode_String(deserializer);
+    var var_details = sse_decode_opt_String(deserializer);
+    var var_suggestion = sse_decode_opt_String(deserializer);
+    var var_fixCommand = sse_decode_opt_String(deserializer);
+    var var_fixActionId = sse_decode_opt_String(deserializer);
+    var var_durationMs = sse_decode_u_64(deserializer);
     return DoctorCheckResult(
       checkId: var_checkId,
       name: var_name,
@@ -5566,25 +5566,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return DoctorCheckStatus.values[inner];
   }
 
   @protected
   DoctorReport sse_decode_doctor_report(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_checks = sse_decode_list_doctor_check_result(deserializer);
-    final var_projectId = sse_decode_String(deserializer);
-    final var_zone = sse_decode_String(deserializer);
-    final var_instanceName = sse_decode_String(deserializer);
-    final var_generatedAt = sse_decode_String(deserializer);
-    final var_gcloudVersion = sse_decode_opt_String(deserializer);
-    final var_gcloudAccount = sse_decode_opt_String(deserializer);
-    final var_totalDurationMs = sse_decode_u_64(deserializer);
-    final var_passCount = sse_decode_u_32(deserializer);
-    final var_warningCount = sse_decode_u_32(deserializer);
-    final var_failCount = sse_decode_u_32(deserializer);
-    final var_skippedCount = sse_decode_u_32(deserializer);
+    var var_checks = sse_decode_list_doctor_check_result(deserializer);
+    var var_projectId = sse_decode_String(deserializer);
+    var var_zone = sse_decode_String(deserializer);
+    var var_instanceName = sse_decode_String(deserializer);
+    var var_generatedAt = sse_decode_String(deserializer);
+    var var_gcloudVersion = sse_decode_opt_String(deserializer);
+    var var_gcloudAccount = sse_decode_opt_String(deserializer);
+    var var_totalDurationMs = sse_decode_u_64(deserializer);
+    var var_passCount = sse_decode_u_32(deserializer);
+    var var_warningCount = sse_decode_u_32(deserializer);
+    var var_failCount = sse_decode_u_32(deserializer);
+    var var_skippedCount = sse_decode_u_32(deserializer);
     return DoctorReport(
       checks: var_checks,
       projectId: var_projectId,
@@ -5604,9 +5604,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   FileManagerInfo sse_decode_file_manager_info(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_command = sse_decode_String(deserializer);
-    final var_isInstalled = sse_decode_bool(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_command = sse_decode_String(deserializer);
+    var var_isInstalled = sse_decode_bool(deserializer);
     return FileManagerInfo(
       name: var_name,
       command: var_command,
@@ -5617,26 +5617,26 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   GcloudAccount sse_decode_gcloud_account(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_account = sse_decode_String(deserializer);
-    final var_status = sse_decode_String(deserializer);
+    var var_account = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
     return GcloudAccount(account: var_account, status: var_status);
   }
 
   @protected
   GcpInstance sse_decode_gcp_instance(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_status = sse_decode_String(deserializer);
-    final var_zone = sse_decode_String(deserializer);
-    final var_machineType = sse_decode_String(deserializer);
-    final var_cpuCount = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_memoryMb = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_diskGb = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_labels = sse_decode_list_record_string_string(deserializer);
-    final var_osLoginEnabled = sse_decode_bool(deserializer);
-    final var_isWindows = sse_decode_bool(deserializer);
-    final var_internalIp = sse_decode_opt_String(deserializer);
-    final var_externalIp = sse_decode_opt_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_zone = sse_decode_String(deserializer);
+    var var_machineType = sse_decode_String(deserializer);
+    var var_cpuCount = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_memoryMb = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_diskGb = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_labels = sse_decode_list_record_string_string(deserializer);
+    var var_osLoginEnabled = sse_decode_bool(deserializer);
+    var var_isWindows = sse_decode_bool(deserializer);
+    var var_internalIp = sse_decode_opt_String(deserializer);
+    var var_externalIp = sse_decode_opt_String(deserializer);
     return GcpInstance(
       name: var_name,
       status: var_status,
@@ -5658,18 +5658,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_status = sse_decode_String(deserializer);
-    final var_zone = sse_decode_String(deserializer);
-    final var_machineType = sse_decode_String(deserializer);
-    final var_cpuCount = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_memoryMb = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_diskGb = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_labels = sse_decode_list_record_string_string(deserializer);
-    final var_osLoginEnabled = sse_decode_bool(deserializer);
-    final var_isWindows = sse_decode_bool(deserializer);
-    final var_internalIp = sse_decode_opt_String(deserializer);
-    final var_externalIp = sse_decode_opt_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_zone = sse_decode_String(deserializer);
+    var var_machineType = sse_decode_String(deserializer);
+    var var_cpuCount = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_memoryMb = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_diskGb = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_labels = sse_decode_list_record_string_string(deserializer);
+    var var_osLoginEnabled = sse_decode_bool(deserializer);
+    var var_isWindows = sse_decode_bool(deserializer);
+    var var_internalIp = sse_decode_opt_String(deserializer);
+    var var_externalIp = sse_decode_opt_String(deserializer);
     return GcpInstanceClientLib(
       name: var_name,
       status: var_status,
@@ -5689,8 +5689,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   GcpProject sse_decode_gcp_project(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_projectId = sse_decode_String(deserializer);
-    final var_name = sse_decode_opt_String(deserializer);
+    var var_projectId = sse_decode_String(deserializer);
+    var var_name = sse_decode_opt_String(deserializer);
     return GcpProject(projectId: var_projectId, name: var_name);
   }
 
@@ -5699,10 +5699,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_projectId = sse_decode_String(deserializer);
-    final var_name = sse_decode_opt_String(deserializer);
-    final var_projectNumber = sse_decode_String(deserializer);
-    final var_state = sse_decode_String(deserializer);
+    var var_projectId = sse_decode_String(deserializer);
+    var var_name = sse_decode_opt_String(deserializer);
+    var var_projectNumber = sse_decode_String(deserializer);
+    var var_state = sse_decode_String(deserializer);
     return GcpProjectClientLib(
       projectId: var_projectId,
       name: var_name,
@@ -5714,13 +5714,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   GcpSnapshot sse_decode_gcp_snapshot(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_status = sse_decode_String(deserializer);
-    final var_creationTimestamp = sse_decode_String(deserializer);
-    final var_sourceDisk = sse_decode_String(deserializer);
-    final var_diskSizeGb = sse_decode_u_64(deserializer);
-    final var_storageBytes = sse_decode_u_64(deserializer);
-    final var_description = sse_decode_String(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_creationTimestamp = sse_decode_String(deserializer);
+    var var_sourceDisk = sse_decode_String(deserializer);
+    var var_diskSizeGb = sse_decode_u_64(deserializer);
+    var var_storageBytes = sse_decode_u_64(deserializer);
+    var var_description = sse_decode_String(deserializer);
     return GcpSnapshot(
       name: var_name,
       status: var_status,
@@ -5735,10 +5735,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   GuestAgentStatus sse_decode_guest_agent_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_isReporting = sse_decode_bool(deserializer);
-    final var_osType = sse_decode_opt_String(deserializer);
-    final var_osVersion = sse_decode_opt_String(deserializer);
-    final var_lastHeartbeat = sse_decode_opt_String(deserializer);
+    var var_isReporting = sse_decode_bool(deserializer);
+    var var_osType = sse_decode_opt_String(deserializer);
+    var var_osVersion = sse_decode_opt_String(deserializer);
+    var var_lastHeartbeat = sse_decode_opt_String(deserializer);
     return GuestAgentStatus(
       isReporting: var_isReporting,
       osType: var_osType,
@@ -5762,7 +5762,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   KeyringProblem sse_decode_keyring_problem(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return KeyringProblem.values[inner];
   }
 
@@ -5770,8 +5770,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<String> sse_decode_list_String(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <String>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <String>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_String(deserializer));
     }
@@ -5784,8 +5784,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <AuditLogEntry>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <AuditLogEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_audit_log_entry(deserializer));
     }
@@ -5798,8 +5798,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DatabaseType>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DatabaseType>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_database_type(deserializer));
     }
@@ -5812,8 +5812,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DbClientType>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DbClientType>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_db_client_type(deserializer));
     }
@@ -5824,8 +5824,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<DiskStatus> sse_decode_list_disk_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DiskStatus>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DiskStatus>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_disk_status(deserializer));
     }
@@ -5838,8 +5838,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <DoctorCheckResult>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <DoctorCheckResult>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_doctor_check_result(deserializer));
     }
@@ -5852,8 +5852,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <FileManagerInfo>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <FileManagerInfo>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_file_manager_info(deserializer));
     }
@@ -5866,8 +5866,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <GcloudAccount>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GcloudAccount>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_gcloud_account(deserializer));
     }
@@ -5878,8 +5878,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<GcpInstance> sse_decode_list_gcp_instance(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <GcpInstance>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GcpInstance>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_gcp_instance(deserializer));
     }
@@ -5892,8 +5892,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <GcpInstanceClientLib>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GcpInstanceClientLib>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_gcp_instance_client_lib(deserializer));
     }
@@ -5904,8 +5904,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<GcpProject> sse_decode_list_gcp_project(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <GcpProject>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GcpProject>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_gcp_project(deserializer));
     }
@@ -5918,8 +5918,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <GcpProjectClientLib>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GcpProjectClientLib>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_gcp_project_client_lib(deserializer));
     }
@@ -5930,8 +5930,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<GcpSnapshot> sse_decode_list_gcp_snapshot(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <GcpSnapshot>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <GcpSnapshot>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_gcp_snapshot(deserializer));
     }
@@ -5944,8 +5944,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <NetworkInterface>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <NetworkInterface>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_network_interface(deserializer));
     }
@@ -5955,7 +5955,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final len_ = sse_decode_i_32(deserializer);
+    var len_ = sse_decode_i_32(deserializer);
     return deserializer.buffer.getUint8List(len_);
   }
 
@@ -5965,8 +5965,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <RdpClientType>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RdpClientType>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_rdp_client_type(deserializer));
     }
@@ -5979,8 +5979,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <(String, String)>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <(String, String)>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_record_string_string(deserializer));
     }
@@ -5993,8 +5993,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <RemoteFileEntry>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <RemoteFileEntry>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_remote_file_entry(deserializer));
     }
@@ -6005,8 +6005,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   List<SshfsMount> sse_decode_list_sshfs_mount(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <SshfsMount>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <SshfsMount>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_sshfs_mount(deserializer));
     }
@@ -6019,8 +6019,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <UnmountResult>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <UnmountResult>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_unmount_result(deserializer));
     }
@@ -6033,8 +6033,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <VncClientType>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <VncClientType>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_vnc_client_type(deserializer));
     }
@@ -6047,8 +6047,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final len_ = sse_decode_i_32(deserializer);
-    final ans_ = <WindowsCredential>[];
+    var len_ = sse_decode_i_32(deserializer);
+    var ans_ = <WindowsCredential>[];
     for (var idx_ = 0; idx_ < len_; ++idx_) {
       ans_.add(sse_decode_windows_credential(deserializer));
     }
@@ -6058,10 +6058,10 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   MountResult sse_decode_mount_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_success = sse_decode_bool(deserializer);
-    final var_mount = sse_decode_opt_box_autoadd_sshfs_mount(deserializer);
-    final var_error = sse_decode_opt_String(deserializer);
-    final var_mountPoint = sse_decode_String(deserializer);
+    var var_success = sse_decode_bool(deserializer);
+    var var_mount = sse_decode_opt_box_autoadd_sshfs_mount(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    var var_mountPoint = sse_decode_String(deserializer);
     return MountResult(
       success: var_success,
       mount: var_mount,
@@ -6073,11 +6073,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   NetworkInterface sse_decode_network_interface(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_network = sse_decode_String(deserializer);
-    final var_subnetwork = sse_decode_opt_String(deserializer);
-    final var_internalIp = sse_decode_opt_String(deserializer);
-    final var_externalIp = sse_decode_opt_String(deserializer);
-    final var_networkTier = sse_decode_opt_String(deserializer);
+    var var_network = sse_decode_String(deserializer);
+    var var_subnetwork = sse_decode_opt_String(deserializer);
+    var var_internalIp = sse_decode_opt_String(deserializer);
+    var var_externalIp = sse_decode_opt_String(deserializer);
+    var var_networkTier = sse_decode_opt_String(deserializer);
     return NetworkInterface(
       network: var_network,
       subnetwork: var_subnetwork,
@@ -6092,7 +6092,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_String(deserializer);
+      return (sse_decode_String(deserializer));
     } else {
       return null;
     }
@@ -6105,7 +6105,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_db_client_type(deserializer);
+      return (sse_decode_box_autoadd_db_client_type(deserializer));
     } else {
       return null;
     }
@@ -6116,7 +6116,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_i_32(deserializer);
+      return (sse_decode_box_autoadd_i_32(deserializer));
     } else {
       return null;
     }
@@ -6127,7 +6127,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_i_64(deserializer);
+      return (sse_decode_box_autoadd_i_64(deserializer));
     } else {
       return null;
     }
@@ -6140,7 +6140,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_keyring_problem(deserializer);
+      return (sse_decode_box_autoadd_keyring_problem(deserializer));
     } else {
       return null;
     }
@@ -6153,7 +6153,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_sshfs_mount(deserializer);
+      return (sse_decode_box_autoadd_sshfs_mount(deserializer));
     } else {
       return null;
     }
@@ -6164,7 +6164,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_u_16(deserializer);
+      return (sse_decode_box_autoadd_u_16(deserializer));
     } else {
       return null;
     }
@@ -6175,7 +6175,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_u_32(deserializer);
+      return (sse_decode_box_autoadd_u_32(deserializer));
     } else {
       return null;
     }
@@ -6186,7 +6186,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_u_8(deserializer);
+      return (sse_decode_box_autoadd_u_8(deserializer));
     } else {
       return null;
     }
@@ -6199,7 +6199,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
     if (sse_decode_bool(deserializer)) {
-      return sse_decode_box_autoadd_windows_credential(deserializer);
+      return (sse_decode_box_autoadd_windows_credential(deserializer));
     } else {
       return null;
     }
@@ -6208,22 +6208,22 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   ProvisionMethod sse_decode_provision_method(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return ProvisionMethod.values[inner];
   }
 
   @protected
   RdpClientType sse_decode_rdp_client_type(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return RdpClientType.values[inner];
   }
 
   @protected
   RdpLaunchResult sse_decode_rdp_launch_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_clientUsed = sse_decode_rdp_client_type(deserializer);
-    final var_fallbackOccurred = sse_decode_bool(deserializer);
+    var var_clientUsed = sse_decode_rdp_client_type(deserializer);
+    var var_fallbackOccurred = sse_decode_bool(deserializer);
     return RdpLaunchResult(
       clientUsed: var_clientUsed,
       fallbackOccurred: var_fallbackOccurred,
@@ -6233,14 +6233,14 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   RdpSettings sse_decode_rdp_settings(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_username = sse_decode_opt_String(deserializer);
-    final var_password = sse_decode_opt_String(deserializer);
-    final var_domain = sse_decode_opt_String(deserializer);
-    final var_width = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_fullscreen = sse_decode_bool(deserializer);
-    final var_ignoreCertificate = sse_decode_bool(deserializer);
-    final var_clientType = sse_decode_rdp_client_type(deserializer);
+    var var_username = sse_decode_opt_String(deserializer);
+    var var_password = sse_decode_opt_String(deserializer);
+    var var_domain = sse_decode_opt_String(deserializer);
+    var var_width = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_fullscreen = sse_decode_bool(deserializer);
+    var var_ignoreCertificate = sse_decode_bool(deserializer);
+    var var_clientType = sse_decode_rdp_client_type(deserializer);
     return RdpSettings(
       username: var_username,
       password: var_password,
@@ -6258,20 +6258,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_field0 = sse_decode_String(deserializer);
-    final var_field1 = sse_decode_String(deserializer);
+    var var_field0 = sse_decode_String(deserializer);
+    var var_field1 = sse_decode_String(deserializer);
     return (var_field0, var_field1);
   }
 
   @protected
   RemoteFileEntry sse_decode_remote_file_entry(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_name = sse_decode_String(deserializer);
-    final var_path = sse_decode_String(deserializer);
-    final var_isDirectory = sse_decode_bool(deserializer);
-    final var_size = sse_decode_u_64(deserializer);
-    final var_modified = sse_decode_opt_box_autoadd_i_64(deserializer);
-    final var_permissions = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_name = sse_decode_String(deserializer);
+    var var_path = sse_decode_String(deserializer);
+    var var_isDirectory = sse_decode_bool(deserializer);
+    var var_size = sse_decode_u_64(deserializer);
+    var var_modified = sse_decode_opt_box_autoadd_i_64(deserializer);
+    var var_permissions = sse_decode_opt_box_autoadd_u_32(deserializer);
     return RemoteFileEntry(
       name: var_name,
       path: var_path,
@@ -6285,13 +6285,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SerialPortOutput sse_decode_serial_port_output(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_contents = sse_decode_String(deserializer);
-    final var_next = sse_decode_i_64(deserializer);
-    final var_start = sse_decode_i_64(deserializer);
-    final var_instanceName = sse_decode_String(deserializer);
-    final var_projectId = sse_decode_String(deserializer);
-    final var_zone = sse_decode_String(deserializer);
-    final var_fetchedAt = sse_decode_String(deserializer);
+    var var_contents = sse_decode_String(deserializer);
+    var var_next = sse_decode_i_64(deserializer);
+    var var_start = sse_decode_i_64(deserializer);
+    var var_instanceName = sse_decode_String(deserializer);
+    var var_projectId = sse_decode_String(deserializer);
+    var var_zone = sse_decode_String(deserializer);
+    var var_fetchedAt = sse_decode_String(deserializer);
     return SerialPortOutput(
       contents: var_contents,
       next: var_next,
@@ -6306,8 +6306,8 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SftpProgress sse_decode_sftp_progress(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_transferred = sse_decode_u_64(deserializer);
-    final var_total = sse_decode_u_64(deserializer);
+    var var_transferred = sse_decode_u_64(deserializer);
+    var var_total = sse_decode_u_64(deserializer);
     return SftpProgress(transferred: var_transferred, total: var_total);
   }
 
@@ -6315,17 +6315,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   SshAccessState sse_decode_ssh_access_state(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
 
-    final tag_ = sse_decode_i_32(deserializer);
+    var tag_ = sse_decode_i_32(deserializer);
     switch (tag_) {
       case 0:
-        final var_credential = sse_decode_box_autoadd_ssh_credential(
+        var var_credential = sse_decode_box_autoadd_ssh_credential(
           deserializer,
         );
         return SshAccessState_Ready(credential: var_credential);
       case 1:
-        final var_username = sse_decode_String(deserializer);
-        final var_method = sse_decode_provision_method(deserializer);
-        final var_keyFingerprint = sse_decode_String(deserializer);
+        var var_username = sse_decode_String(deserializer);
+        var var_method = sse_decode_provision_method(deserializer);
+        var var_keyFingerprint = sse_decode_String(deserializer);
         return SshAccessState_NeedsProvisioning(
           username: var_username,
           method: var_method,
@@ -6339,25 +6339,25 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SshCredential sse_decode_ssh_credential(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_username = sse_decode_String(deserializer);
-    final var_keyPath = sse_decode_opt_String(deserializer);
+    var var_username = sse_decode_String(deserializer);
+    var var_keyPath = sse_decode_opt_String(deserializer);
     return SshCredential(username: var_username, keyPath: var_keyPath);
   }
 
   @protected
   SshfsMount sse_decode_sshfs_mount(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_id = sse_decode_String(deserializer);
-    final var_projectId = sse_decode_String(deserializer);
-    final var_zone = sse_decode_String(deserializer);
-    final var_instanceName = sse_decode_String(deserializer);
-    final var_remotePath = sse_decode_String(deserializer);
-    final var_localMountPoint = sse_decode_String(deserializer);
-    final var_username = sse_decode_String(deserializer);
-    final var_tunnelPort = sse_decode_u_16(deserializer);
-    final var_options = sse_decode_sshfs_mount_options(deserializer);
-    final var_isActive = sse_decode_bool(deserializer);
-    final var_createdAt = sse_decode_i_64(deserializer);
+    var var_id = sse_decode_String(deserializer);
+    var var_projectId = sse_decode_String(deserializer);
+    var var_zone = sse_decode_String(deserializer);
+    var var_instanceName = sse_decode_String(deserializer);
+    var var_remotePath = sse_decode_String(deserializer);
+    var var_localMountPoint = sse_decode_String(deserializer);
+    var var_username = sse_decode_String(deserializer);
+    var var_tunnelPort = sse_decode_u_16(deserializer);
+    var var_options = sse_decode_sshfs_mount_options(deserializer);
+    var var_isActive = sse_decode_bool(deserializer);
+    var var_createdAt = sse_decode_i_64(deserializer);
     return SshfsMount(
       id: var_id,
       projectId: var_projectId,
@@ -6378,15 +6378,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_readOnly = sse_decode_bool(deserializer);
-    final var_cache = sse_decode_bool(deserializer);
-    final var_compression = sse_decode_bool(deserializer);
-    final var_reconnect = sse_decode_bool(deserializer);
-    final var_serverAliveInterval = sse_decode_u_32(deserializer);
-    final var_allowOther = sse_decode_bool(deserializer);
-    final var_followSymlinks = sse_decode_bool(deserializer);
-    final var_sshPort = sse_decode_opt_box_autoadd_u_16(deserializer);
-    final var_identityFile = sse_decode_opt_String(deserializer);
+    var var_readOnly = sse_decode_bool(deserializer);
+    var var_cache = sse_decode_bool(deserializer);
+    var var_compression = sse_decode_bool(deserializer);
+    var var_reconnect = sse_decode_bool(deserializer);
+    var var_serverAliveInterval = sse_decode_u_32(deserializer);
+    var var_allowOther = sse_decode_bool(deserializer);
+    var var_followSymlinks = sse_decode_bool(deserializer);
+    var var_sshPort = sse_decode_opt_box_autoadd_u_16(deserializer);
+    var var_identityFile = sse_decode_opt_String(deserializer);
     return SshfsMountOptions(
       readOnly: var_readOnly,
       cache: var_cache,
@@ -6403,11 +6403,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   SshfsStatus sse_decode_sshfs_status(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_installed = sse_decode_bool(deserializer);
-    final var_fuseAvailable = sse_decode_bool(deserializer);
-    final var_version = sse_decode_opt_String(deserializer);
-    final var_binaryPath = sse_decode_opt_String(deserializer);
-    final var_issues = sse_decode_list_String(deserializer);
+    var var_installed = sse_decode_bool(deserializer);
+    var var_fuseAvailable = sse_decode_bool(deserializer);
+    var var_version = sse_decode_opt_String(deserializer);
+    var var_binaryPath = sse_decode_opt_String(deserializer);
+    var var_issues = sse_decode_list_String(deserializer);
     return SshfsStatus(
       installed: var_installed,
       fuseAvailable: var_fuseAvailable,
@@ -6422,17 +6422,17 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_localPort = sse_decode_u_16(deserializer);
-    final var_engine = sse_decode_String(deserializer);
+    var var_localPort = sse_decode_u_16(deserializer);
+    var var_engine = sse_decode_String(deserializer);
     return StartedConnection(localPort: var_localPort, engine: var_engine);
   }
 
   @protected
   TunnelFailure sse_decode_tunnel_failure(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_code = sse_decode_String(deserializer);
-    final var_detail = sse_decode_opt_String(deserializer);
-    final var_engine = sse_decode_opt_String(deserializer);
+    var var_code = sse_decode_String(deserializer);
+    var var_detail = sse_decode_opt_String(deserializer);
+    var var_engine = sse_decode_opt_String(deserializer);
     return TunnelFailure(
       code: var_code,
       detail: var_detail,
@@ -6472,9 +6472,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   UnmountResult sse_decode_unmount_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_success = sse_decode_bool(deserializer);
-    final var_error = sse_decode_opt_String(deserializer);
-    final var_mountPoint = sse_decode_String(deserializer);
+    var var_success = sse_decode_bool(deserializer);
+    var var_error = sse_decode_opt_String(deserializer);
+    var var_mountPoint = sse_decode_String(deserializer);
     return UnmountResult(
       success: var_success,
       error: var_error,
@@ -6485,20 +6485,18 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   VmDiagnostics sse_decode_vm_diagnostics(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_instanceName = sse_decode_String(deserializer);
-    final var_projectId = sse_decode_String(deserializer);
-    final var_zone = sse_decode_String(deserializer);
-    final var_status = sse_decode_String(deserializer);
-    final var_lastStartTimestamp = sse_decode_opt_String(deserializer);
-    final var_lastStopTimestamp = sse_decode_opt_String(deserializer);
-    final var_guestAgentStatus = sse_decode_guest_agent_status(deserializer);
-    final var_networkInterfaces = sse_decode_list_network_interface(
-      deserializer,
-    );
-    final var_disks = sse_decode_list_disk_status(deserializer);
-    final var_machineType = sse_decode_String(deserializer);
-    final var_labels = sse_decode_list_record_string_string(deserializer);
-    final var_creationTimestamp = sse_decode_opt_String(deserializer);
+    var var_instanceName = sse_decode_String(deserializer);
+    var var_projectId = sse_decode_String(deserializer);
+    var var_zone = sse_decode_String(deserializer);
+    var var_status = sse_decode_String(deserializer);
+    var var_lastStartTimestamp = sse_decode_opt_String(deserializer);
+    var var_lastStopTimestamp = sse_decode_opt_String(deserializer);
+    var var_guestAgentStatus = sse_decode_guest_agent_status(deserializer);
+    var var_networkInterfaces = sse_decode_list_network_interface(deserializer);
+    var var_disks = sse_decode_list_disk_status(deserializer);
+    var var_machineType = sse_decode_String(deserializer);
+    var var_labels = sse_decode_list_record_string_string(deserializer);
+    var var_creationTimestamp = sse_decode_opt_String(deserializer);
     return VmDiagnostics(
       instanceName: var_instanceName,
       projectId: var_projectId,
@@ -6518,15 +6516,15 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   VncClientType sse_decode_vnc_client_type(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return VncClientType.values[inner];
   }
 
   @protected
   VncLaunchResult sse_decode_vnc_launch_result(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_clientUsed = sse_decode_vnc_client_type(deserializer);
-    final var_fallbackOccurred = sse_decode_bool(deserializer);
+    var var_clientUsed = sse_decode_vnc_client_type(deserializer);
+    var var_fallbackOccurred = sse_decode_bool(deserializer);
     return VncLaunchResult(
       clientUsed: var_clientUsed,
       fallbackOccurred: var_fallbackOccurred,
@@ -6536,20 +6534,20 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   @protected
   VncQuality sse_decode_vnc_quality(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final inner = sse_decode_i_32(deserializer);
+    var inner = sse_decode_i_32(deserializer);
     return VncQuality.values[inner];
   }
 
   @protected
   VncSettings sse_decode_vnc_settings(SseDeserializer deserializer) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_password = sse_decode_opt_String(deserializer);
-    final var_width = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
-    final var_fullscreen = sse_decode_bool(deserializer);
-    final var_viewOnly = sse_decode_bool(deserializer);
-    final var_quality = sse_decode_vnc_quality(deserializer);
-    final var_clientType = sse_decode_vnc_client_type(deserializer);
+    var var_password = sse_decode_opt_String(deserializer);
+    var var_width = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_height = sse_decode_opt_box_autoadd_u_32(deserializer);
+    var var_fullscreen = sse_decode_bool(deserializer);
+    var var_viewOnly = sse_decode_bool(deserializer);
+    var var_quality = sse_decode_vnc_quality(deserializer);
+    var var_clientType = sse_decode_vnc_client_type(deserializer);
     return VncSettings(
       password: var_password,
       width: var_width,
@@ -6566,13 +6564,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
-    final var_username = sse_decode_String(deserializer);
-    final var_password = sse_decode_String(deserializer);
-    final var_instanceName = sse_decode_String(deserializer);
-    final var_projectId = sse_decode_String(deserializer);
-    final var_zone = sse_decode_String(deserializer);
-    final var_createdAt = sse_decode_String(deserializer);
-    final var_expiresAt = sse_decode_opt_String(deserializer);
+    var var_username = sse_decode_String(deserializer);
+    var var_password = sse_decode_String(deserializer);
+    var var_instanceName = sse_decode_String(deserializer);
+    var var_projectId = sse_decode_String(deserializer);
+    var var_zone = sse_decode_String(deserializer);
+    var var_createdAt = sse_decode_String(deserializer);
+    var var_expiresAt = sse_decode_opt_String(deserializer);
     return WindowsCredential(
       username: var_username,
       password: var_password,
