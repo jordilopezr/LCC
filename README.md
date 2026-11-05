@@ -278,6 +278,9 @@ There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
 - [ ] Finish the 27H1 Preview manual QA (see *Known gaps* below) before a stable 27H1
 - [ ] SSH host key verification for the native SSH client
 
+### Included in 27H1 Preview (build 20261105.56)
+- [x] macOS: own bundle identifier `com.jordilopezr.lcc`, with preferences migrated automatically
+
 ### Included in 27H1 Preview (build 20261105.55)
 - [x] macOS: native clients (Windows App for RDP, Screen Sharing for VNC), sign-in and links open in the default browser, LCC app icon, app named "Lightweight Cloud Connector"
 - [x] Remmina RDP profiles use 32-bit True Color
@@ -325,6 +328,14 @@ _Developed and reviewed, not yet merged into a published release:_
 - [x] Multi-language support (i18n): full interface in Spanish and English
 
 ## Changelog
+
+### 27H1 Preview — build 20261105.56 — Preview
+
+**macOS: own bundle identifier.** Otherwise the same code as build 20261105.55.
+
+- The macOS app identifies itself as `com.jordilopezr.lcc` instead of Flutter's template `com.example.linuxCloudConnector`, and its copyright names its author
+- Preferences (selected projects, RDP/VNC client, notices already seen) are copied from the old identifier on first launch, so updating loses nothing. Sign-in tokens and credentials are unaffected
+- macOS treats it as a new app: it asks again for notification permission, and may ask once for Keychain access
 
 ### 27H1 Preview — build 20261105.55 — Preview
 
