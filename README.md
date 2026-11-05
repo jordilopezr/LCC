@@ -278,6 +278,10 @@ There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
 - [ ] Finish the 27H1 Preview manual QA (see *Known gaps* below) before a stable 27H1
 - [ ] SSH host key verification for the native SSH client
 
+### Included in 27H1 Preview (build 20261105.55)
+- [x] macOS: native clients (Windows App for RDP, Screen Sharing for VNC), sign-in and links open in the default browser, LCC app icon, app named "Lightweight Cloud Connector"
+- [x] Remmina RDP profiles use 32-bit True Color
+
 ### Included in 27H1 Preview (build 20261104.54)
 - [x] macOS support: Universal Binary (Intel/Apple Silicon) built and attested by the release workflow
 
@@ -321,6 +325,24 @@ _Developed and reviewed, not yet merged into a published release:_
 - [x] Multi-language support (i18n): full interface in Spanish and English
 
 ## Changelog
+
+### 27H1 Preview — build 20261105.55 — Preview
+
+**macOS fixes from the first run on real Macs** (Intel and Apple Silicon).
+Otherwise the same code as build 20261104.54.
+
+- **Sign-in opens the browser on macOS.** Native sign-in and every link in the app (GitHub, Cloud Console, exported logs) used `xdg-open`, which macOS does not have; they now use `open`, so Safari or the default browser opens
+- **Native macOS remote-desktop clients.** RDP uses Microsoft's **Windows App** (free on the Mac App Store), launched with a generated `.rdp` file that never contains the password; VNC uses the built-in **Screen Sharing**. Settings list only these clients on macOS, and the Linux clients are unchanged on Linux
+- **App icon and name.** The app shows the LCC icon instead of Flutter's, and is called **Lightweight Cloud Connector.app** instead of `linux_cloud_connector.app`. The bundle identifier is unchanged, so settings and stored credentials carry over
+- A build without the OAuth client secret now says so before opening the browser, instead of failing after the user has signed in
+- **Remmina (Linux):** generated RDP profiles pin `colordepth=32` (True Color), so Windows hosts no longer show degraded colors
+
+#### Known gaps (macOS)
+
+- **Not notarized.** The app is ad-hoc signed, so Gatekeeper warns on first launch (right-click > Open, or `xattr -dr com.apple.quarantine` on the app). Developer ID signing and notarization need an Apple Developer account
+- **QA so far covers sign-in.** Tunnels, SSH and the RDP/VNC clients still need a full pass on a Mac
+- **Opening SFTP in the file manager** does not work on macOS: Finder does not handle `sftp://`. The SFTP tab inside LCC is unaffected
+- **An abruptly killed app** leaves its gcloud tunnel processes running; macOS has no parent-death signal. Quitting normally cleans them up
 
 ### 27H1 Preview — build 20261104.54 — Preview
 

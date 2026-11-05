@@ -16,7 +16,7 @@ const String kEdition = '27H1';
 const int kUpdate = 0;
 
 /// Build stamp (YYYYMMDD.n).
-const String kBuild = '20261104.54';
+const String kBuild = '20261105.55';
 
 /// One-line, non-localized version for logs and diagnostics.
 ///
