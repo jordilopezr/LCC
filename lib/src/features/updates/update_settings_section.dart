@@ -47,6 +47,25 @@ class _UpdateSettingsSectionState extends ConsumerState<UpdateSettingsSection> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context);
+    final title = Text(
+      l10n.settingsUpdatesTitle,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+    );
+
+    if (ref.watch(updateCheckDisabledProvider)) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          title,
+          const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.inventory_2_outlined),
+            title: Text(l10n.settingsUpdatesManagedByPackage),
+          ),
+        ],
+      );
+    }
+
     final enabled = ref.watch(updateCheckEnabledProvider);
     final channel = ref.watch(updateChannelProvider);
     final check = ref.watch(updateCheckerProvider);
@@ -54,10 +73,7 @@ class _UpdateSettingsSectionState extends ConsumerState<UpdateSettingsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          l10n.settingsUpdatesTitle,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
+        title,
         const SizedBox(height: 8),
         SwitchListTile(
           title: Text(l10n.settingsUpdatesAutoCheck),

@@ -24,9 +24,16 @@ package() {
     install -d "${pkgdir}/opt/lightweight-cloud-connector"
     cp -r * "${pkgdir}/opt/lightweight-cloud-connector/"
 
-    # Crear enlace simbólico en /usr/bin
+    # Lanzador en /usr/bin. Las actualizaciones llegan por pacman/AUR, así que
+    # LCC no consulta GitHub ni avisa de versiones nuevas
+    # (LCC_DISABLE_UPDATE_CHECK, ver docs/RELEASES.md).
     install -d "${pkgdir}/usr/bin"
-    ln -s "/opt/lightweight-cloud-connector/lightweight-cloud-connector" "${pkgdir}/usr/bin/lightweight-cloud-connector"
+    cat <<'LAUNCHER' > "${pkgdir}/usr/bin/lightweight-cloud-connector"
+#!/bin/sh
+export LCC_DISABLE_UPDATE_CHECK=1
+exec /opt/lightweight-cloud-connector/lightweight-cloud-connector "$@"
+LAUNCHER
+    chmod 755 "${pkgdir}/usr/bin/lightweight-cloud-connector"
 
     # Instalar archivo desktop
     install -d "${pkgdir}/usr/share/applications"

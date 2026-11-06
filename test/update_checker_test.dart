@@ -275,4 +275,44 @@ void main() {
       expect(cache.releases, isEmpty);
     });
   });
+
+  group('packager switch', () {
+    test('read from the environment', () {
+      bool disabled(Map<String, String> env) =>
+          updateCheckDisabledByPackager(environment: env);
+      expect(disabled({}), isFalse);
+      expect(disabled({'LCC_DISABLE_UPDATE_CHECK': ''}), isFalse);
+      expect(disabled({'LCC_DISABLE_UPDATE_CHECK': '0'}), isFalse);
+      expect(disabled({'LCC_DISABLE_UPDATE_CHECK': 'False'}), isFalse);
+      expect(disabled({'LCC_DISABLE_UPDATE_CHECK': '1'}), isTrue);
+      expect(disabled({'LCC_DISABLE_UPDATE_CHECK': 'true'}), isTrue);
+      expect(disabled({'LCC_DISABLE_UPDATE_CHECK': 'yes'}), isTrue);
+    });
+
+    // A list stored before the package took over must not resurface either.
+    test('off: no request, not even on demand, and no stored result',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.update_check_cache': encodeUpdateCheckCache(UpdateCheckCache(
+            releases: [_release('v27H1-preview.20261106.1')],
+            etag: '"abc"',
+            checkedAt: _now)),
+      });
+      final github = _FakeGitHub([]);
+      final c = ProviderContainer(overrides: [
+        updateCheckDisabledProvider.overrideWithValue(true),
+        releasesFetcherProvider.overrideWithValue(github.fetch),
+        updateCheckClockProvider.overrideWithValue(() => _now),
+      ]);
+      addTearDown(c.dispose);
+      c.listen(updateCheckerProvider, (_, _) {});
+
+      await c.read(updateCheckerProvider.notifier).checkNow();
+      await c.read(updateCheckerProvider.notifier).loaded;
+
+      expect(github.etagsSent, isEmpty);
+      expect(c.read(updateCheckerProvider).result, isNull);
+      expect(c.read(updateCheckerProvider).lastChecked, isNull);
+    });
+  });
 }

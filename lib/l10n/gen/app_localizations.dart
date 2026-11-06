@@ -1622,6 +1622,12 @@ abstract class AppLocalizations {
   /// **'About — update available'**
   String get appAboutTooltipUpdate;
 
+  /// No description provided for @settingsUpdatesManagedByPackage.
+  ///
+  /// In en, this message translates to:
+  /// **'This installation gets its updates from the package it was installed with. LCC does not check GitHub for new versions.'**
+  String get settingsUpdatesManagedByPackage;
+
   /// No description provided for @settingsAboutTitle.
   ///
   /// In en, this message translates to:

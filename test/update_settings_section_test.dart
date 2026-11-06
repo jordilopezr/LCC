@@ -29,9 +29,11 @@ Future<ProviderContainer> _pump(
   WidgetTester tester, {
   required ReleasesFetcher fetch,
   Locale locale = const Locale('en'),
+  bool disabledByPackager = false,
 }) async {
   await tester.pumpWidget(ProviderScope(
     overrides: [
+      updateCheckDisabledProvider.overrideWithValue(disabledByPackager),
       releasesFetcherProvider.overrideWithValue(fetch),
       installedVersionProvider
           .overrideWithValue(ReleaseVersion.tryParseTag(_installedTag)!),
@@ -171,6 +173,16 @@ void main() {
         find.text('27H1 Preview (compilación 20261106.1) está disponible.'),
         findsOneWidget);
     expect(find.text('Ver en GitHub'), findsOneWidget);
+  });
+
+  testWidgets('a packaged installation only says where updates come from',
+      (tester) async {
+    await _pump(tester, fetch: _neverAsked, disabledByPackager: true);
+
+    expect(find.textContaining('gets its updates from the package'),
+        findsOneWidget);
+    expect(find.byType(SwitchListTile), findsNothing);
+    expect(find.text('Check now'), findsNothing);
   });
 
   group('describeRelease', () {

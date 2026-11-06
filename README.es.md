@@ -91,6 +91,12 @@ Desarrollada por **Jordi Lopez Reyes** con **Flutter** y **Rust** para un rendim
 *   **Alertas de túneles IAP:** notificación inmediata cuando un túnel se cae inesperadamente.
 *   **Operaciones de ciclo de vida:** notificaciones de éxito o fallo en start/stop/reset.
 
+### Avisos de Actualización
+*   **Sabe cuándo sale una versión nueva:** consulta GitHub Releases poco después de arrancar y cada 12 horas, y muestra un banner (y una notificación de escritorio por versión) con enlace a la página de la release. Solo avisa: no descarga ni instala nada.
+*   **Canal Estable o Preview:** Ajustes → Actualizaciones. Por defecto, el canal del build instalado; el canal Estable nunca ofrece previews.
+*   **Aviso de fin de soporte:** cuando una edición nueva sale en estable, la anterior deja de recibir parches de seguridad, y quien la usa recibe un aviso más fuerte que se puede posponer pero no omitir.
+*   **Tú decides:** la comprobación automática viene activada y se puede desactivar en Ajustes; «Buscar ahora» funciona en ambos casos. La petición va a `api.github.com` sin credenciales ni identificadores (ver [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md), T10).
+
 ### Configuración Personalizable
 *   **Settings dialog:** panel de configuración completo y organizado.
 *   **Intervalos de auto-refresh:** 10s, 30s, 60s, 120s, 300s, o personalizado 5–600s.
@@ -264,6 +270,8 @@ scripts/build_all_containers.sh   # Builds reproducibles en contenedores podman 
 ```
 
 También hay un `PKGBUILD` para Arch Linux en `packaging/arch/`.
+
+Los paquetes que entregan ellos mismos las actualizaciones de LCC deberían desactivar su comprobación, para no mandar al usuario a GitHub por una versión que le traerá su gestor de paquetes: compila con `--dart-define=LCC_DISABLE_UPDATE_CHECK=true` o, si reempaquetas un build de release, arranca LCC con `LCC_DISABLE_UPDATE_CHECK=1` en el entorno. El `PKGBUILD` de Arch hace esto último en su lanzador. LCC no contacta entonces con GitHub, y Ajustes → Actualizaciones indica que las actualizaciones llegan por el paquete.
 
 ## Roadmap
 

@@ -265,6 +265,7 @@
   "notifUpdateAvailableTitle": "Actualización de LCC disponible",
   "notifUpdateUnsupportedTitle": "LCC {edition} ya no tiene soporte",
   "appAboutTooltipUpdate": "Acerca de — actualización disponible",
+  "settingsUpdatesManagedByPackage": "Esta instalación recibe las actualizaciones del paquete con el que se instaló. LCC no consulta GitHub en busca de versiones nuevas.",
   "settingsAboutTitle": "Acerca de",
   "settingsEditionsDescription": "Las ediciones siguen un ciclo semestral (AAH#). 26H2 corresponde al segundo semestre de 2026. Las compilaciones aportan correcciones continuas entre ediciones.",
   "settingsSupportDevelopmentTitle": "Apoyar el desarrollo",
