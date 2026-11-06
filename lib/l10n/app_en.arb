@@ -427,6 +427,52 @@
   "settingsSystemDependenciesTitle": "System Dependencies",
   "settingsRdpClientTitle": "RDP Client",
   "settingsVncClientTitle": "VNC Client",
+  "settingsUpdatesTitle": "Updates",
+  "settingsUpdatesAutoCheck": "Check for updates automatically",
+  "settingsUpdatesAutoCheckSubtitle": "Asks GitHub Releases twice a day. Nothing is downloaded or installed.",
+  "settingsUpdatesChannelLabel": "Release channel:",
+  "settingsUpdatesChannelStable": "Stable",
+  "settingsUpdatesChannelStableDesc": "Tested releases, with security patches until the next edition ships",
+  "settingsUpdatesChannelPreview": "Preview",
+  "settingsUpdatesChannelPreviewDesc": "Every new build as it comes out. It may contain bugs",
+  "settingsUpdatesCheckNow": "Check now",
+  "settingsUpdatesChecking": "Checking…",
+  "settingsUpdatesNeverChecked": "Not checked yet",
+  "settingsUpdatesUpToDate": "You have the latest version.",
+  "settingsUpdatesAvailable": "{version} is available.",
+  "@settingsUpdatesAvailable": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "settingsUpdatesCheckFailed": "Could not reach GitHub. Check your connection or proxy and try again.",
+  "settingsUpdatesLastChecked": "Last checked: {date}",
+  "@settingsUpdatesLastChecked": {
+    "placeholders": {
+      "date": {"type": "DateTime", "format": "yMMMd+jm"}
+    }
+  },
+  "updatesViewRelease": "View on GitHub",
+  "updatesVersionPreview": "{edition} Preview (build {build})",
+  "@updatesVersionPreview": {
+    "placeholders": {
+      "edition": {"type": "String"},
+      "build": {"type": "String"}
+    }
+  },
+  "updatesVersionStable": "{edition} Stable",
+  "@updatesVersionStable": {
+    "placeholders": {
+      "edition": {"type": "String"}
+    }
+  },
+  "updatesVersionStableUpdate": "{edition} Stable, update {update}",
+  "@updatesVersionStableUpdate": {
+    "placeholders": {
+      "edition": {"type": "String"},
+      "update": {"type": "String"}
+    }
+  },
   "settingsAboutTitle": "About",
   "settingsEditionsDescription": "Editions follow a half-year cadence (YYH#). 26H2 covers the second half of 2026. Builds deliver continuous fixes between editions.",
   "settingsSupportDevelopmentTitle": "Support Development",

@@ -1460,6 +1460,120 @@ abstract class AppLocalizations {
   /// **'VNC Client'**
   String get settingsVncClientTitle;
 
+  /// No description provided for @settingsUpdatesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Updates'**
+  String get settingsUpdatesTitle;
+
+  /// No description provided for @settingsUpdatesAutoCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates automatically'**
+  String get settingsUpdatesAutoCheck;
+
+  /// No description provided for @settingsUpdatesAutoCheckSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Asks GitHub Releases twice a day. Nothing is downloaded or installed.'**
+  String get settingsUpdatesAutoCheckSubtitle;
+
+  /// No description provided for @settingsUpdatesChannelLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Release channel:'**
+  String get settingsUpdatesChannelLabel;
+
+  /// No description provided for @settingsUpdatesChannelStable.
+  ///
+  /// In en, this message translates to:
+  /// **'Stable'**
+  String get settingsUpdatesChannelStable;
+
+  /// No description provided for @settingsUpdatesChannelStableDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Tested releases, with security patches until the next edition ships'**
+  String get settingsUpdatesChannelStableDesc;
+
+  /// No description provided for @settingsUpdatesChannelPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'Preview'**
+  String get settingsUpdatesChannelPreview;
+
+  /// No description provided for @settingsUpdatesChannelPreviewDesc.
+  ///
+  /// In en, this message translates to:
+  /// **'Every new build as it comes out. It may contain bugs'**
+  String get settingsUpdatesChannelPreviewDesc;
+
+  /// No description provided for @settingsUpdatesCheckNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Check now'**
+  String get settingsUpdatesCheckNow;
+
+  /// No description provided for @settingsUpdatesChecking.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking…'**
+  String get settingsUpdatesChecking;
+
+  /// No description provided for @settingsUpdatesNeverChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Not checked yet'**
+  String get settingsUpdatesNeverChecked;
+
+  /// No description provided for @settingsUpdatesUpToDate.
+  ///
+  /// In en, this message translates to:
+  /// **'You have the latest version.'**
+  String get settingsUpdatesUpToDate;
+
+  /// No description provided for @settingsUpdatesAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'{version} is available.'**
+  String settingsUpdatesAvailable(String version);
+
+  /// No description provided for @settingsUpdatesCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not reach GitHub. Check your connection or proxy and try again.'**
+  String get settingsUpdatesCheckFailed;
+
+  /// No description provided for @settingsUpdatesLastChecked.
+  ///
+  /// In en, this message translates to:
+  /// **'Last checked: {date}'**
+  String settingsUpdatesLastChecked(DateTime date);
+
+  /// No description provided for @updatesViewRelease.
+  ///
+  /// In en, this message translates to:
+  /// **'View on GitHub'**
+  String get updatesViewRelease;
+
+  /// No description provided for @updatesVersionPreview.
+  ///
+  /// In en, this message translates to:
+  /// **'{edition} Preview (build {build})'**
+  String updatesVersionPreview(String edition, String build);
+
+  /// No description provided for @updatesVersionStable.
+  ///
+  /// In en, this message translates to:
+  /// **'{edition} Stable'**
+  String updatesVersionStable(String edition);
+
+  /// No description provided for @updatesVersionStableUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'{edition} Stable, update {update}'**
+  String updatesVersionStableUpdate(String edition, String update);
+
   /// No description provided for @settingsAboutTitle.
   ///
   /// In en, this message translates to:

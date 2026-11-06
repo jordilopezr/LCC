@@ -6,6 +6,7 @@ import 'package:linux_cloud_connector/l10n/gen/app_localizations.dart';
 import 'app_error.dart';
 import 'gcloud_provider.dart';
 import 'settings_provider.dart';
+import 'updates/update_settings_section.dart';
 import '../bridge/api.dart/api.dart';
 import '../bridge/api.dart/rdp_client.dart';
 import '../bridge/api.dart/vnc_client.dart';
@@ -317,6 +318,10 @@ class _SettingsDialogState extends ConsumerState<SettingsDialog> {
               ),
               const SizedBox(height: 8),
               _buildVncClientSelector(),
+              const Divider(height: 32),
+
+              // ===== UPDATES SECTION =====
+              const UpdateSettingsSection(),
               const Divider(height: 32),
 
               // ===== ABOUT SECTION =====
