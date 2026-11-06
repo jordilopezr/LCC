@@ -261,6 +261,32 @@ class NotificationService {
     );
   }
 
+  /// Show a notification that a new release is out. `version` is already
+  /// described for the user; `edition` is the installed one, named when it
+  /// no longer gets security patches (`unsupported`).
+  Future<void> notifyUpdateAvailable({
+    required String tag,
+    required String version,
+    required String edition,
+    required bool unsupported,
+  }) async {
+    if (!isEnabled) return;
+    final l10n = _l10n;
+    if (l10n == null) return;
+    await _showNotification(
+      id: 'update'.hashCode,
+      title: unsupported
+          ? l10n.notifUpdateUnsupportedTitle(edition)
+          : l10n.notifUpdateAvailableTitle,
+      body: unsupported
+          ? l10n.updatesUnsupportedBody(edition, version)
+          : l10n.updatesAvailableBody(version),
+      payload: 'update_available:$tag',
+      importance: unsupported ? Importance.high : Importance.defaultImportance,
+      priority: unsupported ? Priority.high : Priority.defaultPriority,
+    );
+  }
+
   /// Internal method to show notification
   Future<void> _showNotification({
     required int id,

@@ -875,6 +875,38 @@ class AppLocalizationsEs extends AppLocalizations {
   }
 
   @override
+  String updatesAvailableBody(String version) {
+    return 'Hay una versión nueva de LCC disponible: $version.';
+  }
+
+  @override
+  String updatesUnsupportedBody(String edition, String version) {
+    return '$edition ya no recibe parches de seguridad. Actualiza a $version para seguir recibiendo correcciones.';
+  }
+
+  @override
+  String updatesNewerStableHint(String version) {
+    return 'También ha salido $version. Cambia al canal Estable en Ajustes para recibirla.';
+  }
+
+  @override
+  String get updatesLater => 'Más tarde';
+
+  @override
+  String get updatesSkipVersion => 'Omitir esta versión';
+
+  @override
+  String get notifUpdateAvailableTitle => 'Actualización de LCC disponible';
+
+  @override
+  String notifUpdateUnsupportedTitle(String edition) {
+    return 'LCC $edition ya no tiene soporte';
+  }
+
+  @override
+  String get appAboutTooltipUpdate => 'Acerca de — actualización disponible';
+
+  @override
   String get settingsAboutTitle => 'Acerca de';
 
   @override

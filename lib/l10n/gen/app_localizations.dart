@@ -1574,6 +1574,54 @@ abstract class AppLocalizations {
   /// **'{edition} Stable, update {update}'**
   String updatesVersionStableUpdate(String edition, String update);
 
+  /// No description provided for @updatesAvailableBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version of LCC is available: {version}.'**
+  String updatesAvailableBody(String version);
+
+  /// No description provided for @updatesUnsupportedBody.
+  ///
+  /// In en, this message translates to:
+  /// **'{edition} no longer receives security patches. Update to {version} to keep getting fixes.'**
+  String updatesUnsupportedBody(String edition, String version);
+
+  /// No description provided for @updatesNewerStableHint.
+  ///
+  /// In en, this message translates to:
+  /// **'{version} is out as well. Switch to the Stable channel in Settings to get it.'**
+  String updatesNewerStableHint(String version);
+
+  /// No description provided for @updatesLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Later'**
+  String get updatesLater;
+
+  /// No description provided for @updatesSkipVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Skip this version'**
+  String get updatesSkipVersion;
+
+  /// No description provided for @notifUpdateAvailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC update available'**
+  String get notifUpdateAvailableTitle;
+
+  /// No description provided for @notifUpdateUnsupportedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'LCC {edition} is out of support'**
+  String notifUpdateUnsupportedTitle(String edition);
+
+  /// No description provided for @appAboutTooltipUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'About — update available'**
+  String get appAboutTooltipUpdate;
+
   /// No description provided for @settingsAboutTitle.
   ///
   /// In en, this message translates to:
