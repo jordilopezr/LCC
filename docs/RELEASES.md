@@ -5,34 +5,73 @@ LCC releases are built, attested, and published by GitHub Actions
 artifact carries a keyless (Sigstore-backed) build-provenance attestation and
 an SPDX SBOM attestation. There is no signing key to manage.
 
+## Versions and channels
+
+A release is identified by four values in `lib/src/version.dart`: edition
+(`kEdition`, `YYH1`/`YYH2`), update (`kUpdate`), channel (`kChannel`, preview
+or stable) and build (`kBuild`, `YYYYMMDD.n`). The tag is derived from them:
+
+| Channel | Tag | Example |
+|---|---|---|
+| Preview | `v<edition>-preview.<build>` | `v27H1-preview.20261105.56` |
+| Stable | `v<edition>` | `v27H1` |
+| Stable security patch | `v<edition>u<update>` | `v27H1u2` |
+
+The lifecycle:
+
+- Each **preview** iteration bumps `kBuild`; `kUpdate` stays `0`.
+- The edition's first **stable** sets `kChannel` to stable. Each security
+  patch after it bumps `kUpdate` only — the build stays the same.
+- Once an edition ships stable, previews move to the **next** edition
+  (27H1 stable → `v27H2-preview.*`), and the previous stable edition is
+  closed: it gets no more patches, and users upgrade to receive fixes.
+
+Versions are ordered by edition, then channel (preview before stable), then
+update, then build. The in-app update checker relies on this order and reads
+it from the tag, so the workflow enforces all of the above
+(`scripts/check_release_version.sh`, which you can also run locally) before it
+builds anything:
+
+- the tag is well-formed and matches `lib/src/version.dart`;
+- it is newer than every published release of its channel;
+- a preview's edition has not shipped stable yet;
+- a stable patch has a published stable of its edition to patch, keeps its
+  build, and belongs to the current stable edition.
+
+Older tags predate this scheme; the checks ignore the ones that don't fit it
+(such as `v26H2u1-rc2`).
+
 ## Cutting a release
 
-1. Make sure `main` is at the commit you want to ship.
-2. Push a tag named `v<version>`, where `<version>` is the release name used in
-   artifact filenames:
+1. Make sure `main` is at the commit you want to ship, with
+   `lib/src/version.dart` bumped as above.
+2. Push the tag that `version.dart` describes:
 
    ```bash
-   git tag v26H2
-   git push origin v26H2
+   TAG="v$(scripts/check_release_version.sh expected)"
+   git tag "$TAG"
+   git push origin "$TAG"
    ```
 
 3. The `Release` workflow runs (tens of minutes: it rebuilds the container
-   images and does a full Flutter + Rust build per artifact). It produces:
-   - `lightweight-cloud-connector_26H2_amd64.deb`
-   - `lightweight-cloud-connector_26H2_x86_64.AppImage`
-   - `lightweight-cloud-connector_26H2_amd64.tar.gz`
-   - `lightweight-cloud-connector-26H2-1.x86_64.rpm`
+   images and does a full Flutter + Rust build per artifact). It produces,
+   for e.g. `v27H1-preview.20261105.56`:
+   - `lightweight-cloud-connector_27H1-preview.20261105.56_amd64.deb`
+   - `lightweight-cloud-connector_27H1-preview.20261105.56_x86_64.AppImage`
+   - `lightweight-cloud-connector_27H1-preview.20261105.56_amd64.tar.gz`
+   - `lightweight-cloud-connector-27H1.preview.20261105.56-1.x86_64.rpm`
+   - `lightweight-cloud-connector_27H1-preview.20261105.56_macos-universal.zip`
    - `SHA256SUMS`
    - `sbom.spdx.json`
-4. A **draft** GitHub Release is created with those assets. Review it, then
-   publish it manually from the Releases page.
-
-The version must match `^[A-Za-z0-9._-]+$` (e.g. `v26H2`, `v26H2-rc1`,
-`v3.0.0`); the workflow fails fast on anything else.
+4. A **draft** GitHub Release is created with those assets, already marked
+   **pre-release** for a preview tag. Review it, then publish it manually from
+   the Releases page — without changing the pre-release checkbox.
 
 To dry-run the build and attestations without creating a release, use
-**Run workflow** (`workflow_dispatch`) and pass a `version` — everything runs
-except the release-creation step.
+**Run workflow** (`workflow_dispatch`). Leave `version` empty to use the one
+`lib/src/version.dart` describes. Everything runs except the release-creation
+step; a lifecycle violation (typically: that version is already published) is
+reported but does not fail a dry run.
 
 ## Verifying a download
 
