@@ -10,8 +10,10 @@
 /// The release tag is derived from these values, and the Release workflow
 /// refuses a tag that does not match them (scripts/check_release_version.sh):
 ///
-///   preview  v<edition>-preview.<build>   v27H1-preview.20261105.56
-///   stable   v<edition>[u<update>]        v27H1, v27H1u2
+/// ```text
+/// preview  v<edition>-preview.<build>   v27H1-preview.20261105.56
+/// stable   v<edition>[u<update>]        v27H1, v27H1u2
+/// ```
 ///
 /// Lifecycle, which the same script enforces against the published releases:
 /// - A preview iteration bumps [kBuild]; [kUpdate] stays 0.
@@ -23,6 +25,8 @@ library;
 
 /// Which line a build belongs to. The update checker compares edition, then
 /// channel (preview < stable within an edition), then update, then build.
+///
+/// Declaration order is that channel order: keep preview first.
 enum ReleaseChannel { preview, stable }
 
 /// Half-year edition line (YYH#). e.g. '26H2' = second half of 2026.
