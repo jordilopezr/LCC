@@ -40,7 +40,7 @@ const int kUpdate = 0;
 const ReleaseChannel kChannel = ReleaseChannel.preview;
 
 /// Build stamp (YYYYMMDD.n).
-const String kBuild = '20261105.56';
+const String kBuild = '20261106.57';
 
 /// One-line, non-localized version for logs and diagnostics.
 ///
