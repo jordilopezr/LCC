@@ -286,6 +286,9 @@ Packages that deliver LCC's updates themselves should turn off its update check,
 - [ ] Finish the 27H1 Preview manual QA (see *Known gaps* below) before a stable 27H1
 - [ ] SSH host key verification for the native SSH client
 
+### Included in 27H1 Preview (build 20261106.57)
+- [x] Update notifications: checks GitHub Releases, Stable/Preview channel, in-app banner and desktop notification, out-of-support warning, off switch for packagers
+
 ### Included in 27H1 Preview (build 20261105.56)
 - [x] macOS: own bundle identifier `com.jordilopezr.lcc`, with preferences migrated automatically
 
@@ -336,6 +339,18 @@ _Developed and reviewed, not yet merged into a published release:_
 - [x] Multi-language support (i18n): full interface in Spanish and English
 
 ## Changelog
+
+### 27H1 Preview — build 20261106.57 — Preview
+
+**Update notifications.** The first build that tells you when a new version is out; earlier builds do not, so this one has to be installed by hand.
+
+- LCC checks GitHub Releases about 20 seconds after start and every 12 hours. It only notifies: nothing is downloaded or installed
+- Settings → Updates: automatic checking (on by default), Stable or Preview channel (defaults to the installed build's), and "Check now" with the last check's result
+- A banner on the dashboard offers the new version with "View on GitHub", "Later" (until the next start) and "Skip this version"; one desktop notification per release; a dot on the About icon and a status line in the About dialog
+- Preview users are told when the edition they test has shipped stable, and that they can switch channel
+- Once a newer edition ships stable, users of the previous stable edition get a stronger notice that it no longer receives security patches; it can be put off but not skipped
+- Packagers that deliver updates themselves can turn the check off with `LCC_DISABLE_UPDATE_CHECK` (build flag or environment); the Arch `PKGBUILD` does so. See `docs/RELEASES.md` and `docs/THREAT_MODEL.md` (T10)
+- Release workflow: checks that the tag matches `lib/src/version.dart` and the release lifecycle before building, and marks preview releases as pre-release automatically
 
 ### 27H1 Preview — build 20261105.56 — Preview
 
