@@ -1,10 +1,10 @@
 # Maintainer: Jordi Lopez Reyes <aim@jordilopezr.com>
 pkgname=lightweight-cloud-connector-bin
-pkgver=27H1.preview.20261012.50
-# Nombre de la release en GitHub (tag v27H1-preview.20261012.50, assets
-# *_27H1-preview.20261012.50_*). pkgver no admite guiones, así que usa puntos;
+pkgver=27H1.preview.20261106.57
+# Nombre de la release en GitHub (tag v27H1-preview.20261106.57, assets
+# *_27H1-preview.20261106.57_*). pkgver no admite guiones, así que usa puntos;
 # el tag y los ficheros, la forma de los scripts de release.
-_relver=27H1-preview.20261012.50
+_relver=27H1-preview.20261106.57
 pkgrel=1
 pkgdesc="Native Google Cloud IAP Connector for Linux"
 arch=('x86_64')
@@ -13,9 +13,14 @@ license=('GPL-3.0-or-later')
 depends=('gtk3' 'remmina' 'freerdp' 'krdc' 'tigervnc')
 provides=('lightweight-cloud-connector')
 conflicts=('lightweight-cloud-connector')
+# Los binarios se instalan tal cual salen de la release: el strip de makepkg
+# reescribe libapp.so (el snapshot AOT de Dart), que deja de coincidir con el
+# artefacto atestado y puede dejar de cargar.
+options=('!strip' '!debug')
 
 source=("${url}/releases/download/v${_relver}/lightweight-cloud-connector_${_relver}_amd64.tar.gz")
-sha256sums=('SKIP') # En producción, reemplaza SKIP por el hash sha256 del tar.gz
+# El del tar.gz en SHA256SUMS de la release; cámbialo con _relver.
+sha256sums=('1b1a6a8e1cde81fb56d64db78a794e27ee4937acec5fa61b9387fc4547f4186c')
 
 package() {
     cd "${srcdir}/lightweight-cloud-connector"
