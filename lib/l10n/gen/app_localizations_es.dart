@@ -798,6 +798,83 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsVncClientTitle => 'Cliente VNC';
 
   @override
+  String get settingsUpdatesTitle => 'Actualizaciones';
+
+  @override
+  String get settingsUpdatesAutoCheck =>
+      'Buscar actualizaciones automáticamente';
+
+  @override
+  String get settingsUpdatesAutoCheckSubtitle =>
+      'Consulta GitHub Releases dos veces al día. No descarga ni instala nada.';
+
+  @override
+  String get settingsUpdatesChannelLabel => 'Canal de versiones:';
+
+  @override
+  String get settingsUpdatesChannelStable => 'Estable';
+
+  @override
+  String get settingsUpdatesChannelStableDesc =>
+      'Versiones probadas, con parches de seguridad hasta que sale la siguiente edición';
+
+  @override
+  String get settingsUpdatesChannelPreview => 'Preview';
+
+  @override
+  String get settingsUpdatesChannelPreviewDesc =>
+      'Cada compilación nueva en cuanto sale. Puede contener errores';
+
+  @override
+  String get settingsUpdatesCheckNow => 'Buscar ahora';
+
+  @override
+  String get settingsUpdatesChecking => 'Buscando…';
+
+  @override
+  String get settingsUpdatesNeverChecked => 'Aún no se ha comprobado';
+
+  @override
+  String get settingsUpdatesUpToDate => 'Tienes la última versión.';
+
+  @override
+  String settingsUpdatesAvailable(String version) {
+    return '$version está disponible.';
+  }
+
+  @override
+  String get settingsUpdatesCheckFailed =>
+      'No se pudo contactar con GitHub. Revisa la conexión o el proxy y vuelve a intentarlo.';
+
+  @override
+  String settingsUpdatesLastChecked(DateTime date) {
+    final intl.DateFormat dateDateFormat = intl.DateFormat.yMMMd(
+      localeName,
+    ).add_jm();
+    final String dateString = dateDateFormat.format(date);
+
+    return 'Última comprobación: $dateString';
+  }
+
+  @override
+  String get updatesViewRelease => 'Ver en GitHub';
+
+  @override
+  String updatesVersionPreview(String edition, String build) {
+    return '$edition Preview (compilación $build)';
+  }
+
+  @override
+  String updatesVersionStable(String edition) {
+    return '$edition Estable';
+  }
+
+  @override
+  String updatesVersionStableUpdate(String edition, String update) {
+    return '$edition Estable, actualización $update';
+  }
+
+  @override
   String get settingsAboutTitle => 'Acerca de';
 
   @override
