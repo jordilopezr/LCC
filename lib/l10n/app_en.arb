@@ -473,6 +473,35 @@
       "update": {"type": "String"}
     }
   },
+  "updatesAvailableBody": "A new version of LCC is available: {version}.",
+  "@updatesAvailableBody": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "updatesUnsupportedBody": "{edition} no longer receives security patches. Update to {version} to keep getting fixes.",
+  "@updatesUnsupportedBody": {
+    "placeholders": {
+      "edition": {"type": "String"},
+      "version": {"type": "String"}
+    }
+  },
+  "updatesNewerStableHint": "{version} is out as well. Switch to the Stable channel in Settings to get it.",
+  "@updatesNewerStableHint": {
+    "placeholders": {
+      "version": {"type": "String"}
+    }
+  },
+  "updatesLater": "Later",
+  "updatesSkipVersion": "Skip this version",
+  "notifUpdateAvailableTitle": "LCC update available",
+  "notifUpdateUnsupportedTitle": "LCC {edition} is out of support",
+  "@notifUpdateUnsupportedTitle": {
+    "placeholders": {
+      "edition": {"type": "String"}
+    }
+  },
+  "appAboutTooltipUpdate": "About — update available",
   "settingsAboutTitle": "About",
   "settingsEditionsDescription": "Editions follow a half-year cadence (YYH#). 26H2 covers the second half of 2026. Builds deliver continuous fixes between editions.",
   "settingsSupportDevelopmentTitle": "Support Development",

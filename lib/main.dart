@@ -22,6 +22,8 @@ import 'src/features/tunnel_manager_dialog.dart';
 import 'src/features/snapshot_manager_dialog.dart';
 import 'src/features/snapshot_provider.dart';
 import 'src/features/gcp_session_banner.dart';
+import 'src/features/updates/update_banner.dart';
+import 'src/features/updates/update_notice.dart';
 import 'src/features/engine_change_notice.dart';
 import 'src/services/storage_service.dart';
 import 'src/services/notification_service.dart';
@@ -461,10 +463,20 @@ class DashboardScreen extends ConsumerWidget {
             tooltip: l10n.manualInstanceTitle,
             onPressed: () => _showManualInstanceDialog(context, ref),
           ),
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            tooltip: l10n.appAboutTooltip,
-            onPressed: () => _showAboutDialog(context),
+          Consumer(
+            builder: (context, ref, _) {
+              final pending = ref.watch(pendingUpdateProvider) != null;
+              return IconButton(
+                icon: Badge(
+                  isLabelVisible: pending,
+                  child: const Icon(Icons.info_outline),
+                ),
+                tooltip: pending
+                    ? l10n.appAboutTooltipUpdate
+                    : l10n.appAboutTooltip,
+                onPressed: () => _showAboutDialog(context),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],
@@ -472,6 +484,7 @@ class DashboardScreen extends ConsumerWidget {
       body: Column(
         children: [
           const GcpSessionBanner(),
+          const UpdateBanner(),
           Expanded(
             child: statusAsync.when(
         data: (status) {
@@ -1035,6 +1048,8 @@ class DashboardScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
+
+                const UpdateAboutStatus(),
 
                 const SizedBox(height: 16),
                 Text(l10n.appTagline, style: const TextStyle(fontSize: 13)),
