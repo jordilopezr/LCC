@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version string for artifact names (e.g. 26H2). Dry run: builds + attests, no release.'
+        description: 'Version without the leading v (e.g. 27H1-preview.20261105.56). Empty: the one lib/src/version.dart describes. Dry run: builds + attests, no release.'
         required: false
-        default: '26H2'
+        default: ''
 
 permissions:
   contents: write
@@ -17,19 +17,20 @@ permissions:
   attestations: write
 
 jobs:
-  build:
-    name: Build (${{ matrix.image }})
+  # Runs before the builds so a bad tag fails in seconds, not after tens of
+  # minutes of compiling. Every later job takes the version from here.
+  validate:
+    name: Validate version
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - image: ubuntu
-            scripts: 'package_deb.sh package_appimage.sh package_tarball.sh'
-          - image: almalinux
-            scripts: 'package_rpm.sh'
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      channel: ${{ steps.ver.outputs.channel }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # All tags: the lifecycle check reads version.dart at the previous
+          # stable's tag.
+          fetch-depth: 0
 
       # Version comes from an externally-settable source (tag name or dispatch
       # input). Route it through env (never inline ${{ }} in the script) and
@@ -43,6 +44,7 @@ jobs:
         run: |
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             V="$VERSION_INPUT"
+            [ -n "$V" ] || V="$(scripts/check_release_version.sh expected)"
           else
             V="${GITHUB_REF_NAME#v}"
           fi
@@ -50,8 +52,37 @@ jobs:
             echo "::error::Invalid version '$V' (allowed characters: A-Z a-z 0-9 . _ -)"
             exit 1
           fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
+          # Format, and match with lib/src/version.dart: the update checker
+          # reads edition, channel and build from the tag.
+          scripts/check_release_version.sh consistency "$V" >> "$GITHUB_OUTPUT"
           echo "Building version: $V"
+
+      # A dry run often rebuilds a version that is already published, which
+      # this check rightly rejects; there it reports without failing the run.
+      - name: Check release lifecycle
+        continue-on-error: ${{ github.event_name == 'workflow_dispatch' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/releases" \
+            --jq '.[] | select(.draft | not) | .tag_name' > published-tags.txt
+          scripts/check_release_version.sh lifecycle "$VERSION" published-tags.txt
+
+  build:
+    name: Build (${{ matrix.image }})
+    needs: validate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: ubuntu
+            scripts: 'package_deb.sh package_appimage.sh package_tarball.sh'
+          - image: almalinux
+            scripts: 'package_rpm.sh'
+    steps:
+      - uses: actions/checkout@v4
 
       - name: Build container image
         env:
@@ -65,7 +96,7 @@ jobs:
         env:
           IMAGE: ${{ matrix.image }}
           SCRIPTS: ${{ matrix.scripts }}
-          VERSION: ${{ steps.ver.outputs.version }}
+          VERSION: ${{ needs.validate.outputs.version }}
           # Supplied to the build, never committed: a client secret sitting in a
           # public repository is one that credential scanners find and providers
           # revoke, which would break sign-in for everyone on a release. Absent,
@@ -110,6 +141,7 @@ jobs:
     # job unstarted twice. The output is the same either way: Flutter builds a
     # Universal Binary (arm64 + x86_64), and macos/build_rust.sh compiles the
     # Rust crate for both and lipo's them into native.framework.
+    needs: validate
     runs-on: macos-15-intel
     env:
       # Same version as packaging/podman/Containerfile.*, so macOS and Linux
@@ -117,24 +149,6 @@ jobs:
       FLUTTER_VERSION: '3.41.1'
     steps:
       - uses: actions/checkout@v4
-
-      - name: Derive version
-        id: ver
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          VERSION_INPUT: ${{ github.event.inputs.version }}
-        run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            V="$VERSION_INPUT"
-          else
-            V="${GITHUB_REF_NAME#v}"
-          fi
-          if ! printf '%s' "$V" | grep -qE '^[A-Za-z0-9._-]+$'; then
-            echo "::error::Invalid version '$V' (allowed characters: A-Z a-z 0-9 . _ -)"
-            exit 1
-          fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
-          echo "Building version: $V"
 
       # Installed from Google's release bucket, like the Linux containers do,
       # rather than through a third-party setup action. The x64 SDK, matching
@@ -181,7 +195,7 @@ jobs:
       # here once an Apple Developer certificate is available as a secret.
       - name: Package
         env:
-          VERSION: ${{ steps.ver.outputs.version }}
+          VERSION: ${{ needs.validate.outputs.version }}
         run: |
           mkdir -p out
           ditto -c -k --sequesterRsrc --keepParent \
@@ -198,27 +212,10 @@ jobs:
 
   release:
     name: Attest & release
-    needs: [build, build-macos]
+    needs: [validate, build, build-macos]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Derive version
-        id: ver
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          VERSION_INPUT: ${{ github.event.inputs.version }}
-        run: |
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            V="$VERSION_INPUT"
-          else
-            V="${GITHUB_REF_NAME#v}"
-          fi
-          if ! printf '%s' "$V" | grep -qE '^[A-Za-z0-9._-]+$'; then
-            echo "::error::Invalid version '$V' (allowed characters: A-Z a-z 0-9 . _ -)"
-            exit 1
-          fi
-          echo "version=$V" >> "$GITHUB_OUTPUT"
 
       - name: Generate SPDX SBOM (source dependency graph)
         uses: anchore/sbom-action@v0
@@ -256,9 +253,15 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.ver.outputs.version }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          CHANNEL: ${{ needs.validate.outputs.channel }}
         run: |
           TAG="${GITHUB_REF_NAME}"
+          # Set here, not by hand on publishing: the update checker keeps
+          # preview builds away from stable-channel users by this flag and the
+          # tag, and a forgotten checkbox would offer them a preview.
+          PRERELEASE=()
+          [ "$CHANNEL" = "preview" ] && PRERELEASE=(--prerelease)
           cat > release-notes.md <<'NOTES'
           ## Verifying this release
 
@@ -279,7 +282,7 @@ jobs:
           ```
           NOTES
           gh release create "$TAG" \
-            --draft \
+            --draft "${PRERELEASE[@]}" \
             --title "LCC $VERSION" \
             --notes-file release-notes.md \
             dist/* SHA256SUMS sbom.spdx.json
