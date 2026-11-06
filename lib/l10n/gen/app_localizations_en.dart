@@ -898,6 +898,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appAboutTooltipUpdate => 'About — update available';
 
   @override
+  String get settingsUpdatesManagedByPackage =>
+      'This installation gets its updates from the package it was installed with. LCC does not check GitHub for new versions.';
+
+  @override
   String get settingsAboutTitle => 'About';
 
   @override

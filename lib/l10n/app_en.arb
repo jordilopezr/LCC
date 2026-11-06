@@ -502,6 +502,7 @@
     }
   },
   "appAboutTooltipUpdate": "About — update available",
+  "settingsUpdatesManagedByPackage": "This installation gets its updates from the package it was installed with. LCC does not check GitHub for new versions.",
   "settingsAboutTitle": "About",
   "settingsEditionsDescription": "Editions follow a half-year cadence (YYH#). 26H2 covers the second half of 2026. Builds deliver continuous fixes between editions.",
   "settingsSupportDevelopmentTitle": "Support Development",

@@ -44,6 +44,9 @@ read the user's existing `gcloud`/ADC credentials.
    tunnel carries any traffic.
 6. **LCC ↔ target VM** — over the tunnel; the VM's own SSHD/RDP/OS enforces
    authentication and authorization.
+7. **LCC ↔ GitHub Releases API** — the update check: an unauthenticated TLS
+   request to `api.github.com` for this repository's release list. Its answer
+   is untrusted input that can only produce a notice.
 
 **Core assumption:** the local machine and the OS user account are trusted. An
 adversary with code execution as the *same UID* can already read this user's
@@ -64,6 +67,7 @@ is largely outside the primary model.
 | **Transfer size cap (DoS bound)** | `native/src/sftp.rs` (`MAX_FILE_SIZE`) |
 | **Input validation** (usernames, project ids, etc.) as defense-in-depth | `native/src/validation.rs` |
 | **VM auth delegated to Google IAP** (authorizes before the tunnel forwards) | IAP relay |
+| **Update check is notify-only** — no download, no install; links only to this repo's release pages; bounded response; off switch for users and packagers | `lib/src/features/updates/` (`github_releases.dart`, `update_checker.dart`) |
 
 ## 5. Threats, mitigations, and residual risk
 
@@ -151,6 +155,27 @@ No signed releases or SBOM today.
 
 ### T9 — Denial of service via large transfers  *(mitigated)*
 - *Mitigation:* `MAX_FILE_SIZE` bounds a single transfer.
+
+### T10 — Update check: privacy and a hostile answer  *(mitigated; residual: metadata)*
+LCC asks GitHub for its release list shortly after start and every 12 hours,
+unless turned off.
+- *What leaves the machine:* the user's IP address and the request itself, to
+  GitHub (and to an HTTPS proxy, if `https_proxy` is set). No credentials,
+  cookies or identifiers; the `User-Agent` is the fixed string
+  `Lightweight-Cloud-Connector`, without the installed version. The ETag
+  sent back on later checks is GitHub's own value for the list. This is the
+  residual: GitHub learns that this address runs LCC, about twice a day.
+- *A tampered or malicious answer* (compromised account, TLS interception
+  with a trusted rogue CA): the response is capped at 8 MB with 10 s/30 s
+  timeouts, parsed as data only; a release is kept only if its tag fits the
+  version scheme and its page is under `github.com/jordilopezr/LCC/releases/`,
+  and that page is the only thing LCC will open. LCC never downloads or runs
+  anything from it, so the worst outcome is a misleading notice that points to
+  this repository.
+- *Off switches:* Settings → Updates turns automatic checks off (a manual
+  "Check now" still works). Packagers turn the check off completely with
+  `--dart-define=LCC_DISABLE_UPDATE_CHECK=true` or `LCC_DISABLE_UPDATE_CHECK=1`
+  in the environment; then no request is made at all (`docs/RELEASES.md`).
 
 ## 6. Security advantage vs. subprocess reduction
 

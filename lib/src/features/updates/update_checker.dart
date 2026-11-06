@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,6 +49,24 @@ Duration nextUpdateCheckDelay({
   if (delay > kUpdateCheckInterval) return kUpdateCheckInterval;
   return delay;
 }
+
+/// Whoever packages LCC and delivers its updates — a distribution, a
+/// company's software catalogue — can turn the check off for good: at build
+/// time with `--dart-define=LCC_DISABLE_UPDATE_CHECK=true`, or, for a package
+/// that repackages a release build, by starting LCC with
+/// `LCC_DISABLE_UPDATE_CHECK=1` in its environment. LCC then never contacts
+/// GitHub, and Settings says that updates come from the package.
+bool updateCheckDisabledByPackager({Map<String, String>? environment}) {
+  if (const bool.fromEnvironment('LCC_DISABLE_UPDATE_CHECK')) return true;
+  final value = (environment ?? Platform.environment)['LCC_DISABLE_UPDATE_CHECK']
+      ?.trim()
+      .toLowerCase();
+  return value != null && value.isNotEmpty && value != '0' && value != 'false';
+}
+
+/// Whether the packager turned the check off. Overridden in tests.
+final updateCheckDisabledProvider =
+    Provider<bool>((ref) => updateCheckDisabledByPackager());
 
 /// Where the release list comes from. Overridden in tests.
 final releasesFetcherProvider =
@@ -105,6 +124,10 @@ class UpdateCheckerNotifier extends Notifier<UpdateCheckState> {
   Object? _lastError;
   bool _checking = false;
 
+  /// The packager turned checking off: no request, no stored list, nothing
+  /// to notify. See [updateCheckDisabledByPackager].
+  bool _disabled = false;
+
   /// Scheduling starts once the stored list and preference have been read;
   /// until then a preference change has nothing to reschedule.
   bool _scheduling = false;
@@ -114,6 +137,11 @@ class UpdateCheckerNotifier extends Notifier<UpdateCheckState> {
 
   @override
   UpdateCheckState build() {
+    if (ref.read(updateCheckDisabledProvider)) {
+      _disabled = true;
+      loaded = Future.value();
+      return _snapshot();
+    }
     ref.onDispose(() => _timer?.cancel());
     ref.listen(updateChannelProvider, (_, _) => _emit());
     ref.listen(updateCheckEnabledProvider, (_, _) {
@@ -124,10 +152,13 @@ class UpdateCheckerNotifier extends Notifier<UpdateCheckState> {
     return _snapshot();
   }
 
-  /// Checks now, whatever the schedule or the enabled switch. A call while a
-  /// check is in flight shares it.
-  Future<void> checkNow() =>
-      _inFlight ??= _check().whenComplete(() => _inFlight = null);
+  /// Checks now, whatever the schedule or the enabled switch, unless the
+  /// packager turned checking off. A call while a check is in flight shares
+  /// it.
+  Future<void> checkNow() {
+    if (_disabled) return Future.value();
+    return _inFlight ??= _check().whenComplete(() => _inFlight = null);
+  }
 
   Future<void> _startScheduling() async {
     await loaded;

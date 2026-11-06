@@ -73,6 +73,44 @@ To dry-run the build and attestations without creating a release, use
 step; a lifecycle violation (typically: that version is already published) is
 reported but does not fail a dry run.
 
+## What the in-app update checker sees
+
+LCC asks `api.github.com/repos/jordilopezr/LCC/releases` shortly after start
+and every 12 hours (Settings → Updates). So, for releases:
+
+- **Publishing is announcing.** A draft is invisible to the checker; users
+  hear of a release within about 12 hours of it being published.
+- **The tag decides the version and the channel.** A tag that does not fit
+  the scheme above is ignored. A release with a stable tag but the
+  pre-release box ticked is treated as a preview, so it never reaches
+  stable-channel users.
+- **The link is the release page** (`github.com/jordilopezr/LCC/releases/…`);
+  LCC opens nothing else and downloads nothing.
+- **Publishing a new edition's stable** tells everyone still on the previous
+  stable edition that it no longer gets security patches. That notice cannot
+  be skipped, only put off, so ship it when the new edition is ready for
+  them.
+- **Deleting a release** withdraws it: on their next check, users who had not
+  upgraded stop being offered it.
+
+### Turning the check off when packaging
+
+A package that delivers LCC's updates itself should turn the check off:
+
+```bash
+# Building from source
+flutter build linux --release --dart-define=LCC_DISABLE_UPDATE_CHECK=true
+
+# Repackaging a release build: set it in the launcher
+LCC_DISABLE_UPDATE_CHECK=1 exec /opt/lightweight-cloud-connector/lightweight-cloud-connector "$@"
+```
+
+Any value other than empty, `0` or `false` turns it off. LCC then sends no
+request, ignores any release list stored by an earlier run, and Settings →
+Updates says the package provides updates. `packaging/arch/PKGBUILD` does
+this in its `/usr/bin` launcher. The packages this workflow builds keep the
+check on: their updates come from GitHub Releases.
+
 ## Verifying a download
 
 Anyone can verify a downloaded artifact against this repository. The

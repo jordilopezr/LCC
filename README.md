@@ -92,6 +92,12 @@ Built by **Jordi Lopez Reyes** with **Flutter** and **Rust** for optimal perform
 *   **IAP tunnel alerts:** immediate notification when a tunnel drops unexpectedly.
 *   **Lifecycle operations:** success or failure notifications for start/stop/reset.
 
+### Update Notifications
+*   **Knows when a new version is out:** checks GitHub Releases shortly after start and every 12 hours, and shows a banner (plus one desktop notification per release) with a link to the release page. It only notifies: nothing is downloaded or installed.
+*   **Stable or Preview channel:** Settings → Updates. Defaults to the channel of the installed build; the Stable channel never offers previews.
+*   **Out-of-support warning:** once a newer edition ships stable, the previous one stops getting security patches, and its users get a stronger notice that can be put off but not skipped.
+*   **Your choice:** automatic checking is on by default and can be turned off in Settings; "Check now" works either way. The request goes to `api.github.com` without credentials or identifiers (see [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md), T10).
+
 ### Customizable Configuration
 *   **Settings dialog:** complete, organized configuration panel.
 *   **Auto-refresh intervals:** 10s, 30s, 60s, 120s, 300s, or custom 5–600s.
@@ -267,6 +273,8 @@ scripts/build_all_containers.sh   # Reproducible builds in podman containers (Ub
 ```
 
 There's also a `PKGBUILD` for Arch Linux in `packaging/arch/`.
+
+Packages that deliver LCC's updates themselves should turn off its update check, so users are not sent to GitHub for a version their package manager will bring: build with `--dart-define=LCC_DISABLE_UPDATE_CHECK=true`, or, when repackaging a release build, start LCC with `LCC_DISABLE_UPDATE_CHECK=1` in its environment. The Arch `PKGBUILD` does the latter in its launcher. LCC then never contacts GitHub, and Settings → Updates says updates come from the package.
 
 ## Roadmap
 
